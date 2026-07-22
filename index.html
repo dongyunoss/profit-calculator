@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>자산운용 수익률 관리</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>자산운용 수익률 관리</h1>
+  <div class="toolbar">
+    <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
+    <button id="btn-backup" class="btn">백업(JSON)</button>
+    <button id="btn-restore" class="btn">복원</button>
+    <input type="file" id="restore-file" accept=".json,application/json" hidden>
+  </div>
+</header>
+
+<main>
+  <section class="cards" id="summary-cards"></section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>계좌 목록</h2>
+      <button id="btn-add-account" class="btn primary">+ 계좌 추가</button>
+    </div>
+    <div class="table-wrap">
+      <table class="grid" id="accounts-table">
+        <thead>
+          <tr>
+            <th>계좌명</th>
+            <th class="num">원금</th>
+            <th class="num">평가금액</th>
+            <th class="num">평가손익</th>
+            <th class="num">기준가</th>
+            <th class="num">좌수</th>
+            <th class="num">기준가 수익률</th>
+            <th class="num">원금대비 수익률</th>
+            <th>최근 평가일</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p id="accounts-empty" class="empty">아직 등록된 계좌가 없습니다. [+ 계좌 추가] 버튼으로 첫 계좌를 만들어 보세요.</p>
+  </section>
+
+  <section class="panel" id="detail-panel" hidden>
+    <div class="panel-head">
+      <h2 id="detail-title"></h2>
+      <button id="btn-delete-account" class="btn danger">계좌 삭제</button>
+    </div>
+
+    <div class="cards" id="detail-cards"></div>
+
+    <div class="forms-row">
+      <form id="form-valuation" class="mini-form">
+        <h3>일일 평가금액 입력</h3>
+        <label>일자 <input type="date" name="date" required></label>
+        <label>평가금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 105000000" required></label>
+        <button class="btn primary">저장</button>
+        <p class="hint">영업일 장 마감 후 계좌 평가금액을 입력하세요. 같은 날짜에 다시 입력하면 덮어씁니다.</p>
+      </form>
+
+      <form id="form-flow" class="mini-form">
+        <h3>입출금</h3>
+        <label>구분
+          <select name="type">
+            <option value="deposit">입금</option>
+            <option value="withdraw">출금</option>
+          </select>
+        </label>
+        <label>일자 <input type="date" name="date" required></label>
+        <label>금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 10000000" required></label>
+        <button class="btn primary">저장</button>
+        <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 왜곡하지 않습니다.</p>
+      </form>
+
+      <form id="form-fee" class="mini-form">
+        <h3>성과보수 수취</h3>
+        <label>일자 <input type="date" name="date" required></label>
+        <label>보수액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 1500000" required></label>
+        <button class="btn warn">수취 및 초기화</button>
+        <p class="hint">보수 차감 후 기준가 1,000 / 수익률 0%로 초기화됩니다. (원금은 차감 후 평가금액으로 재설정)</p>
+      </form>
+    </div>
+
+    <div id="detail-warnings"></div>
+
+    <h3 class="section-title">거래·평가 이력</h3>
+    <div class="table-wrap">
+      <table class="grid" id="history-table">
+        <thead>
+          <tr>
+            <th>일자</th>
+            <th>구분</th>
+            <th class="num">금액</th>
+            <th class="num">좌수 증감</th>
+            <th class="num">좌수</th>
+            <th class="num">기준가</th>
+            <th class="num">평가금액</th>
+            <th class="num">원금</th>
+            <th class="num">일간 수익률</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="footnote">
+  기준가는 1,000좌당 가격이며 계좌 개설 시 1,000.00에서 시작합니다. ·
+  종합 성과 수익률은 계좌별 일간 기준가 수익률을 직전 평가금액 가중으로 체인링크한 값입니다. ·
+  데이터는 이 브라우저(localStorage)에만 저장됩니다. 주기적으로 백업(JSON)을 받아 두세요.
+</footer>
+
+<dialog id="account-dialog">
+  <form id="form-account">
+    <h3>계좌 추가</h3>
+    <label>계좌명 <input type="text" name="name" placeholder="예: 홍길동 일임계좌" required></label>
+    <label>개설일 <input type="date" name="date" required></label>
+    <label>초기 원금(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 100000000" required></label>
+    <div class="dialog-actions">
+      <button type="button" id="btn-cancel-account" class="btn">취소</button>
+      <button type="submit" class="btn primary">추가</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="js/engine.js"></script>
+<script src="js/xlsx-writer.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
