@@ -171,8 +171,8 @@ ok('컴포지트: 평가일 불일치 시 직전 평가금액 가중', () => {
   approx(comp.series[1].ret, 0.04 * 100000000 / 202000000, 1e-9);
 });
 
-// 9. 같은 날짜 이벤트 처리 순서: 입금 → 평가
-ok('같은 날짜: 입금이 평가보다 먼저 처리', () => {
+// 9. 같은 날짜: 입력 순서(seq)대로 처리 — 입금 먼저 기입 후 평가(입금 포함 잔고) 입력
+ok('같은 날짜: 입금 기입 후 평가 입력 → 입금은 직전 기준가로 반영', () => {
   const p = Engine.processAccount({
     id: 'a', name: 'A',
     events: [
@@ -184,6 +184,24 @@ ok('같은 날짜: 입금이 평가보다 먼저 처리', () => {
   // 1/5: 입금 1억 (기준가 1000) → 좌수 2억 → 평가 2.1억 → 기준가 1050
   approx(p.nav, 1050);
   approx(p.navReturn, 0.05);
+});
+
+// 10. 같은 날짜: 평가를 먼저 입력한 뒤 입금 기입 → 기준가 수익률 희석 없음
+ok('같은 날짜: 평가 입력 후 입금 기입 → 그날 기준가로 반영, 희석 없음', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-01-03', amount: 105000000 }, // +5%
+      { id: '3', seq: 3, type: 'deposit', date: '2026-01-03', amount: 50000000 }     // 평가 후 입금
+    ]
+  });
+  approx(p.nav, 1050);                 // 기준가 유지 — 희석되지 않음
+  approx(p.navReturn, 0.05);
+  approx(p.eval, 155000000);           // 평가 1.05억 + 입금 5천만
+  approx(p.principal, 150000000);
+  // 입금 좌수는 그날 기준가 1050으로 발행
+  approx(p.units, 100000000 + 50000000 * 1000 / 1050, 1e-3);
 });
 
 console.log('\nxlsx-writer.js');

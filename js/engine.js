@@ -8,8 +8,11 @@
  *  - 성과보수 수취 시 보수액을 차감(출금과 동일하게 좌수 차감)한 뒤,
  *    기준가를 1,000으로, 좌수와 원금을 차감 후 평가금액으로 재설정하여 수익률을 초기화한다.
  *
- * 이벤트 처리 순서(같은 날짜): 입금 → 출금 → 평가 → 성과보수
- *  (평가금액은 장 마감 후 입력되므로, 당일 입출금은 직전 기준가로 처리된다)
+ * 이벤트 처리 순서(같은 날짜): 사용자가 입력한 순서(seq)대로 처리한다.
+ *  - 입금을 먼저 기입하고 평가금액(입금 포함 잔고)을 나중에 입력하면
+ *    입금은 직전 기준가로 좌수가 발행된 뒤 평가로 기준가가 갱신된다.
+ *  - 평가금액을 먼저 입력하고 입금을 나중에 기입하면(장 마감 후 입금 등)
+ *    입금은 그날 갱신된 기준가로 좌수가 발행되어 수익률이 희석되지 않는다.
  */
 (function (global) {
   'use strict';
@@ -21,9 +24,10 @@
   function sortEvents(events) {
     return events.slice().sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-      var t = EVENT_ORDER[a.type] - EVENT_ORDER[b.type];
-      if (t !== 0) return t;
-      return (a.seq || 0) - (b.seq || 0);
+      // 같은 날짜는 입력 순서(seq)대로 — 실제 발생 순서와 일치시킨다.
+      var s = (a.seq || 0) - (b.seq || 0);
+      if (s !== 0) return s;
+      return EVENT_ORDER[a.type] - EVENT_ORDER[b.type];
     });
   }
 

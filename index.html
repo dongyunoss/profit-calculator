@@ -74,7 +74,10 @@
         <label>일자 <input type="date" name="date" required></label>
         <label>금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 10000000" required></label>
         <button class="btn primary">저장</button>
-        <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 왜곡하지 않습니다.</p>
+        <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 희석/왜곡하지 않습니다.
+        같은 날짜의 내역은 입력한 순서대로 처리됩니다 — 입금액이 당일 평가금액에 포함된 잔고라면
+        입금을 먼저 기입한 뒤 평가금액을 입력하고, 평가를 이미 입력했다면 그냥 입금을 기입하면
+        그날 기준가로 반영됩니다.</p>
       </form>
 
       <form id="form-fee" class="mini-form">
