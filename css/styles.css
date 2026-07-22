@@ -182,6 +182,8 @@ table.grid td.date { color: var(--muted); }
 .tag-withdraw { background: #fdeeee; color: #a33; }
 .tag-valuation{ background: #e9f0fc; color: #2456c6; }
 .tag-fee      { background: #fff3e0; color: #b26a00; }
+.tag-closeout { background: #ececf1; color: #55606e; }
+.tag-closed   { background: #ececf1; color: #55606e; margin-left: 6px; }
 
 /* ---------- 입력 폼 ---------- */
 

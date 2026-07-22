@@ -69,6 +69,7 @@
           <select name="type">
             <option value="deposit">입금</option>
             <option value="withdraw">출금</option>
+            <option value="closeout">전액 출금(해지)</option>
           </select>
         </label>
         <label>일자 <input type="date" name="date" required></label>
@@ -77,7 +78,9 @@
         <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 희석/왜곡하지 않습니다.
         같은 날짜의 내역은 입력한 순서대로 처리됩니다 — 입금액이 당일 평가금액에 포함된 잔고라면
         입금을 먼저 기입한 뒤 평가금액을 입력하고, 평가를 이미 입력했다면 그냥 입금을 기입하면
-        그날 기준가로 반영됩니다.</p>
+        그날 기준가로 반영됩니다.
+        전액 출금(해지)을 선택하면 현재 평가금액 전액이 출금되어 계좌가 해지 상태가 되며,
+        해지 시점까지의 성과는 종합 성과 수익률에 그대로 보존됩니다.</p>
       </form>
 
       <form id="form-fee" class="mini-form">

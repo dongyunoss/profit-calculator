@@ -12,25 +12,32 @@
  *  - 입금/출금/평가는 사용자가 입력한 순서(seq)대로 처리한다.
  *    · 입금 기입 → 평가 입력: 입금은 직전 기준가로 좌수 발행 후 평가로 기준가 갱신
  *    · 평가 입력 → 입금 기입: 입금은 그날 갱신된 기준가로 발행되어 수익률 희석 없음
- *  - 성과보수는 입력 순서와 무관하게 항상 그날의 마지막에 처리한다.
+ *  - 성과보수는 입력 순서와 무관하게 당일 평가 반영 후에 처리한다.
  *    (당일 평가 반영 → 보수 차감 → 초기화 순서가 보장되어야
  *     기준가 수익률이 정확히 0으로 초기화되고 종합 성과 수익률이 오염되지 않는다)
+ *  - 전액출금(해지)은 그날의 가장 마지막(보수 처리 후)에 처리한다.
  */
 (function (global) {
   'use strict';
 
   var NAV_BASE = 1000;
-  var EVENT_ORDER = { deposit: 0, withdraw: 1, valuation: 2, fee: 3 };
-  var EVENT_LABEL = { deposit: '입금', withdraw: '출금', valuation: '평가', fee: '성과보수' };
+  var EVENT_ORDER = { deposit: 0, withdraw: 1, valuation: 2, fee: 3, closeout: 4 };
+  var EVENT_LABEL = { deposit: '입금', withdraw: '출금', valuation: '평가', fee: '성과보수', closeout: '전액출금' };
+
+  // 같은 날짜 안에서의 처리 단계: 일반(입금/출금/평가) → 성과보수 → 전액출금
+  function dayRank(type) {
+    if (type === 'fee') return 1;
+    if (type === 'closeout') return 2;
+    return 0;
+  }
 
   function sortEvents(events) {
     return events.slice().sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-      // 성과보수는 입력 순서와 무관하게 항상 그날의 마지막에 처리한다.
-      // (당일 평가가 반영된 뒤 보수를 차감·초기화해야 수익률이 오염되지 않는다)
-      var af = a.type === 'fee' ? 1 : 0;
-      var bf = b.type === 'fee' ? 1 : 0;
-      if (af !== bf) return af - bf;
+      // 성과보수는 입력 순서와 무관하게 당일 평가 반영 후, 전액출금은 그보다도 뒤에 처리한다.
+      // (당일 평가 → 보수 차감·초기화 → 잔액 전액 출금 순서가 보장되어야 수익률이 오염되지 않는다)
+      var r = dayRank(a.type) - dayRank(b.type);
+      if (r !== 0) return r;
       // 나머지(입금/출금/평가)는 입력 순서(seq)대로 — 실제 발생 순서와 일치시킨다.
       var s = (a.seq || 0) - (b.seq || 0);
       if (s !== 0) return s;
@@ -45,9 +52,10 @@
     var principal = 0;      // 원금 (순입금, 보수 수취 시 재설정)
     var cumIndex = NAV_BASE; // 보수 수취와 무관하게 이어지는 누적 성과 지수
     var totalDeposits = 0, totalWithdrawals = 0, totalFees = 0;
-    var lastValuationDate = null, lastResetDate = null;
+    var lastValuationDate = null, lastResetDate = null, lastCloseoutDate = null;
     var history = [];
     var daily = [];         // 종합(컴포지트) 계산용 일간 수익률
+    var evalByDate = {};    // 종합 가중치 갱신용: 일자별 하루 마감 시점 평가금액
     var warnings = [];
 
     function evalNow() { return units * nav / NAV_BASE; }
@@ -120,7 +128,25 @@
         principal = evalAfter;
         lastResetDate = ev.date;
         pushRow(ev, { deltaUnits: 0, units: units, nav: nav, eval: evalAfter, principal: principal });
+
+      } else if (ev.type === 'closeout') {
+        if (units <= 1e-9) {
+          warnings.push(ev.date + ' 잔액이 없는 상태의 전액 출금은 무시되었습니다.');
+          continue;
+        }
+        // 현재 평가금액 전액을 출금하고 계좌를 비운다 (원금도 0으로 — 음수 원금 방지)
+        var amountOut = evalNow();
+        var deltaOut = -units;
+        totalWithdrawals += amountOut;
+        units = 0;
+        nav = NAV_BASE;   // 이후 재입금 시 새 출발
+        principal = 0;
+        lastCloseoutDate = ev.date;
+        pushRow(ev, { amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0, principal: 0 });
       }
+
+      // 하루 마감 시점 평가금액 기록 (같은 날짜는 마지막 이벤트 값으로 덮어씀)
+      evalByDate[ev.date] = evalNow();
     }
 
     var currentEval = evalNow();
@@ -129,7 +155,10 @@
       name: account.name,
       history: history,
       daily: daily,
+      evalByDate: evalByDate,
       warnings: warnings,
+      isClosed: !!lastCloseoutDate && currentEval <= 1e-6,
+      lastCloseoutDate: lastCloseoutDate,
       units: units,
       nav: nav,
       principal: principal,
@@ -151,30 +180,45 @@
    * 종합 성과 수익률 (컴포지트):
    * 계좌별 일간 기준가 수익률(입출금 왜곡 없음)을 직전 평가금액 가중으로 합산하여
    * 일간 컴포지트 수익률을 만들고, 이를 체인링크하여 지수(1,000 시작)를 산출한다.
-   * 해당 일자에 평가가 없는 계좌는 수익률 0으로 직전 평가금액만큼 가중치에 포함된다.
+   * - 해당 일자에 평가가 없는 계좌는 수익률 0으로 직전 평가금액만큼 가중치에 포함된다.
+   * - 계좌는 첫 평가일부터 컴포지트에 편입된다.
+   * - 입출금·성과보수·전액출금으로 잔액이 바뀌면 그날 마감 잔액(evalByDate)으로
+   *   가중치를 갱신한다. 전액 출금(해지)된 계좌는 이후 가중치 0으로 제외된다.
    */
   function computeComposite(processedAccounts) {
     var byDate = new Map();
+    var dateSet = new Set();
     processedAccounts.forEach(function (p) {
       p.daily.forEach(function (d) {
         if (!byDate.has(d.date)) byDate.set(d.date, []);
         byDate.get(d.date).push({ id: p.id, ret: d.ret, beginEval: d.beginEval, endEval: d.endEval });
+        dateSet.add(d.date);
       });
+      Object.keys(p.evalByDate || {}).forEach(function (d) { dateSet.add(d); });
     });
-    var dates = Array.from(byDate.keys()).sort();
+    var dates = Array.from(dateSet).sort();
     var lastEval = new Map();
     var index = NAV_BASE;
     var series = [];
     dates.forEach(function (date) {
-      var recs = byDate.get(date);
-      var present = new Set(recs.map(function (r) { return r.id; }));
-      var w = 0, wr = 0;
-      recs.forEach(function (r) { w += r.beginEval; wr += r.beginEval * r.ret; });
-      lastEval.forEach(function (ev, id) { if (!present.has(id)) w += ev; });
-      var ret = w > 0 ? wr / w : 0;
-      index *= (1 + ret);
-      recs.forEach(function (r) { lastEval.set(r.id, r.endEval); });
-      series.push({ date: date, ret: ret, index: index });
+      var recs = byDate.get(date) || [];
+      if (recs.length) {
+        var present = new Set(recs.map(function (r) { return r.id; }));
+        var w = 0, wr = 0;
+        recs.forEach(function (r) { w += r.beginEval; wr += r.beginEval * r.ret; });
+        lastEval.forEach(function (ev, id) { if (!present.has(id)) w += ev; });
+        var ret = w > 0 ? wr / w : 0;
+        index *= (1 + ret);
+        series.push({ date: date, ret: ret, index: index });
+        recs.forEach(function (r) { lastEval.set(r.id, r.endEval); });
+      }
+      // 이 날짜에 잔액이 바뀐 계좌의 가중치를 하루 마감 잔액으로 갱신
+      // (첫 평가 전의 계좌는 아직 편입 전이므로 건너뛴다)
+      processedAccounts.forEach(function (p) {
+        if (p.evalByDate && p.evalByDate[date] !== undefined && lastEval.has(p.id)) {
+          lastEval.set(p.id, p.evalByDate[date]);
+        }
+      });
     });
     return { index: index, ret: index / NAV_BASE - 1, series: series };
   }

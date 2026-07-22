@@ -133,7 +133,10 @@
           render();
         }
       }, [
-        h('td', { text: p.name, class: 'name' }),
+        h('td', { class: 'name' }, [
+          h('span', { text: p.name }),
+          p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null
+        ]),
         h('td', { text: fmtWon(p.principal), class: 'num' }),
         h('td', { text: fmtWon(p.eval), class: 'num' }),
         h('td', { text: fmtWon(p.pnl), class: 'num ' + pctClass(p.pnl) }),
@@ -155,7 +158,7 @@
       return;
     }
     panel.hidden = false;
-    el('detail-title').textContent = p.name;
+    el('detail-title').textContent = p.name + (p.isClosed ? ' (해지)' : '');
 
     var cards = el('detail-cards');
     cards.innerHTML = '';
@@ -262,7 +265,7 @@
     ];
     result.processed.forEach(function (p) {
       summaryRows.push([
-        { v: p.name },
+        { v: p.name + (p.isClosed ? ' (해지)' : '') },
         { v: Math.round(p.principal), s: S.INT },
         { v: Math.round(p.eval), s: S.INT },
         { v: Math.round(p.pnl), s: S.INT },
@@ -431,12 +434,30 @@
       e.target.elements.amount.value = '';
     });
 
-    // 입출금
+    // 입출금 · 전액 출금(해지)
+    el('form-flow').elements.type.addEventListener('change', function (e) {
+      var isCloseout = e.target.value === 'closeout';
+      var amt = el('form-flow').elements.amount;
+      amt.disabled = isCloseout;
+      amt.required = !isCloseout;
+      if (isCloseout) amt.value = '';
+      amt.placeholder = isCloseout ? '전액 자동 계산' : '예: 10000000';
+    });
     el('form-flow').addEventListener('submit', function (e) {
       e.preventDefault();
+      var type = e.target.elements.type.value; // deposit | withdraw | closeout
+      if (type === 'closeout') {
+        var date = e.target.elements.date.value;
+        if (!date) { alert('날짜를 입력하세요.'); return; }
+        var pc = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
+        if (!pc || pc.eval <= 0.005) { alert('출금할 잔액이 없습니다.'); return; }
+        if (!confirm('현재 평가금액 전액(' + fmtWon(pc.eval) + ')을 출금하고 계좌를 해지 상태로 만듭니다.\n' +
+          '해지 시점까지의 성과는 종합 성과 수익률에 그대로 보존됩니다. 진행할까요?')) return;
+        addEvent(selectedAccountId, 'closeout', date, 0);
+        return;
+      }
       var v = readForm(e.target);
       if (!v) return;
-      var type = e.target.elements.type.value; // deposit | withdraw
       if (type === 'withdraw') {
         var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
         if (p && v.amount > p.eval + 1e-6 &&

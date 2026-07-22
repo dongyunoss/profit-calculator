@@ -238,6 +238,69 @@ ok('보수 수취 전후 종합 성과 수익률 동일', () => {
   approx(Engine.computeComposite([noFee]).ret, Engine.computeComposite([withFee]).ret, 1e-12);
 });
 
+// 13. 전액 출금: 이익이 난 상태에서도 원금 음수 없이 계좌가 비워져야 함
+ok('전액 출금 → 평가금액·원금·좌수 0, 출금액은 해지 시점 평가금액', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-01-03', amount: 110000000 }, // +10%
+      { id: '3', seq: 3, type: 'closeout', date: '2026-01-04', amount: 0 }
+    ]
+  });
+  approx(p.eval, 0);
+  approx(p.principal, 0);        // 일반 출금이었다면 -1천만이 됐을 상황
+  approx(p.units, 0);
+  approx(p.totalWithdrawals, 110000000);
+  approx(p.cumReturn, 0.10, 1e-9); // 해지 시점까지의 누적 성과는 보존
+  assert.strictEqual(p.isClosed, true);
+  assert.strictEqual(p.lastCloseoutDate, '2026-01-04');
+});
+
+// 14. 해지된 계좌는 이후 종합 성과 수익률 가중치에서 제외
+ok('해지 계좌는 이후 컴포지트 가중치에서 제외, 과거 성과는 보존', () => {
+  const a = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-01-03', amount: 110000000 }, // +10%
+      { id: '3', seq: 3, type: 'closeout', date: '2026-01-04', amount: 0 }
+    ]
+  });
+  const b = Engine.processAccount({
+    id: 'b', name: 'B',
+    events: [
+      { id: '4', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '5', seq: 2, type: 'valuation', date: '2026-01-03', amount: 100000000 }, // 0%
+      { id: '6', seq: 3, type: 'valuation', date: '2026-01-05', amount: 105000000 }  // +5%
+    ]
+  });
+  const comp = Engine.computeComposite([a, b]);
+  // 1/3: (10%×1억 + 0%×1억) ÷ 2억 = 5% → 지수 1050
+  // 1/5: A는 해지되어 제외 → B 단독 +5% → 지수 1050 × 1.05 = 1102.5
+  approx(comp.ret, 0.1025, 1e-9);
+  // 해지가 없었다면(수정 전 버그) A의 1.1억이 수익률 0으로 가중되어 2.38%로 희석됐을 것
+});
+
+// 15. 같은 날 평가 → 보수 수취 → 전액 출금 순서 보장 (입력 순서 무관)
+ok('같은 날: 전액출금·보수를 먼저 기입해도 평가 → 보수 → 전액출금 순서로 처리', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '3', seq: 3, type: 'closeout', date: '2026-01-05', amount: 0 },          // 먼저 기입
+      { id: '4', seq: 4, type: 'fee', date: '2026-01-05', amount: 5000000 },         // 그 다음 기입
+      { id: '2', seq: 5, type: 'valuation', date: '2026-01-05', amount: 110000000 }  // 마지막 기입
+    ]
+  });
+  // 평가 +10% → 보수 500만 차감·초기화 → 잔액 1.05억 전액 출금
+  approx(p.totalFees, 5000000);
+  approx(p.totalWithdrawals, 105000000);
+  approx(p.eval, 0);
+  assert.strictEqual(p.isClosed, true);
+  approx(Engine.computeComposite([p]).ret, 0.10, 1e-9); // 종합 성과는 순수 성과 10%
+});
+
 console.log('\nxlsx-writer.js');
 
 // 10. xlsx 생성 → ZIP 구조 검증
