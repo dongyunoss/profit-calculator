@@ -85,7 +85,10 @@
         <label>일자 <input type="date" name="date" required></label>
         <label>보수액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 1500000" required></label>
         <button class="btn warn">수취 및 초기화</button>
-        <p class="hint">보수 차감 후 기준가 1,000 / 수익률 0%로 초기화됩니다. (원금은 차감 후 평가금액으로 재설정)</p>
+        <p class="hint">보수 차감 후 기준가 1,000 / 수익률 0%로 초기화됩니다. (원금은 차감 후 평가금액으로 재설정)
+        같은 날짜의 평가금액 입력 순서와 무관하게, 보수는 항상 당일 평가가 반영된 뒤 마지막에
+        처리되므로 종합 성과 수익률에 영향을 주지 않습니다. 당일 평가금액은 보수 차감 전
+        금액으로 입력하세요.</p>
       </form>
     </div>
 

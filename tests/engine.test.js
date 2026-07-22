@@ -204,6 +204,40 @@ ok('같은 날짜: 평가 입력 후 입금 기입 → 그날 기준가로 반�
   approx(p.units, 100000000 + 50000000 * 1000 / 1050, 1e-3);
 });
 
+// 11. 보수를 먼저 수취하고 당일 평가를 나중에 입력해도 초기화·종합 수익률이 정확해야 함
+ok('보수 수취 → 당일 평가 입력 순서여도 수익률 0 초기화, 종합 오염 없음', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-07-01', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-07-21', amount: 110000000 }, // +10%
+      { id: '3', seq: 3, type: 'fee', date: '2026-07-22', amount: 5000000 },         // 보수 먼저 기입
+      { id: '4', seq: 4, type: 'valuation', date: '2026-07-22', amount: 110000000 }  // 그 후 당일 평가(보합)
+    ]
+  });
+  // 성과보수는 그날 마지막에 처리 → 평가(보합) 후 보수 차감·초기화
+  approx(p.navReturn, 0);
+  approx(p.nav, 1000);
+  approx(p.eval, 105000000);          // 1.1억 − 보수 500만
+  approx(p.principal, 105000000);
+  const comp = Engine.computeComposite([p]);
+  approx(comp.ret, 0.10, 1e-9);       // 종합 성과 수익률은 순수 성과 10% 유지
+});
+
+// 12. 보수 수취가 종합 성과 수익률을 변화시키지 않는지 (수취 전후 동일)
+ok('보수 수취 전후 종합 성과 수익률 동일', () => {
+  const base = [
+    { id: '1', seq: 1, type: 'deposit', date: '2026-07-01', amount: 100000000 },
+    { id: '2', seq: 2, type: 'valuation', date: '2026-07-21', amount: 110000000 }
+  ];
+  const noFee = Engine.processAccount({ id: 'a', name: 'A', events: base });
+  const withFee = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: base.concat([{ id: '3', seq: 3, type: 'fee', date: '2026-07-21', amount: 5000000 }])
+  });
+  approx(Engine.computeComposite([noFee]).ret, Engine.computeComposite([withFee]).ret, 1e-12);
+});
+
 console.log('\nxlsx-writer.js');
 
 // 10. xlsx 생성 → ZIP 구조 검증
