@@ -390,7 +390,12 @@
       sheets.push({ name: '종합지수', colWidths: [12, 12, 12], rows: idxRows });
     }
 
-    var usedNames = { '종합요약': true, '종합지수': true };
+    // 원금 원장 (계좌를 열별로 나열: 원금 → 추가입금 → 원금합)
+    if (result.processed.length) {
+      sheets.push(buildLedgerSheet(result.processed, S));
+    }
+
+    var usedNames = { '종합요약': true, '종합지수': true, '원금원장': true };
     result.processed.forEach(function (p, i) {
       var base = XlsxWriter.sanitizeSheetName(p.name, '계좌' + (i + 1));
       var name = base, n = 2;
@@ -419,6 +424,74 @@
     });
 
     return sheets;
+  }
+
+  // 원금 원장 시트: 각 계좌를 [구분, 일자, 금액] 3열 블록으로 나란히 배치
+  function buildLedgerSheet(processed, S) {
+    // 계좌별 원장 행 데이터 만들기
+    var columns = processed.map(function (p) {
+      var flows = p.history.filter(function (r) { return FLOW_TYPES[r.type]; });
+      var lines = []; // {k, date, amount, signed, isSum, isFinal, type}
+      flows.forEach(function (f, i) {
+        if (i === 0) {
+          lines.push({ k: '원금', date: '', amount: f.amount, isPrincipal: true });
+        } else {
+          var isDep = f.type === 'deposit';
+          lines.push({ k: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'),
+            date: f.date, amount: (isDep ? 1 : -1) * f.amount, signed: true });
+          lines.push({ k: '원금합', date: '', amount: f.principal, isSum: true });
+        }
+      });
+      lines.push({ k: '현재 원금', date: '', amount: p.principal, isFinal: true });
+      return { p: p, lines: lines };
+    });
+
+    var maxLines = columns.reduce(function (m, c) { return Math.max(m, c.lines.length); }, 0);
+    var rows = [];
+
+    // 1행: 계좌명 + 원금대비 수익률
+    var titleRow = [];
+    columns.forEach(function (c, i) {
+      if (i > 0) titleRow.push(null); // 블록 사이 간격 열
+      titleRow.push({ v: c.p.name + (c.p.isClosed ? ' (해지)' : ''), s: S.BOLD });
+      titleRow.push({ v: '원금대비', s: S.HEAD });
+      titleRow.push({ v: c.p.principalReturn, s: S.PCT });
+    });
+    rows.push(titleRow);
+
+    // 2행: 헤더
+    var headRow = [];
+    columns.forEach(function (c, i) {
+      if (i > 0) headRow.push(null);
+      headRow.push({ v: '구분', s: S.HEAD });
+      headRow.push({ v: '일자', s: S.HEAD });
+      headRow.push({ v: '금액', s: S.HEAD });
+    });
+    rows.push(headRow);
+
+    // 데이터 행
+    for (var r = 0; r < maxLines; r++) {
+      var row = [];
+      columns.forEach(function (c, i) {
+        if (i > 0) row.push(null);
+        var ln = c.lines[r];
+        if (!ln) { row.push(null, null, null); return; }
+        var style = (ln.isPrincipal || ln.isFinal) ? S.BOLD_INT : (ln.isSum ? S.BOLD_INT : S.INT);
+        row.push({ v: ln.k, s: (ln.isPrincipal || ln.isFinal) ? S.BOLD : S.TEXT });
+        row.push({ v: ln.date });
+        row.push({ v: Math.round(ln.amount), s: style });
+      });
+      rows.push(row);
+    }
+
+    // 열 너비
+    var widths = [];
+    columns.forEach(function (c, i) {
+      if (i > 0) widths.push(3);
+      widths.push(10, 12, 16);
+    });
+
+    return { name: '원금원장', colWidths: widths, rows: rows };
   }
 
   function downloadXlsx() {
@@ -516,36 +589,57 @@
       body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
     }
 
-    // ── 계좌별 내역 ──
-    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 내역' }));
+    // ── 계좌별 원금 원장 (원금 → 추가입금 → 원금합) ──
+    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 원금 원장' }));
+    var grid = h('div', { class: 'ledger-grid' });
     perAccount.forEach(function (a) {
-      var head = h('div', { class: 'cashflow-acc-head' }, [
-        h('span', { class: 'cashflow-acc-name', text: a.p.name + (a.p.isClosed ? ' (해지)' : '') }),
-        h('span', { class: 'cashflow-acc-sum' }, [
-          h('span', { class: 'pos', text: '입금 ' + fmtWon(a.deposits) }),
-          h('span', { text: '  ·  ' }),
-          h('span', { class: 'neg', text: '출금 ' + fmtWon(a.withdrawals) }),
-          h('span', { text: '  ·  순원금 ' + fmtWon(a.net) })
-        ])
-      ]);
-      body.appendChild(head);
-
-      if (a.flows.length) {
-        var rows = a.flows.map(function (f) {
-          return h('tr', {}, [
-            h('td', { text: f.date, class: 'date' }),
-            h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
-            h('td', { text: (f.type === 'deposit' ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (f.type === 'deposit' ? 'pos' : 'neg') }),
-            h('td', { text: fmtWon(f.principal), class: 'num' })
-          ]);
-        });
-        body.appendChild(flowTable(['일자', '구분', '입출금액', '이후 원금잔액'], rows));
-      } else {
-        body.appendChild(h('p', { class: 'empty small', text: '입출금 내역 없음' }));
-      }
+      grid.appendChild(ledgerColumn(a.p, a.flows));
     });
+    body.appendChild(grid);
 
     el('cashflow-dialog').showModal();
+  }
+
+  // 한 계좌의 원금 원장 열: 원금(최초) → [추가입금, 원금합] 반복
+  function ledgerColumn(p, flows) {
+    var rows = [];
+    flows.forEach(function (f, i) {
+      if (i === 0) {
+        // 최초 원금 (출금으로 시작하는 경우는 없음)
+        rows.push(h('tr', { class: 'lg-principal' }, [
+          h('td', { text: '원금', class: 'lg-k' }),
+          h('td', { text: '', class: 'lg-d' }),
+          h('td', { text: fmtWon(f.amount), class: 'num lg-v' })
+        ]));
+      } else {
+        var isDep = f.type === 'deposit';
+        rows.push(h('tr', { class: 'lg-add' }, [
+          h('td', { text: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'), class: 'lg-k' }),
+          h('td', { text: f.date, class: 'lg-d' }),
+          h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num lg-v ' + (isDep ? 'pos' : 'neg') })
+        ]));
+        rows.push(h('tr', { class: 'lg-sum' }, [
+          h('td', { text: '원금합', class: 'lg-k' }),
+          h('td', { text: '', class: 'lg-d' }),
+          h('td', { text: fmtWon(f.principal), class: 'num lg-v' })
+        ]));
+      }
+    });
+    // 현재 원금 (합계, 강조)
+    rows.push(h('tr', { class: 'lg-final' }, [
+      h('td', { text: '현재 원금', class: 'lg-k' }),
+      h('td', { text: '', class: 'lg-d' }),
+      h('td', { text: fmtWon(p.principal), class: 'num lg-v' })
+    ]));
+
+    return h('div', { class: 'ledger-col' }, [
+      h('div', { class: 'ledger-head' }, [
+        h('div', { class: 'ledger-name', text: p.name + (p.isClosed ? ' (해지)' : '') }),
+        h('div', { class: 'ledger-ret ' + pctClass(p.principalReturn),
+          text: '원금대비 ' + fmtPct(p.principalReturn) })
+      ]),
+      h('table', { class: 'ledger-table' }, [h('tbody', {}, rows)])
+    ]);
   }
 
   function flowTable(headers, rows) {
