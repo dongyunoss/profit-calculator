@@ -364,6 +364,122 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  // ---------- 원금 입출금 내역 ----------
+
+  // 원금 흐름에 해당하는 이벤트만 추출 (입금·출금·전액출금). 성과보수는 원금 흐름이 아님.
+  var FLOW_TYPES = { deposit: 1, withdraw: 1, closeout: 1 };
+
+  function flowSign(type) { return type === 'deposit' ? 1 : -1; }
+
+  function collectFlows(p) {
+    return p.history.filter(function (r) { return FLOW_TYPES[r.type]; }).map(function (r) {
+      return {
+        date: r.date, type: r.type, label: r.label,
+        amount: r.amount, signed: flowSign(r.type) * r.amount,
+        principal: r.principal, accountId: p.id, accountName: p.name
+      };
+    });
+  }
+
+  function openCashflow() {
+    var processed = computeAll().processed;
+
+    // 계좌별 원금 흐름 + 전체 집계
+    var perAccount = processed.map(function (p) {
+      var flows = collectFlows(p);
+      var dep = 0, wd = 0;
+      flows.forEach(function (f) {
+        if (f.type === 'deposit') dep += f.amount; else wd += f.amount;
+      });
+      return { p: p, flows: flows, deposits: dep, withdrawals: wd, net: dep - wd };
+    });
+
+    var totalDep = 0, totalWd = 0;
+    perAccount.forEach(function (a) { totalDep += a.deposits; totalWd += a.withdrawals; });
+
+    // 요약 카드
+    var cards = el('cashflow-cards');
+    cards.innerHTML = '';
+    cards.appendChild(card('총 입금', fmtWon(totalDep), '전 계좌 누적'));
+    cards.appendChild(card('총 출금', fmtWon(totalWd), '전액출금(해지) 포함'));
+    cards.appendChild(card('순 원금 (입금−출금)', fmtWon(totalDep - totalWd), '현재 투입 원금 합계'));
+    cards.appendChild(card('계좌 수', String(processed.length) + '개',
+      processed.filter(function (p) { return p.isClosed; }).length + '개 해지'));
+
+    var body = el('cashflow-body');
+    body.innerHTML = '';
+
+    if (!processed.length) {
+      body.appendChild(h('p', { class: 'empty', text: '등록된 계좌가 없습니다.' }));
+      el('cashflow-dialog').showModal();
+      return;
+    }
+
+    // ── 전체 통합 내역 (일자순) ──
+    var allFlows = [];
+    perAccount.forEach(function (a) { allFlows = allFlows.concat(a.flows); });
+    allFlows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+
+    body.appendChild(h('h4', { class: 'cashflow-title', text: '전체 통합 내역' }));
+    if (allFlows.length) {
+      var runningNet = 0;
+      var totalRows = allFlows.map(function (f) {
+        runningNet += f.signed;
+        return h('tr', {}, [
+          h('td', { text: f.date, class: 'date' }),
+          h('td', { text: f.accountName, class: 'name' }),
+          h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
+          h('td', { text: (f.signed >= 0 ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (f.type === 'deposit' ? 'pos' : 'neg') }),
+          h('td', { text: fmtWon(runningNet), class: 'num' })
+        ]);
+      });
+      body.appendChild(flowTable(['일자', '계좌', '구분', '입출금액', '누적 순원금'], totalRows));
+    } else {
+      body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
+    }
+
+    // ── 계좌별 내역 ──
+    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 내역' }));
+    perAccount.forEach(function (a) {
+      var head = h('div', { class: 'cashflow-acc-head' }, [
+        h('span', { class: 'cashflow-acc-name', text: a.p.name + (a.p.isClosed ? ' (해지)' : '') }),
+        h('span', { class: 'cashflow-acc-sum' }, [
+          h('span', { class: 'pos', text: '입금 ' + fmtWon(a.deposits) }),
+          h('span', { text: '  ·  ' }),
+          h('span', { class: 'neg', text: '출금 ' + fmtWon(a.withdrawals) }),
+          h('span', { text: '  ·  순원금 ' + fmtWon(a.net) })
+        ])
+      ]);
+      body.appendChild(head);
+
+      if (a.flows.length) {
+        var rows = a.flows.map(function (f) {
+          return h('tr', {}, [
+            h('td', { text: f.date, class: 'date' }),
+            h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
+            h('td', { text: (f.type === 'deposit' ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (f.type === 'deposit' ? 'pos' : 'neg') }),
+            h('td', { text: fmtWon(f.principal), class: 'num' })
+          ]);
+        });
+        body.appendChild(flowTable(['일자', '구분', '입출금액', '이후 원금잔액'], rows));
+      } else {
+        body.appendChild(h('p', { class: 'empty small', text: '입출금 내역 없음' }));
+      }
+    });
+
+    el('cashflow-dialog').showModal();
+  }
+
+  function flowTable(headers, rows) {
+    var thead = h('thead', {}, [
+      h('tr', {}, headers.map(function (t, i) {
+        return h('th', { text: t, class: i === 0 || i === 1 ? '' : (i >= 2 ? 'num' : '') });
+      }))
+    ]);
+    var tbody = h('tbody', {}, rows);
+    return h('div', { class: 'table-wrap' }, [h('table', { class: 'grid' }, [thead, tbody])]);
+  }
+
   // ---------- 백업/복원 ----------
 
   function backupJson() {
@@ -494,6 +610,8 @@
     });
 
     // 상단 도구
+    el('btn-cashflow').addEventListener('click', openCashflow);
+    el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
     el('btn-backup').addEventListener('click', backupJson);
     el('btn-restore').addEventListener('click', function () { el('restore-file').click(); });

@@ -10,6 +10,7 @@
 <header class="topbar">
   <h1>자산운용 수익률 관리</h1>
   <div class="toolbar">
+    <button id="btn-cashflow" class="btn">원금 입출금 내역</button>
     <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
     <button id="btn-backup" class="btn">백업(JSON)</button>
     <button id="btn-restore" class="btn">복원</button>
@@ -137,6 +138,15 @@
       <button type="submit" class="btn primary">추가</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="cashflow-dialog" class="wide-dialog">
+  <div class="dialog-head">
+    <h3>원금 입출금 내역</h3>
+    <button type="button" id="btn-close-cashflow" class="btn">닫기</button>
+  </div>
+  <div class="cards" id="cashflow-cards"></div>
+  <div id="cashflow-body"></div>
 </dialog>
 
 <script src="js/engine.js"></script>
