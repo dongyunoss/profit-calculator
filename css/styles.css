@@ -1,16 +1,22 @@
 :root {
-  --bg: #f4f6f9;
+  --bg: #eef1f6;
   --panel: #ffffff;
-  --border: #dde3ea;
-  --text: #1d2733;
-  --muted: #68788c;
-  --primary: #2456c6;
-  --primary-dark: #1c46a3;
+  --border: #d6dde7;
+  --border-strong: #c2ccd8;
+  --text: #131a24;
+  --text-soft: #3f4b5b;
+  --muted: #5a6a7d;
+  --primary: #1f52c9;
+  --primary-dark: #17408f;
+  --primary-tint: #e8f0fd;
   --danger: #c62828;
   --warn: #b26a00;
-  --pos: #c62828;   /* 한국 관례: 수익은 빨강 */
-  --neg: #1565c0;   /* 손실은 파랑 */
-  --radius: 10px;
+  --pos: #d61f1f;   /* 한국 관례: 수익은 빨강 */
+  --neg: #1560c4;   /* 손실은 파랑 */
+  --pos-tint: #fdeaea;
+  --neg-tint: #e7f0fc;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(17, 30, 50, .04), 0 4px 14px rgba(17, 30, 50, .05);
 }
 
 * { box-sizing: border-box; }
@@ -22,6 +28,7 @@ body {
   color: var(--text);
   font-size: 14px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 .topbar {
@@ -29,16 +36,17 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 14px 24px;
+  padding: 15px 26px;
   background: var(--panel);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 3px rgba(17, 30, 50, .05);
   position: sticky;
   top: 0;
   z-index: 10;
   flex-wrap: wrap;
 }
 
-.topbar h1 { margin: 0; font-size: 19px; }
+.topbar h1 { margin: 0; font-size: 20px; font-weight: 800; letter-spacing: -0.4px; }
 
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
 
@@ -95,20 +103,53 @@ main {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
 }
 
 .card {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  padding: 15px 17px;
+  box-shadow: var(--shadow);
 }
 
-.card-label { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
-.card-value { font-size: 19px; font-weight: 700; letter-spacing: -0.2px; }
-.card-sub { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.card-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  margin-bottom: 6px;
+}
+.card-value {
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.6px;
+  line-height: 1.15;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.card-value.pos, .card-value.neg { display: inline-flex; align-items: baseline; gap: 3px; }
+.card-value.pos::before { content: '▲'; font-size: .58em; transform: translateY(-1px); }
+.card-value.neg::before { content: '▼'; font-size: .58em; transform: translateY(-1px); }
+.card-sub { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.45; }
+
+/* summary 카드에 상단 액센트 바 */
+#summary-cards .card {
+  position: relative;
+  overflow: hidden;
+}
+#summary-cards .card::after {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--primary);
+  opacity: .85;
+}
+#summary-cards .card:has(.card-value.pos)::after { background: var(--pos); }
+#summary-cards .card:has(.card-value.neg)::after { background: var(--neg); }
 
 /* ---------- 패널 ---------- */
 
@@ -116,20 +157,35 @@ main {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 18px 20px;
+  padding: 20px 22px;
+  box-shadow: var(--shadow);
 }
 
 .panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   gap: 12px;
 }
 
-.panel-head h2 { margin: 0; font-size: 16px; }
+.panel-head h2 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  padding-left: 11px;
+  border-left: 4px solid var(--primary);
+  line-height: 1.1;
+}
 
-.section-title { margin: 20px 0 10px; font-size: 14px; }
+.section-title {
+  margin: 22px 0 11px;
+  font-size: 14px;
+  font-weight: 700;
+  padding-left: 9px;
+  border-left: 3px solid var(--border-strong);
+}
 
 .empty { color: var(--muted); text-align: center; padding: 24px 0; margin: 0; }
 
@@ -144,46 +200,61 @@ table.grid {
 }
 
 table.grid th, table.grid td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
+  padding: 11px 12px;
+  border-bottom: 1px solid #eaeef3;
   text-align: left;
   font-variant-numeric: tabular-nums;
 }
 
 table.grid th {
-  color: var(--muted);
+  color: var(--text-soft);
   font-size: 12px;
-  font-weight: 600;
-  background: #f8fafc;
+  font-weight: 700;
+  letter-spacing: .01em;
+  background: #eef2f7;
+  border-bottom: 1.5px solid var(--border-strong);
+  position: sticky;
+  top: 0;
 }
 
+table.grid tbody tr:nth-child(even) { background: #fafbfd; }
+table.grid td { font-size: 13.5px; }
+
 table.grid th.num, table.grid td.num { text-align: right; }
-table.grid td.name { font-weight: 600; }
+table.grid td.name { font-weight: 700; color: var(--text); }
 table.grid td.date { color: var(--muted); }
 
-#accounts-table tbody tr { cursor: pointer; }
-#accounts-table tbody tr:hover { background: #f4f7fb; }
-#accounts-table tbody tr.selected { background: #e9f0fc; }
+#accounts-table tbody tr { cursor: pointer; transition: background .12s; }
+#accounts-table tbody tr:hover { background: #eef4fd; }
+#accounts-table tbody tr.selected {
+  background: var(--primary-tint);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+#accounts-table tbody tr.selected td.name { color: var(--primary-dark); }
 
 .pos { color: var(--pos); }
 .neg { color: var(--neg); }
+
+/* 테이블 안 수익률/손익 셀 강조 (숫자 컬럼의 pos/neg만) */
+table.grid td.num.pos, table.grid td.num.neg { font-weight: 700; }
 
 /* ---------- 구분 태그 ---------- */
 
 .tag {
   display: inline-block;
-  padding: 1px 8px;
+  padding: 2px 10px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
+  border: 1px solid transparent;
 }
 
-.tag-deposit  { background: #e7f2ea; color: #226633; }
-.tag-withdraw { background: #fdeeee; color: #a33; }
-.tag-valuation{ background: #e9f0fc; color: #2456c6; }
-.tag-fee      { background: #fff3e0; color: #b26a00; }
-.tag-closeout { background: #ececf1; color: #55606e; }
-.tag-closed   { background: #ececf1; color: #55606e; margin-left: 6px; }
+.tag-deposit  { background: #dcefe2; color: #1c5a2e; border-color: #bfe0ca; }
+.tag-withdraw { background: #fbe1e1; color: #9d2b2b; border-color: #f2c6c6; }
+.tag-valuation{ background: #e2ecfd; color: #1c46a3; border-color: #c9dcfa; }
+.tag-fee      { background: #ffeccf; color: #96590a; border-color: #f6d59e; }
+.tag-closeout { background: #e2e6ec; color: #48525f; border-color: #d0d6de; }
+.tag-closed   { background: #e2e6ec; color: #48525f; border-color: #d0d6de; margin-left: 7px; }
 
 /* ---------- 입력 폼 ---------- */
 
