@@ -21,6 +21,19 @@
 <main>
   <section class="cards" id="summary-cards"></section>
 
+  <section class="panel" id="chart-panel" hidden>
+    <div class="panel-head">
+      <h2>수익률 추이</h2>
+      <div class="chart-toggle" id="chart-toggle">
+        <button class="chip active" data-mode="composite">종합 성과 지수</button>
+        <button class="chip" data-mode="accounts">계좌별 누적 수익률</button>
+      </div>
+    </div>
+    <div id="chart-legend" class="chart-legend"></div>
+    <div id="chart-area"></div>
+    <p class="chart-note" id="chart-note"></p>
+  </section>
+
   <section class="panel">
     <div class="panel-head">
       <h2>계좌 목록</h2>
@@ -151,6 +164,7 @@
 
 <script src="js/engine.js"></script>
 <script src="js/xlsx-writer.js"></script>
+<script src="js/chart.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

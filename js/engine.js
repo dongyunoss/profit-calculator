@@ -153,6 +153,7 @@
     return {
       id: account.id,
       name: account.name,
+      createdDate: account.createdDate,
       history: history,
       daily: daily,
       evalByDate: evalByDate,

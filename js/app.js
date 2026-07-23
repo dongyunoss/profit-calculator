@@ -95,9 +95,87 @@
 
   function render() {
     var result = computeAll();
+    lastResult = result;
     renderSummary(result);
+    renderChart(result);
     renderAccountsTable(result);
     renderDetail(result);
+  }
+
+  // ---------- 수익률 추이 차트 ----------
+
+  // 계좌별 카테고리 색상 (dataviz 검증 팔레트, 고정 순서로 배정)
+  var SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
+  var COMPOSITE_COLOR = '#2456c6';
+  var chartMode = 'composite';
+  var lastResult = null;
+
+  // 계좌별 누적 수익률 시계열: daily(순수 기준가 수익률)를 체인링크 (보수 리셋 무관, 개설 이후 누적)
+  function accountReturnSeries(p) {
+    var idx = Engine.NAV_BASE, pts = [{ x: p.createdDate || (p.daily[0] && p.daily[0].date), y: 0 }];
+    if (!pts[0].x && p.daily.length) pts[0].x = p.daily[0].date;
+    p.daily.forEach(function (d) {
+      idx *= (1 + d.ret);
+      pts.push({ x: d.date, y: idx / Engine.NAV_BASE - 1 });
+    });
+    return pts;
+  }
+
+  function renderChart(result) {
+    var panel = el('chart-panel');
+    var processed = result.processed;
+    var hasData = result.composite.series.length > 0 ||
+      processed.some(function (p) { return p.daily.length > 0; });
+    panel.hidden = !hasData;
+    if (!hasData) return;
+
+    // 토글 활성화 상태
+    Array.prototype.forEach.call(el('chart-toggle').querySelectorAll('.chip'), function (b) {
+      b.classList.toggle('active', b.getAttribute('data-mode') === chartMode);
+    });
+
+    var legend = el('chart-legend');
+    legend.innerHTML = '';
+    var note = el('chart-note');
+
+    if (chartMode === 'composite') {
+      var comp = result.composite;
+      var pts = [{ x: comp.series.length ? firstDate(processed) : '', y: 0 }].filter(function (p) { return p.x; });
+      comp.series.forEach(function (s) { pts.push({ x: s.date, y: s.index / Engine.NAV_BASE - 1 }); });
+      var cats = pts.map(function (p) { return p.x; });
+      Chart.renderLineChart(el('chart-area'), {
+        series: [{ name: '종합 성과 수익률', color: COMPOSITE_COLOR, points: pts, emphasis: true }],
+        categories: cats
+      });
+      note.textContent = '전 계좌를 자산가중으로 합산한 종합 성과 지수(1,000 시작)의 누적 수익률입니다. 입출금·성과보수의 영향을 배제한 순수 운용 성과입니다.';
+    } else {
+      // 평가 데이터가 있는 계좌만
+      var active = processed.filter(function (p) { return p.daily.length > 0; });
+      var dateSet = {};
+      var seriesList = active.map(function (p, i) {
+        var pts = accountReturnSeries(p);
+        pts.forEach(function (pt) { if (pt.x) dateSet[pt.x] = 1; });
+        var color = SERIES_COLORS[i % SERIES_COLORS.length];
+        // 범례
+        legend.appendChild(h('span', { class: 'legend-item' }, [
+          h('span', { class: 'legend-swatch', style: 'background:' + color }),
+          h('span', { text: p.name + (p.isClosed ? ' (해지)' : '') })
+        ]));
+        return { name: p.name, color: color, points: pts };
+      });
+      var cats = Object.keys(dateSet).sort();
+      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
+      note.textContent = '계좌별 개설 이후 누적 수익률(기준가 방식)입니다. 성과보수 수취로 인한 리셋과 무관하게 순수 성과가 이어집니다.';
+    }
+  }
+
+  function firstDate(processed) {
+    var dates = [];
+    processed.forEach(function (p) {
+      if (p.createdDate) dates.push(p.createdDate);
+      if (p.daily[0]) dates.push(p.daily[0].date);
+    });
+    return dates.sort()[0] || '';
   }
 
   function card(label, value, sub, cls) {
@@ -607,6 +685,20 @@
       selectedAccountId = null;
       saveState();
       render();
+    });
+
+    // 수익률 추이 차트 토글
+    el('chart-toggle').addEventListener('click', function (e) {
+      var btn = e.target.closest('.chip');
+      if (!btn) return;
+      chartMode = btn.getAttribute('data-mode');
+      if (lastResult) renderChart(lastResult);
+    });
+    // 창 크기 변경 시 차트 리플로우
+    var resizeTimer;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () { if (lastResult) renderChart(lastResult); }, 150);
     });
 
     // 상단 도구
