@@ -1,2 +1,4 @@
 tests/out/
 node_modules/
+js/xlsx.min.js
+sample-import.xlsx

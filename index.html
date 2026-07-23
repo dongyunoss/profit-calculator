@@ -12,9 +12,11 @@
   <div class="toolbar">
     <button id="btn-cashflow" class="btn">원금 입출금 내역</button>
     <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
+    <button id="btn-import-xlsx" class="btn primary">엑셀 임포트</button>
     <button id="btn-backup" class="btn">백업(JSON)</button>
     <button id="btn-restore" class="btn">복원</button>
     <input type="file" id="restore-file" accept=".json,application/json" hidden>
+    <input type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
   </div>
 </header>
 
@@ -191,6 +193,17 @@
   </form>
 </dialog>
 
+<dialog id="import-dialog" class="wide-dialog">
+  <div class="dialog-head">
+    <h3>엑셀 임포트</h3>
+    <button type="button" id="btn-close-import" class="btn">취소</button>
+  </div>
+  <div id="import-preview" style="overflow-y: auto; max-height: 400px;"></div>
+  <div style="margin-top: 16px; text-align: right;">
+    <button type="button" id="btn-import-confirm" class="btn primary">계좌 등록</button>
+  </div>
+</dialog>
+
 <dialog id="cashflow-dialog" class="wide-dialog">
   <div class="dialog-head">
     <h3>원금 입출금 내역</h3>
@@ -201,6 +214,7 @@
 </dialog>
 
 <script src="js/engine.js"></script>
+<script src="js/xlsx.min.js"></script>
 <script src="js/xlsx-writer.js"></script>
 <script src="js/chart.js"></script>
 <script src="js/app.js"></script>

@@ -743,6 +743,156 @@
     reader.readAsText(file);
   }
 
+  // ---------- 엑셀 임포트 ----------
+
+  var importedAccounts = null;
+
+  function parseImportXlsx(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var workbook = XLSX.read(reader.result, { type: 'array' });
+        var accounts = extractAccountsFromXlsx(workbook);
+        if (accounts.length === 0) {
+          alert('계좌 데이터를 찾을 수 없습니다.');
+          return;
+        }
+        importedAccounts = accounts;
+        showImportPreview(accounts);
+        el('import-dialog').showModal();
+      } catch (e) {
+        alert('엑셀 파일을 읽을 수 없습니다: ' + e.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function extractAccountsFromXlsx(workbook) {
+    var sheet = workbook.Sheets[workbook.SheetNames[0]];
+    if (!sheet) return [];
+    var rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+    var accountMap = {};
+    rows.forEach(function (row, idx) {
+      var accName = String(row['계좌명'] || row['name'] || '').trim();
+      var dateStr = String(row['일자'] || row['date'] || '').trim();
+      var typeStr = String(row['구분'] || row['type'] || '').trim();
+      var amtStr = String(row['금액'] || row['amount'] || '').trim();
+
+      if (!accName || !dateStr || !typeStr || !amtStr) return;
+
+      var date = parseDate(dateStr);
+      if (!date) return;
+
+      var type = normalizeType(typeStr);
+      if (!type) return;
+
+      var amount = parseFloat(amtStr);
+      if (isNaN(amount) || amount < 0) return;
+
+      if (!accountMap[accName]) {
+        accountMap[accName] = { name: accName, events: [] };
+      }
+      accountMap[accName].events.push({ date: date, type: type, amount: amount });
+    });
+
+    // 계좌 생성
+    var accounts = [];
+    Object.keys(accountMap).forEach(function (name) {
+      var data = accountMap[name];
+      if (data.events.length === 0) return;
+
+      // 날짜별로 정렬
+      data.events.sort(function (a, b) {
+        return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0);
+      });
+
+      // 계좌 생성
+      var events = [];
+      var seq = 1;
+      var createdDate = data.events[0].date;
+
+      data.events.forEach(function (ev) {
+        events.push({
+          id: 'ev' + seq,
+          seq: seq,
+          type: ev.type,
+          date: ev.date,
+          amount: ev.amount
+        });
+        seq++;
+      });
+
+      accounts.push({
+        id: uid(),
+        name: data.name,
+        createdDate: createdDate,
+        events: events
+      });
+    });
+
+    return accounts;
+  }
+
+  function parseDate(str) {
+    var match = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) return null;
+    var y = parseInt(match[1], 10);
+    var m = parseInt(match[2], 10);
+    var d = parseInt(match[3], 10);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  function normalizeType(str) {
+    var m = str.toLowerCase();
+    if (m.includes('입금') || m === 'deposit') return 'deposit';
+    if (m.includes('출금') || m === 'withdraw') return 'withdraw';
+    if (m.includes('해지') || m === 'closeout') return 'closeout';
+    if (m.includes('평가') || m === 'valuation') return 'valuation';
+    if (m.includes('보수') || m === 'fee') return 'fee';
+    return null;
+  }
+
+  function showImportPreview(accounts) {
+    var container = el('import-preview');
+    container.innerHTML = '';
+
+    var summary = h('div', { style: 'padding: 8px 0; border-bottom: 1px solid #ccc; margin-bottom: 12px;' }, [
+      h('p', { text: '등록할 계좌 수: ' + accounts.length, style: 'margin: 0;' })
+    ]);
+    container.appendChild(summary);
+
+    accounts.forEach(function (acc) {
+      var proc = Engine.processAccount(acc);
+      var card = h('div', { style: 'padding: 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;' }, [
+        h('div', { style: 'font-weight: bold; margin-bottom: 8px;', text: acc.name }),
+        h('div', { style: 'font-size: 0.9em; color: #666;' }, [
+          h('div', { text: '이벤트: ' + acc.events.length + '건' }),
+          h('div', { text: '원금: ' + fmtWon(proc.principal) }),
+          h('div', { text: '평가금액: ' + fmtWon(proc.eval) }),
+          h('div', { text: '기준가: ' + proc.nav.toFixed(2) })
+        ])
+      ]);
+      container.appendChild(card);
+    });
+  }
+
+  function confirmImportXlsx() {
+    if (!importedAccounts) return;
+    if (!confirm('이 계좌들을 추가하시겠습니까?')) return;
+
+    importedAccounts.forEach(function (acc) {
+      state.accounts.push(acc);
+    });
+
+    saveState();
+    selectedAccountId = null;
+    render();
+    el('import-dialog').close();
+    importedAccounts = null;
+  }
+
   // ---------- 초기화 ----------
 
   function init() {
@@ -864,6 +1014,13 @@
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
+    el('btn-import-xlsx').addEventListener('click', function () { el('import-file').click(); });
+    el('import-file').addEventListener('change', function (e) {
+      if (e.target.files[0]) parseImportXlsx(e.target.files[0]);
+      e.target.value = '';
+    });
+    el('btn-close-import').addEventListener('click', function () { el('import-dialog').close(); });
+    el('btn-import-confirm').addEventListener('click', confirmImportXlsx);
     el('btn-backup').addEventListener('click', backupJson);
     el('btn-restore').addEventListener('click', function () { el('restore-file').click(); });
     el('restore-file').addEventListener('change', function (e) {
