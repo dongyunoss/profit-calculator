@@ -255,6 +255,9 @@
       warnBox.appendChild(h('div', { class: 'warning', text: '⚠ ' + w }));
     });
 
+    renderLedgerTable(p);
+    renderDailyTable(p);
+
     var tbody = el('history-table').querySelector('tbody');
     tbody.innerHTML = '';
     p.history.slice().reverse().forEach(function (row) {
@@ -278,10 +281,67 @@
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
         h('td', { text: fmtWon(row.principal), class: 'num' }),
+        h('td', { text: row.type === 'valuation' && row.principal > 0 ? fmtPct((row.eval - row.principal) / row.principal) : '-',
+          class: 'num ' + (row.type === 'valuation' && row.principal > 0 ? pctClass((row.eval - row.principal) / row.principal) : '') }),
         h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) }),
         h('td', {}, [delBtn])
       ]));
     });
+  }
+
+  // 원금 원장: 원금(최초) → [추가입금, 원금합] 반복 → 현재 원금
+  function renderLedgerTable(p) {
+    var tbody = el('ledger-table').querySelector('tbody');
+    tbody.innerHTML = '';
+    var flows = p.history.filter(function (r) { return FLOW_TYPES[r.type]; });
+    flows.forEach(function (f, i) {
+      if (i === 0) {
+        tbody.appendChild(h('tr', { class: 'lg-principal' }, [
+          h('td', { text: '원금' }),
+          h('td', { text: '', class: 'date' }),
+          h('td', { text: fmtWon(f.amount), class: 'num' })
+        ]));
+      } else {
+        var isDep = f.type === 'deposit';
+        tbody.appendChild(h('tr', {}, [
+          h('td', { text: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금') }),
+          h('td', { text: f.date, class: 'date' }),
+          h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (isDep ? 'pos' : 'neg') })
+        ]));
+        tbody.appendChild(h('tr', { class: 'lg-sum' }, [
+          h('td', { text: '원금합' }),
+          h('td', { text: '', class: 'date' }),
+          h('td', { text: fmtWon(f.principal), class: 'num' })
+        ]));
+      }
+    });
+    tbody.appendChild(h('tr', { class: 'lg-final' }, [
+      h('td', { text: '현재 원금' }),
+      h('td', { text: '', class: 'date' }),
+      h('td', { text: fmtWon(p.principal), class: 'num' })
+    ]));
+    if (!flows.length) {
+      tbody.appendChild(h('tr', {}, [h('td', { text: '내역 없음', class: 'empty small', colspan: '3' })]));
+    }
+  }
+
+  // 일별 평가·수익률: 일자 · 평가금액 · 원금대비 수익률 · 일간 수익률
+  function renderDailyTable(p) {
+    var tbody = el('daily-table').querySelector('tbody');
+    tbody.innerHTML = '';
+    var vals = p.history.filter(function (r) { return r.type === 'valuation'; });
+    vals.slice().reverse().forEach(function (row) {
+      var pr = row.principal > 0 ? (row.eval - row.principal) / row.principal : null;
+      tbody.appendChild(h('tr', {}, [
+        h('td', { text: row.date, class: 'date' }),
+        h('td', { text: fmtWon(row.eval), class: 'num' }),
+        h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
+        h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) })
+      ]));
+    });
+    if (!vals.length) {
+      tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '4' })]));
+    }
   }
 
   // ---------- 이벤트 추가 ----------
@@ -405,9 +465,11 @@
       var rows = [[
         { v: '일자', s: S.HEAD }, { v: '구분', s: S.HEAD }, { v: '금액', s: S.HEAD },
         { v: '좌수 증감', s: S.HEAD }, { v: '좌수', s: S.HEAD }, { v: '기준가', s: S.HEAD },
-        { v: '평가금액', s: S.HEAD }, { v: '원금', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }
+        { v: '평가금액', s: S.HEAD }, { v: '원금', s: S.HEAD },
+        { v: '원금대비 수익률', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }
       ]];
       p.history.forEach(function (row) {
+        var pr = (row.type === 'valuation' && row.principal > 0) ? (row.eval - row.principal) / row.principal : null;
         rows.push([
           { v: row.date },
           { v: row.label },
@@ -417,10 +479,11 @@
           { v: row.nav, s: S.DEC },
           { v: Math.round(row.eval), s: S.INT },
           { v: Math.round(row.principal), s: S.INT },
+          pr === null ? null : { v: pr, s: S.PCT },
           row.dailyReturn === null ? null : { v: row.dailyReturn, s: S.PCT }
         ]);
       });
-      sheets.push({ name: name, colWidths: [12, 10, 14, 14, 14, 10, 14, 14, 12], rows: rows });
+      sheets.push({ name: name, colWidths: [12, 10, 14, 14, 14, 10, 14, 14, 14, 12], rows: rows });
     });
 
     return sheets;

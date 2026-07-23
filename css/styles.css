@@ -238,6 +238,31 @@ table.grid td.date { color: var(--muted); }
 /* 테이블 안 수익률/손익 셀 강조 (숫자 컬럼의 pos/neg만) */
 table.grid td.num.pos, table.grid td.num.neg { font-weight: 700; }
 
+/* 상세: 원금 원장 + 일별 평가 2단 배치 */
+.detail-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 820px) {
+  .detail-split { grid-template-columns: 1fr; }
+}
+.detail-block { min-width: 0; }
+.detail-block .table-wrap { max-height: 420px; overflow-y: auto; }
+
+/* 원금 원장 행 강조 (grid 테이블 내) */
+#ledger-table tr.lg-principal td,
+#ledger-table tr.lg-final td { font-weight: 800; color: var(--text); }
+#ledger-table tr.lg-principal td { background: #f4f7fc; }
+#ledger-table tr.lg-sum td { background: #fbfcfe; font-weight: 600; }
+#ledger-table tr.lg-final td {
+  background: var(--primary-tint);
+  border-top: 2px solid var(--border-strong);
+}
+#ledger-table tr.lg-final td:first-child { color: var(--primary-dark); }
+#ledger-table td:first-child { font-weight: 600; }
+
 /* ---------- 구분 태그 ---------- */
 
 .tag {

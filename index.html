@@ -111,7 +111,42 @@
 
     <div id="detail-warnings"></div>
 
-    <h3 class="section-title">거래·평가 이력</h3>
+    <div class="detail-split">
+      <div class="detail-block">
+        <h3 class="section-title">원금 원장</h3>
+        <div class="table-wrap">
+          <table class="grid" id="ledger-table">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>일자</th>
+                <th class="num">금액</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="detail-block">
+        <h3 class="section-title">일별 평가 · 수익률</h3>
+        <div class="table-wrap">
+          <table class="grid" id="daily-table">
+            <thead>
+              <tr>
+                <th>일자</th>
+                <th class="num">평가금액</th>
+                <th class="num">원금대비 수익률</th>
+                <th class="num">일간 수익률</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="section-title">상세 거래·평가 이력</h3>
     <div class="table-wrap">
       <table class="grid" id="history-table">
         <thead>
@@ -124,6 +159,7 @@
             <th class="num">기준가</th>
             <th class="num">평가금액</th>
             <th class="num">원금</th>
+            <th class="num">원금대비</th>
             <th class="num">일간 수익률</th>
             <th></th>
           </tr>
