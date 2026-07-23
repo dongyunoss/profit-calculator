@@ -336,12 +336,13 @@
         h('td', { text: row.date, class: 'date' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
         h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
+        h('td', { text: fmtPct(row.nav / Engine.NAV_BASE - 1), class: 'num ' + pctClass(row.nav / Engine.NAV_BASE - 1) }),
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtNum(row.units, 0), class: 'num' })
       ]));
     });
     if (!vals.length) {
-      tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '5' })]));
+      tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '6' })]));
     }
   }
 
