@@ -231,11 +231,7 @@
     result.processed.forEach(function (p) {
       var nameCell = h('td', { class: 'name' }, [
         h('span', { text: p.name }),
-        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
-        h('button', {
-          class: 'icon-btn edit-name', title: '이름 변경', 'aria-label': '이름 변경', text: '✎',
-          onclick: function (e) { e.stopPropagation(); renameAccount(p.id); }
-        })
+        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null
       ]);
       var tr = h('tr', {
         class: p.id === selectedAccountId ? 'selected' : '',
@@ -1079,6 +1075,11 @@
       if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. 진행할까요?')) return;
       addEvent(selectedAccountId, 'fee', v.date, v.amount);
       e.target.elements.amount.value = '';
+    });
+
+    // 계좌 이름 변경 (상세 창 제목 옆 연필 아이콘)
+    el('btn-rename-account').addEventListener('click', function () {
+      renameAccount(selectedAccountId);
     });
 
     // 계좌 삭제
