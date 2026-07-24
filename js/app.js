@@ -308,11 +308,6 @@
           h('td', { text: f.date, class: 'date' }),
           h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (isDep ? 'pos' : 'neg') })
         ]));
-        tbody.appendChild(h('tr', { class: 'lg-sum' }, [
-          h('td', { text: '원금합' }),
-          h('td', { text: '', class: 'date' }),
-          h('td', { text: fmtWon(f.principal), class: 'num' })
-        ]));
       }
     });
     tbody.appendChild(h('tr', { class: 'lg-final' }, [
@@ -504,7 +499,6 @@
           var isDep = f.type === 'deposit';
           lines.push({ k: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'),
             date: f.date, amount: (isDep ? 1 : -1) * f.amount, signed: true });
-          lines.push({ k: '원금합', date: '', amount: f.principal, isSum: true });
         }
       });
       lines.push({ k: '현재 원금', date: '', amount: p.principal, isFinal: true });
@@ -682,11 +676,6 @@
           h('td', { text: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'), class: 'lg-k' }),
           h('td', { text: f.date, class: 'lg-d' }),
           h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num lg-v ' + (isDep ? 'pos' : 'neg') })
-        ]));
-        rows.push(h('tr', { class: 'lg-sum' }, [
-          h('td', { text: '원금합', class: 'lg-k' }),
-          h('td', { text: '', class: 'lg-d' }),
-          h('td', { text: fmtWon(f.principal), class: 'num lg-v' })
         ]));
       }
     });

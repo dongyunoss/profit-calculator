@@ -439,7 +439,7 @@ dialog label {
 /* ---------- 원금 입출금 내역 모달 ---------- */
 
 dialog.wide-dialog {
-  width: min(920px, 94vw);
+  width: min(1200px, 96vw);
   max-height: 88vh;
   overflow-y: auto;
 }
