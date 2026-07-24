@@ -228,19 +228,25 @@
     el('accounts-empty').hidden = state.accounts.length > 0;
     el('accounts-table').hidden = state.accounts.length === 0;
 
-    var total = result.processed.length;
-    result.processed.forEach(function (p, idx) {
+    result.processed.forEach(function (p) {
+      var nameCell = h('td', { class: 'name' }, [
+        h('span', { text: p.name }),
+        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
+        h('button', {
+          class: 'icon-btn edit-name', title: '이름 변경', 'aria-label': '이름 변경', text: '✎',
+          onclick: function (e) { e.stopPropagation(); renameAccount(p.id); }
+        })
+      ]);
       var tr = h('tr', {
         class: p.id === selectedAccountId ? 'selected' : '',
+        'data-id': p.id,
+        draggable: 'true',
         onclick: function () {
           selectedAccountId = (selectedAccountId === p.id) ? null : p.id;
           render();
         }
       }, [
-        h('td', { class: 'name' }, [
-          h('span', { text: p.name }),
-          p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null
-        ]),
+        nameCell,
         h('td', { text: fmtWon(p.principal), class: 'num' }),
         h('td', { text: fmtWon(p.eval), class: 'num' }),
         h('td', { text: fmtWon(p.pnl), class: 'num ' + pctClass(p.pnl) }),
@@ -249,33 +255,82 @@
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
         h('td', { text: fmtPct(p.principalReturn), class: 'num ' + pctClass(p.principalReturn) }),
         h('td', { text: p.lastValuationDate || '-', class: 'date' }),
-        h('td', { class: 'reorder-cell' }, [
-          moveBtn('▲', '위로', idx === 0, function () { moveAccount(p.id, -1); }),
-          moveBtn('▼', '아래로', idx === total - 1, function () { moveAccount(p.id, 1); })
+        h('td', { class: 'drag-cell', title: '끌어서 순서 변경' }, [
+          h('span', { class: 'drag-handle', text: '⠿' })
         ])
       ]);
+      attachRowDrag(tr, p.id);
       tbody.appendChild(tr);
     });
   }
 
-  // 계좌 목록 순서 이동 버튼 (행 클릭 선택과 겹치지 않도록 stopPropagation)
-  function moveBtn(label, title, disabled, onclick) {
-    var attrs = {
-      class: 'btn tiny reorder-btn', text: label, title: title,
-      onclick: function (e) { e.stopPropagation(); if (!disabled) onclick(); }
-    };
-    if (disabled) attrs.disabled = 'disabled';
-    return h('button', attrs);
+  // 계좌 이름 변경
+  function renameAccount(id) {
+    var acc = getAccount(id);
+    if (!acc) return;
+    var name = prompt('새 계좌명을 입력하세요.', acc.name);
+    if (name === null) return; // 취소
+    name = name.trim();
+    if (!name) { alert('계좌명을 입력하세요.'); return; }
+    acc.name = name;
+    saveState();
+    render();
   }
 
-  function moveAccount(id, dir) {
-    var i = state.accounts.findIndex(function (a) { return a.id === id; });
-    if (i < 0) return;
-    var j = i + dir;
-    if (j < 0 || j >= state.accounts.length) return;
-    var tmp = state.accounts[i];
-    state.accounts[i] = state.accounts[j];
-    state.accounts[j] = tmp;
+  // ── 계좌 목록 드래그 순서 변경 ──
+  var dragSrcId = null;
+
+  function clearDragMarks(tbody) {
+    if (!tbody) return; // drop 후 재렌더로 행이 분리된 경우
+    Array.prototype.forEach.call(
+      tbody.querySelectorAll('.drag-over-top, .drag-over-bottom'),
+      function (r) { r.classList.remove('drag-over-top', 'drag-over-bottom'); }
+    );
+  }
+
+  function attachRowDrag(tr, id) {
+    tr.addEventListener('dragstart', function (e) {
+      dragSrcId = id;
+      tr.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', id); } catch (_) { /* IE 등 */ }
+    });
+    tr.addEventListener('dragend', function () {
+      dragSrcId = null;
+      tr.classList.remove('dragging');
+      clearDragMarks(tr.parentNode);
+    });
+    tr.addEventListener('dragover', function (e) {
+      if (dragSrcId === null || dragSrcId === id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var rect = tr.getBoundingClientRect();
+      var after = (e.clientY - rect.top) > rect.height / 2;
+      tr.classList.toggle('drag-over-bottom', after);
+      tr.classList.toggle('drag-over-top', !after);
+    });
+    tr.addEventListener('dragleave', function () {
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+    });
+    tr.addEventListener('drop', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var after = tr.classList.contains('drag-over-bottom');
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+      if (dragSrcId === null || dragSrcId === id) return;
+      reorderAccounts(dragSrcId, id, after);
+    });
+  }
+
+  function reorderAccounts(srcId, targetId, after) {
+    var accts = state.accounts;
+    var from = accts.findIndex(function (a) { return a.id === srcId; });
+    if (from < 0) return;
+    var moved = accts.splice(from, 1)[0];
+    // splice 후 인덱스가 변동됐을 수 있으니 target을 다시 찾는다
+    var t = accts.findIndex(function (a) { return a.id === targetId; });
+    if (t < 0) { accts.splice(from, 0, moved); return; } // 안전 복구
+    accts.splice(after ? t + 1 : t, 0, moved);
     saveState();
     render();
   }
@@ -1024,19 +1079,6 @@
       if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. 진행할까요?')) return;
       addEvent(selectedAccountId, 'fee', v.date, v.amount);
       e.target.elements.amount.value = '';
-    });
-
-    // 계좌 이름 변경
-    el('btn-rename-account').addEventListener('click', function () {
-      var acc = getAccount(selectedAccountId);
-      if (!acc) return;
-      var name = prompt('새 계좌명을 입력하세요.', acc.name);
-      if (name === null) return; // 취소
-      name = name.trim();
-      if (!name) { alert('계좌명을 입력하세요.'); return; }
-      acc.name = name;
-      saveState();
-      render();
     });
 
     // 계좌 삭제
