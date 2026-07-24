@@ -3,3 +3,4 @@ node_modules/
 js/xlsx.min.js
 sample-import.xlsx
 all_accounts_backup.json
+combined_accounts.json
