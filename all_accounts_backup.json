@@ -1,0 +1,3287 @@
+{
+  "accounts": [
+    {
+      "id": "torus-kim-joong",
+      "name": "토러스 기중현",
+      "createdDate": "2026-01-09",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "deposit",
+          "date": "2026-01-09",
+          "amount": 500000000
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "deposit",
+          "date": "2026-01-30",
+          "amount": 1000000000
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "deposit",
+          "date": "2026-02-06",
+          "amount": 12500000000
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 15983421256
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 18708108442
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 19180044512
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 19204893200
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 19448178998
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 19482750579
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 20078747257
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 20037303127
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 20142701208
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 19722005916
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 20998584932
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 22830377789
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 23319917241
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 23306746564
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 24730991548
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 24154956786
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 24759828826
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 25161287266
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 23538342340
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 23465416036
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 22897607945
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 22798103910
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 24284351340
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 24267628489
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 25077760151
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 25834704652
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 25587976857
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 26577486214
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 27934363359
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 27194116759
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 27118157884
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 26865774544
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 25685138814
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 27720746567
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 25898137367
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 26054000967
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 27342434967
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 28671191300
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 29538995300
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 30363320100
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 31901865100
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 31894250500
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 32602179100
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 31547797806
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 31463705456
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 32906589206
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 29829820173
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 29940796953
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "deposit",
+          "date": "2026-07-01",
+          "amount": 15815338739
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 44777021456
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 41501183009
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 44720615489
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 44634859689
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 42223150989
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 39825781879
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 40315814409
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 41204254209
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 36632456986
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 37486014886
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 39881239803
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 36017072903
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 34681595303
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 36477603403
+        },
+        {
+          "id": "ev67",
+          "seq": 67,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 36765692403
+        },
+        {
+          "id": "ev68",
+          "seq": 68,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 38129843016
+        }
+      ]
+    },
+    {
+      "id": "torus-kim-young",
+      "name": "토러스 김여옥",
+      "createdDate": "2026-02-05",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "deposit",
+          "date": "2026-02-05",
+          "amount": 4000000000
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 8042788404
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 9423044448
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 9660874998
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 9673471212
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 9795889036
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 9809692214
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 10105950064
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 10084392194
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 10137456843
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 9926825430
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 10566367168
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 11484524410
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 11730504984
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 11725272239
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 12442743449
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 12154601612
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 12458272032
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 12661216152
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 11848271657
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 11811861907
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 11527477195
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 11476973132
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 12136585250
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 12212812755
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 12623662269
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 13004658426
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 12880591472
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 13379126530
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 14062103532
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 13683400029
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 13645363140
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 13645363140
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 12922053660
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 13948035287
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 13031174287
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 13109571287
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 13757731787
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 14425989718
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 14862538218
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 15277188818
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 16051137818
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 16047273328
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 16403333028
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 15868651205
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 15771142685
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 16544201265
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 14995674239
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 15051240224
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "deposit",
+          "date": "2026-07-01",
+          "amount": 1760753732
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 16319646574
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 14869268145
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 16080860475
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 16050027015
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 15182118815
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 14318463545
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 14495463665
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 14815757465
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 13169899055
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 13500298155
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 14362754160
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 12971032810
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 12489553810
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 13136191160
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 13239614260
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 13730787823
+        }
+      ]
+    },
+    {
+      "id": "w-joong",
+      "name": "더블류 기중현",
+      "createdDate": "2026-02-09",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 16062923795
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "withdraw",
+          "date": "2026-03-30",
+          "amount": 2100000000
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 16964944002
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 17279455972
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 17426166014
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 17607014166
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 17555576886
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 18018566856
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 18088303496
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 18248042656
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 18016918576
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 19020964285
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 20592975565
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 20684125841
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 20691004736
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 21656562506
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 21127435914
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 21944973921
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 22287447785
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 21017155095
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 21074406281
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 20632567305
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 20589715155
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 21786609152
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 21785853833
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 22389568943
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 22844430583
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 22522332653
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 22978338461
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 23820993771
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 23840861214
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 23438560244
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 22124231674
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 20185111444
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 21966218324
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 21247241314
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 21489398124
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 22447524804
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 23534295594
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 23953386041
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 24358756571
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 24922652958
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 24756614187
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 25047359657
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "deposit",
+          "date": "2026-06-23",
+          "amount": 20611806453
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 20611806453
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 21350704646
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 22157006986
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 20995741906
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 21286573951
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 20890515191
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 19542708411
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 20357115713
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 20409686453
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 19599458123
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 18594555213
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 18557100469
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 18989965979
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 17680977988
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 17757034868
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 18538872508
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 17522200361
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 16911780155
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 17411195405
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 17431365465
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 17943657995
+        }
+      ]
+    },
+    {
+      "id": "son-joong",
+      "name": "손지웅 기중현",
+      "createdDate": "2026-02-06",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "deposit",
+          "date": "2026-02-06",
+          "amount": 5000000000
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 32307985182
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "deposit",
+          "date": "2026-03-17",
+          "amount": 29908035175
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-04-17",
+          "amount": 26098024365
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 26328647832
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 26802184249
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 27625950521
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 27929595904
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 28594167294
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "withdraw",
+          "date": "2026-04-27",
+          "amount": 2400000000
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 26635567177
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 26329375428
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 26086249246
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 25507090569
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 25417383365
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 25835923985
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 26844006108
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 27073867609
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 27666162414
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 27123226560
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 26829092769
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 27210222196
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 26101751278
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 25765998203
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 25118618223
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 24848408144
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 26179036718
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 26806490507
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 27644102770
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 28202487928
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "withdraw",
+          "date": "2026-05-28",
+          "amount": 9200000000
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 18591245487
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 18993819991
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 19584524047
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 19000433061
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 18837084690
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 17758771467
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 15719278525
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 16869507714
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 16248438632
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 16280962577
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 16691726966
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 17250469308
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 17702736423
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 17943132007
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 17749106217
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 17319832338
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 17054162389
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 15676171590
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 16488963490
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 16472683326
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 16145852578
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 16145870283
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "withdraw",
+          "date": "2026-07-01",
+          "amount": 18308035175
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 245833161
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 245833161
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 245833161
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 245833161
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 245833161
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 245833162
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 244896773
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 244805931
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 246572877
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 252556903
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 268100049
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 242913814
+        },
+        {
+          "id": "ev67",
+          "seq": 67,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 234231065
+        },
+        {
+          "id": "ev68",
+          "seq": 68,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 246387756
+        },
+        {
+          "id": "ev69",
+          "seq": 69,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 248278924
+        },
+        {
+          "id": "ev70",
+          "seq": 70,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 257181814
+        }
+      ]
+    },
+    {
+      "id": "son-young",
+      "name": "손지웅 김여옥",
+      "createdDate": "2026-02-09",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 8014321596
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "valuation",
+          "date": "2026-04-17",
+          "amount": 7279848371
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 7338316628
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 7469527390
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 7698471432
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 7781565517
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 7965949836
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 8080888325
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 7994574303
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 7921765183
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 7750263542
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 7723193403
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 7846527037
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 8147065667
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 8214004781
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 8354694568
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 8183915708
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 8140308184
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 8285548164
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 7947149388
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 7908047622
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 7709833394
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 7649100568
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 8015526404
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 8197944274
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 8518750148
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 8700503006
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 8654265746
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 8828302371
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 9073699297
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 8841113839
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 8750283613
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 8750283613
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 7401634190
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 7925120990
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 7673804090
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 7709966980
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 7912751311
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 8172536535
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 8382799118
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 8472781342
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 8368322336
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 8184502129
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 8119975379
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 7441560717
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 7841108848
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 7831559098
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 7813341084
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 7813341084
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "withdraw",
+          "date": "2026-07-01",
+          "amount": 8100825167
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 2038784
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 2038266
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 2037959
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 2037603
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 2037506
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 3879243
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 3879523
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 3879054
+        }
+      ]
+    },
+    {
+      "id": "apgujeong-joong",
+      "name": "압구정 기중현",
+      "createdDate": "2026-01-28",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "deposit",
+          "date": "2026-01-28",
+          "amount": 4000000000
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "deposit",
+          "date": "2026-02-06",
+          "amount": 12500000000
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 19133330783
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "valuation",
+          "date": "2026-04-17",
+          "amount": 24919694391
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 25317217382
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 25561294802
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 26116444930
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 26244418058
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 26259163964
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 25966436520
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 26139895171
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 26798443999
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 26594704267
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 26920860990
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 26944163270
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 27479234869
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 27318880277
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 28248709144
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 27223723588
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 28047419351
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 28314412439
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 26704740059
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 26603028273
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 25781322459
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 25138684216
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 27207975468
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 27922289072
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 29166543727
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 28279300120
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 27831583405
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 27203962765
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 26837589479
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 25989041001
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 25769270997
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 25109320061
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 22902622028
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 24699604362
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 24279921020
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 24819656451
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 26210633092
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 26819266447
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 27213392773
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 26145926312
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 25419080250
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 24640068648
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 24373699945
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 22355669095
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 22487077160
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 21371916655
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 21023982537
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 20640851457
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 21907430577
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 20856534537
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 21096924627
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 20492373113
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 20142876213
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 18574424391
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 17943893004
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 19592445054
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 17905582742
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 16867129532
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 18742745547
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 18170552862
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 16944337732
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 16563102571
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 16546963746
+        },
+        {
+          "id": "ev67",
+          "seq": 67,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 18524410471
+        }
+      ]
+    },
+    {
+      "id": "torus-overseas",
+      "name": "토러스 해외",
+      "createdDate": "2026-02-06",
+      "events": [
+        {
+          "id": "ev1",
+          "seq": 1,
+          "type": "valuation",
+          "date": "2026-02-06",
+          "amount": 2000000000
+        },
+        {
+          "id": "ev2",
+          "seq": 2,
+          "type": "valuation",
+          "date": "2026-02-09",
+          "amount": 2010434218
+        },
+        {
+          "id": "ev3",
+          "seq": 3,
+          "type": "withdraw",
+          "date": "2026-02-11",
+          "amount": 150000000
+        },
+        {
+          "id": "ev4",
+          "seq": 4,
+          "type": "deposit",
+          "date": "2026-02-12",
+          "amount": 150000000
+        },
+        {
+          "id": "ev5",
+          "seq": 5,
+          "type": "valuation",
+          "date": "2026-04-20",
+          "amount": 2327209155
+        },
+        {
+          "id": "ev6",
+          "seq": 6,
+          "type": "valuation",
+          "date": "2026-04-21",
+          "amount": 2346925175
+        },
+        {
+          "id": "ev7",
+          "seq": 7,
+          "type": "valuation",
+          "date": "2026-04-22",
+          "amount": 2308774828
+        },
+        {
+          "id": "ev8",
+          "seq": 8,
+          "type": "valuation",
+          "date": "2026-04-23",
+          "amount": 2384723681
+        },
+        {
+          "id": "ev9",
+          "seq": 9,
+          "type": "valuation",
+          "date": "2026-04-24",
+          "amount": 2347630636
+        },
+        {
+          "id": "ev10",
+          "seq": 10,
+          "type": "valuation",
+          "date": "2026-04-27",
+          "amount": 2356921504
+        },
+        {
+          "id": "ev11",
+          "seq": 11,
+          "type": "valuation",
+          "date": "2026-04-28",
+          "amount": 2356324315
+        },
+        {
+          "id": "ev12",
+          "seq": 12,
+          "type": "valuation",
+          "date": "2026-04-29",
+          "amount": 2245174638
+        },
+        {
+          "id": "ev13",
+          "seq": 13,
+          "type": "valuation",
+          "date": "2026-04-30",
+          "amount": 2300573365
+        },
+        {
+          "id": "ev14",
+          "seq": 14,
+          "type": "valuation",
+          "date": "2026-05-04",
+          "amount": 2447803281
+        },
+        {
+          "id": "ev15",
+          "seq": 15,
+          "type": "valuation",
+          "date": "2026-05-06",
+          "amount": 2578527682
+        },
+        {
+          "id": "ev16",
+          "seq": 16,
+          "type": "valuation",
+          "date": "2026-05-07",
+          "amount": 2649589241
+        },
+        {
+          "id": "ev17",
+          "seq": 17,
+          "type": "valuation",
+          "date": "2026-05-08",
+          "amount": 2570805150
+        },
+        {
+          "id": "ev18",
+          "seq": 18,
+          "type": "valuation",
+          "date": "2026-05-11",
+          "amount": 2747785128
+        },
+        {
+          "id": "ev19",
+          "seq": 19,
+          "type": "valuation",
+          "date": "2026-05-12",
+          "amount": 2829467982
+        },
+        {
+          "id": "ev20",
+          "seq": 20,
+          "type": "valuation",
+          "date": "2026-05-13",
+          "amount": 2870152535
+        },
+        {
+          "id": "ev21",
+          "seq": 21,
+          "type": "valuation",
+          "date": "2026-05-14",
+          "amount": 2885674618
+        },
+        {
+          "id": "ev22",
+          "seq": 22,
+          "type": "valuation",
+          "date": "2026-05-15",
+          "amount": 2833775182
+        },
+        {
+          "id": "ev23",
+          "seq": 23,
+          "type": "valuation",
+          "date": "2026-05-18",
+          "amount": 2769450049
+        },
+        {
+          "id": "ev24",
+          "seq": 24,
+          "type": "valuation",
+          "date": "2026-05-19",
+          "amount": 2700821503
+        },
+        {
+          "id": "ev25",
+          "seq": 25,
+          "type": "valuation",
+          "date": "2026-05-20",
+          "amount": 2698805967
+        },
+        {
+          "id": "ev26",
+          "seq": 26,
+          "type": "valuation",
+          "date": "2026-05-21",
+          "amount": 2733320347
+        },
+        {
+          "id": "ev27",
+          "seq": 27,
+          "type": "valuation",
+          "date": "2026-05-22",
+          "amount": 2857174271
+        },
+        {
+          "id": "ev28",
+          "seq": 28,
+          "type": "valuation",
+          "date": "2026-05-26",
+          "amount": 2900186082
+        },
+        {
+          "id": "ev29",
+          "seq": 29,
+          "type": "valuation",
+          "date": "2026-05-27",
+          "amount": 2969614593
+        },
+        {
+          "id": "ev30",
+          "seq": 30,
+          "type": "valuation",
+          "date": "2026-05-28",
+          "amount": 2905803608
+        },
+        {
+          "id": "ev31",
+          "seq": 31,
+          "type": "valuation",
+          "date": "2026-05-29",
+          "amount": 2947210238
+        },
+        {
+          "id": "ev32",
+          "seq": 32,
+          "type": "valuation",
+          "date": "2026-06-01",
+          "amount": 2948981552
+        },
+        {
+          "id": "ev33",
+          "seq": 33,
+          "type": "valuation",
+          "date": "2026-06-02",
+          "amount": 2993720484
+        },
+        {
+          "id": "ev34",
+          "seq": 34,
+          "type": "valuation",
+          "date": "2026-06-04",
+          "amount": 2987981635
+        },
+        {
+          "id": "ev35",
+          "seq": 35,
+          "type": "valuation",
+          "date": "2026-06-05",
+          "amount": 2971125510
+        },
+        {
+          "id": "ev36",
+          "seq": 36,
+          "type": "valuation",
+          "date": "2026-06-08",
+          "amount": 2693654339
+        },
+        {
+          "id": "ev37",
+          "seq": 37,
+          "type": "valuation",
+          "date": "2026-06-09",
+          "amount": 2784698456
+        },
+        {
+          "id": "ev38",
+          "seq": 38,
+          "type": "valuation",
+          "date": "2026-06-10",
+          "amount": 2619663841
+        },
+        {
+          "id": "ev39",
+          "seq": 39,
+          "type": "valuation",
+          "date": "2026-06-11",
+          "amount": 2633772427
+        },
+        {
+          "id": "ev40",
+          "seq": 40,
+          "type": "valuation",
+          "date": "2026-06-12",
+          "amount": 2747211996
+        },
+        {
+          "id": "ev41",
+          "seq": 41,
+          "type": "valuation",
+          "date": "2026-06-15",
+          "amount": 2901323502
+        },
+        {
+          "id": "ev42",
+          "seq": 42,
+          "type": "valuation",
+          "date": "2026-06-16",
+          "amount": 2911647094
+        },
+        {
+          "id": "ev43",
+          "seq": 43,
+          "type": "valuation",
+          "date": "2026-06-17",
+          "amount": 2863799560
+        },
+        {
+          "id": "ev44",
+          "seq": 44,
+          "type": "valuation",
+          "date": "2026-06-18",
+          "amount": 2929906277
+        },
+        {
+          "id": "ev45",
+          "seq": 45,
+          "type": "valuation",
+          "date": "2026-06-19",
+          "amount": 2975764932
+        },
+        {
+          "id": "ev46",
+          "seq": 46,
+          "type": "valuation",
+          "date": "2026-06-22",
+          "amount": 3012028858
+        },
+        {
+          "id": "ev47",
+          "seq": 47,
+          "type": "valuation",
+          "date": "2026-06-23",
+          "amount": 2884446366
+        },
+        {
+          "id": "ev48",
+          "seq": 48,
+          "type": "valuation",
+          "date": "2026-06-24",
+          "amount": 2872558276
+        },
+        {
+          "id": "ev49",
+          "seq": 49,
+          "type": "valuation",
+          "date": "2026-06-25",
+          "amount": 2900755510
+        },
+        {
+          "id": "ev50",
+          "seq": 50,
+          "type": "valuation",
+          "date": "2026-06-29",
+          "amount": 2745123056
+        },
+        {
+          "id": "ev51",
+          "seq": 51,
+          "type": "valuation",
+          "date": "2026-06-30",
+          "amount": 2828771281
+        },
+        {
+          "id": "ev52",
+          "seq": 52,
+          "type": "valuation",
+          "date": "2026-07-01",
+          "amount": 2905967397
+        },
+        {
+          "id": "ev53",
+          "seq": 53,
+          "type": "valuation",
+          "date": "2026-07-02",
+          "amount": 2744278939
+        },
+        {
+          "id": "ev54",
+          "seq": 54,
+          "type": "valuation",
+          "date": "2026-07-03",
+          "amount": 2532480689
+        },
+        {
+          "id": "ev55",
+          "seq": 55,
+          "type": "valuation",
+          "date": "2026-07-06",
+          "amount": 2535291052
+        },
+        {
+          "id": "ev56",
+          "seq": 56,
+          "type": "valuation",
+          "date": "2026-07-07",
+          "amount": 2563276048
+        },
+        {
+          "id": "ev57",
+          "seq": 57,
+          "type": "valuation",
+          "date": "2026-07-08",
+          "amount": 2384679416
+        },
+        {
+          "id": "ev58",
+          "seq": 58,
+          "type": "valuation",
+          "date": "2026-07-09",
+          "amount": 2382701204
+        },
+        {
+          "id": "ev59",
+          "seq": 59,
+          "type": "valuation",
+          "date": "2026-07-10",
+          "amount": 2421704151
+        },
+        {
+          "id": "ev60",
+          "seq": 60,
+          "type": "valuation",
+          "date": "2026-07-13",
+          "amount": 2399450901
+        },
+        {
+          "id": "ev61",
+          "seq": 61,
+          "type": "valuation",
+          "date": "2026-07-14",
+          "amount": 2300925746
+        },
+        {
+          "id": "ev62",
+          "seq": 62,
+          "type": "valuation",
+          "date": "2026-07-15",
+          "amount": 2341212881
+        },
+        {
+          "id": "ev63",
+          "seq": 63,
+          "type": "valuation",
+          "date": "2026-07-16",
+          "amount": 2268743525
+        },
+        {
+          "id": "ev64",
+          "seq": 64,
+          "type": "valuation",
+          "date": "2026-07-20",
+          "amount": 2160588406
+        },
+        {
+          "id": "ev65",
+          "seq": 65,
+          "type": "valuation",
+          "date": "2026-07-21",
+          "amount": 2154239251
+        },
+        {
+          "id": "ev66",
+          "seq": 66,
+          "type": "valuation",
+          "date": "2026-07-22",
+          "amount": 2238655082
+        },
+        {
+          "id": "ev67",
+          "seq": 67,
+          "type": "valuation",
+          "date": "2026-07-23",
+          "amount": 2185053455
+        }
+      ]
+    }
+  ]
+}
