@@ -108,6 +108,7 @@
   var SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
   var COMPOSITE_COLOR = '#2456c6';
   var chartMode = 'composite';
+  var selectedChartAccountId = null; // '계좌별 누적 수익률'에서 단일 계좌만 볼 때
   var lastResult = null;
 
   // 계좌별 누적 수익률 시계열: daily(순수 기준가 수익률)를 체인링크 (보수 리셋 무관, 개설 이후 누적)
@@ -151,21 +152,45 @@
     } else {
       // 평가 데이터가 있는 계좌만
       var active = processed.filter(function (p) { return p.daily.length > 0; });
+      // 색상은 전체 기준 고정 배정 → 단일 계좌만 봐도 색이 바뀌지 않음
+      var colorOf = {};
+      active.forEach(function (p, i) { colorOf[p.id] = SERIES_COLORS[i % SERIES_COLORS.length]; });
+      // 선택했던 계좌가 사라졌으면 선택 해제
+      if (selectedChartAccountId && !active.some(function (p) { return p.id === selectedChartAccountId; })) {
+        selectedChartAccountId = null;
+      }
+      var shown = selectedChartAccountId
+        ? active.filter(function (p) { return p.id === selectedChartAccountId; })
+        : active;
+
       var dateSet = {};
-      var seriesList = active.map(function (p, i) {
+      var seriesList = shown.map(function (p) {
         var pts = accountReturnSeries(p);
         pts.forEach(function (pt) { if (pt.x) dateSet[pt.x] = 1; });
-        var color = SERIES_COLORS[i % SERIES_COLORS.length];
-        // 범례
-        legend.appendChild(h('span', { class: 'legend-item' }, [
-          h('span', { class: 'legend-swatch', style: 'background:' + color }),
+        return { name: p.name, color: colorOf[p.id], points: pts, emphasis: !!selectedChartAccountId };
+      });
+
+      // 범례: 전체 계좌를 항상 표시. 클릭하면 해당 계좌만 보기(다시 클릭 시 전체)
+      active.forEach(function (p) {
+        var isActive = !selectedChartAccountId || selectedChartAccountId === p.id;
+        legend.appendChild(h('span', {
+          class: 'legend-item clickable' + (isActive ? '' : ' dimmed'),
+          title: selectedChartAccountId === p.id ? '전체 계좌 보기' : '이 계좌만 보기',
+          onclick: function () {
+            selectedChartAccountId = (selectedChartAccountId === p.id) ? null : p.id;
+            if (lastResult) renderChart(lastResult);
+          }
+        }, [
+          h('span', { class: 'legend-swatch', style: 'background:' + colorOf[p.id] }),
           h('span', { text: p.name + (p.isClosed ? ' (해지)' : '') })
         ]));
-        return { name: p.name, color: color, points: pts };
       });
+
       var cats = Object.keys(dateSet).sort();
       Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
-      note.textContent = '계좌별 개설 이후 누적 수익률(기준가 방식)입니다. 성과보수 수취로 인한 리셋과 무관하게 순수 성과가 이어집니다.';
+      note.textContent = selectedChartAccountId
+        ? '선택한 계좌의 개설 이후 누적 수익률입니다. 범례에서 계좌명을 다시 누르면 전체 계좌를 함께 봅니다.'
+        : '계좌별 개설 이후 누적 수익률(기준가 방식)입니다. 범례에서 계좌명을 누르면 해당 계좌만 볼 수 있습니다. 성과보수 수취로 인한 리셋과 무관하게 순수 성과가 이어집니다.';
     }
   }
 
@@ -203,7 +228,8 @@
     el('accounts-empty').hidden = state.accounts.length > 0;
     el('accounts-table').hidden = state.accounts.length === 0;
 
-    result.processed.forEach(function (p) {
+    var total = result.processed.length;
+    result.processed.forEach(function (p, idx) {
       var tr = h('tr', {
         class: p.id === selectedAccountId ? 'selected' : '',
         onclick: function () {
@@ -222,10 +248,36 @@
         h('td', { text: fmtNum(p.units, 0), class: 'num' }),
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
         h('td', { text: fmtPct(p.principalReturn), class: 'num ' + pctClass(p.principalReturn) }),
-        h('td', { text: p.lastValuationDate || '-', class: 'date' })
+        h('td', { text: p.lastValuationDate || '-', class: 'date' }),
+        h('td', { class: 'reorder-cell' }, [
+          moveBtn('▲', '위로', idx === 0, function () { moveAccount(p.id, -1); }),
+          moveBtn('▼', '아래로', idx === total - 1, function () { moveAccount(p.id, 1); })
+        ])
       ]);
       tbody.appendChild(tr);
     });
+  }
+
+  // 계좌 목록 순서 이동 버튼 (행 클릭 선택과 겹치지 않도록 stopPropagation)
+  function moveBtn(label, title, disabled, onclick) {
+    var attrs = {
+      class: 'btn tiny reorder-btn', text: label, title: title,
+      onclick: function (e) { e.stopPropagation(); if (!disabled) onclick(); }
+    };
+    if (disabled) attrs.disabled = 'disabled';
+    return h('button', attrs);
+  }
+
+  function moveAccount(id, dir) {
+    var i = state.accounts.findIndex(function (a) { return a.id === id; });
+    if (i < 0) return;
+    var j = i + dir;
+    if (j < 0 || j >= state.accounts.length) return;
+    var tmp = state.accounts[i];
+    state.accounts[i] = state.accounts[j];
+    state.accounts[j] = tmp;
+    saveState();
+    render();
   }
 
   function renderDetail(result) {
@@ -972,6 +1024,19 @@
       if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. 진행할까요?')) return;
       addEvent(selectedAccountId, 'fee', v.date, v.amount);
       e.target.elements.amount.value = '';
+    });
+
+    // 계좌 이름 변경
+    el('btn-rename-account').addEventListener('click', function () {
+      var acc = getAccount(selectedAccountId);
+      if (!acc) return;
+      var name = prompt('새 계좌명을 입력하세요.', acc.name);
+      if (name === null) return; // 취소
+      name = name.trim();
+      if (!name) { alert('계좌명을 입력하세요.'); return; }
+      acc.name = name;
+      saveState();
+      render();
     });
 
     // 계좌 삭제

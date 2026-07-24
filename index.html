@@ -54,6 +54,7 @@
             <th class="num">기준가 수익률</th>
             <th class="num">원금대비 수익률</th>
             <th>최근 평가일</th>
+            <th class="reorder-col">순서</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -65,7 +66,10 @@
   <section class="panel" id="detail-panel" hidden>
     <div class="panel-head">
       <h2 id="detail-title"></h2>
-      <button id="btn-delete-account" class="btn danger">계좌 삭제</button>
+      <div class="panel-head-actions">
+        <button id="btn-rename-account" class="btn">이름 변경</button>
+        <button id="btn-delete-account" class="btn danger">계좌 삭제</button>
+      </div>
     </div>
 
     <div class="cards" id="detail-cards"></div>
