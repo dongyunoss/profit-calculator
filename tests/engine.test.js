@@ -86,8 +86,8 @@ ok('입금 후 평가: 일간 수익률은 입금액 제외 순수 성과', () =
   approx(p.nav, 1050 * 1.01, 1e-6);
 });
 
-// 5. 성과보수 수취 → 기준가/수익률 초기화
-ok('성과보수 수취 → 기준가 1000, 수익률 0%, 원금=차감 후 평가금액', () => {
+// 5. 성과보수 수취 → 기준가/수익률 초기화, 원금은 보수로 줄지 않음
+ok('성과보수 수취 → 기준가 1000, 원금 유지(차감 없음), 평가금액만 차감', () => {
   const p = Engine.processAccount({
     id: 'a', name: 'A',
     events: [
@@ -98,9 +98,9 @@ ok('성과보수 수취 → 기준가 1000, 수익률 0%, 원금=차감 후 평�
   });
   approx(p.nav, 1000);
   approx(p.navReturn, 0);
-  approx(p.principalReturn, 0);
   approx(p.eval, 108000000);
-  approx(p.principal, 108000000);
+  approx(p.principal, 100000000);       // 원금은 보수 수취와 무관하게 유지
+  approx(p.principalReturn, 0.08);      // (1.08억 − 1억) ÷ 1억
   approx(p.units, 108000000);
   approx(p.totalFees, 2000000);
   // 누적 성과 지수는 보수와 무관하게 10% 유지
@@ -219,7 +219,7 @@ ok('보수 수취 → 당일 평가 입력 순서여도 수익률 0 초기화, �
   approx(p.navReturn, 0);
   approx(p.nav, 1000);
   approx(p.eval, 105000000);          // 1.1억 − 보수 500만
-  approx(p.principal, 105000000);
+  approx(p.principal, 100000000);     // 원금은 보수 수취와 무관하게 유지
   const comp = Engine.computeComposite([p]);
   approx(comp.ret, 0.10, 1e-9);       // 종합 성과 수익률은 순수 성과 10% 유지
 });

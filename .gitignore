@@ -4,3 +4,6 @@ js/xlsx.min.js
 sample-import.xlsx
 *_등록용.json
 *accounts*.json
+*_추가*.json
+*계좌*.json
+scratch/
