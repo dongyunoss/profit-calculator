@@ -1,4 +1,15 @@
 {
+  "name": "profit-calculator",
+  "version": "1.0.0",
+  "description": "자산운용 수익률 관리 (Profit Calculator)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node tests/engine.test.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "dependencies": {
     "xlsx": "^0.18.5"
   }
