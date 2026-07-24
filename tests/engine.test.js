@@ -147,6 +147,32 @@ ok('종합: 단순 수익률과 컴포지트 수익률', () => {
   approx(comp.ret, 0.025, 1e-9);
 });
 
+// 7-2. 성과보수 수취 후에도 전체 실적(원금·수익률)은 유지된다
+ok('전체 실적: 성과보수 수취로 종합 원금대비 수익률이 줄지 않음', () => {
+  const base = [
+    { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+    { id: '2', seq: 2, type: 'valuation', date: '2026-01-03', amount: 110000000 } // +10%
+  ];
+  // 보수 수취 전
+  const before = Engine.computeSummary([
+    Engine.processAccount({ id: 'a', name: 'A', events: base })
+  ]);
+  approx(before.totalPrincipal, 100000000);
+  approx(before.simpleReturn, 0.10);
+  // 같은 계좌에 성과보수 2백만 수취 → 개별 계좌는 기준가 0% 초기화
+  const withFee = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: base.concat([{ id: '3', seq: 3, type: 'fee', date: '2026-01-03', amount: 2000000 }])
+  });
+  approx(withFee.navReturn, 0);            // 개별 계좌: 초기화
+  approx(withFee.eval, 108000000);         // 보수만큼 평가금액 차감
+  // 전체 실적: 원금 유지 + 수익률 유지(보수 되살림)
+  const after = Engine.computeSummary([withFee]);
+  approx(after.totalPrincipal, 100000000); // 원금 그대로 유지
+  approx(after.simpleReturn, 0.10);        // 수익률 그대로 유지 (8%로 줄지 않음)
+  approx(after.grossPnl, 10000000);        // 보수 포함 총성과 1천만
+});
+
 // 8. 컴포지트: 평가일이 어긋나는 경우 (없는 계좌는 수익률 0으로 가중)
 ok('컴포지트: 평가일 불일치 시 직전 평가금액 가중', () => {
   const a = Engine.processAccount({

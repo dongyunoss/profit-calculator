@@ -233,11 +233,17 @@
       totalDeposits += p.totalDeposits;
       totalWithdrawals += p.totalWithdrawals;
     });
+    var totalPnl = totalEval - totalPrincipal;
+    // 전체 실적 기준 성과: 수취한 성과보수(실현 성과)를 되살려 계산한다.
+    // 개별 계좌는 보수 수취 시 기준가·수익률이 0으로 초기화되지만,
+    // 종합(전체) 실적에서는 보수 유출로 성과가 깎여 보이지 않도록 보수를 다시 더한다.
+    var grossPnl = totalEval + totalFees - totalPrincipal;
     return {
       totalEval: totalEval,
       totalPrincipal: totalPrincipal,
-      totalPnl: totalEval - totalPrincipal,
-      simpleReturn: totalPrincipal > 0 ? (totalEval - totalPrincipal) / totalPrincipal : 0, // 원금대비 단순 수익률
+      totalPnl: totalPnl,          // 현재 보유 기준 평가손익 (보수 유출 후 실보유)
+      grossPnl: grossPnl,          // 보수 포함 총성과 (전체 실적 기준 — 보수 수취와 무관하게 유지)
+      simpleReturn: totalPrincipal > 0 ? grossPnl / totalPrincipal : 0, // 원금대비 단순 수익률 (보수 수취로 줄지 않음)
       totalFees: totalFees,
       totalDeposits: totalDeposits,
       totalWithdrawals: totalWithdrawals

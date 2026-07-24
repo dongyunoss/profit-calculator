@@ -193,7 +193,7 @@
     wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal), '누적입금 ' + fmtWon(s.totalDeposits) + ' · 누적출금 ' + fmtWon(s.totalWithdrawals)));
     wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
-    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '(총평가 − 총원금) ÷ 총원금', pctClass(s.simpleReturn)));
+    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '(총평가 + 누적보수 − 총원금) ÷ 총원금', pctClass(s.simpleReturn)));
     wrap.appendChild(card('누적 성과보수', fmtWon(s.totalFees), ''));
   }
 
