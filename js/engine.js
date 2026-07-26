@@ -78,7 +78,13 @@
     var events = sortEvents(account.events || []);
     var units = 0;          // 좌수
     var nav = NAV_BASE;     // 기준가 (1,000좌당)
-    var principal = 0;      // 원금 (순입금 — 보수·이익지급·재계약으로 변하지 않음)
+    var principal = 0;      // 순입금 (전체 실적 기준 — 보수·이익지급·재계약으로 변하지 않음)
+    // 계약원금: 현재 계약의 원금 기준.
+    // 만기 재계약에서 원리금을 새 계약 원금으로 승계하는 것과 같은 방식으로,
+    // 성과보수 수취 시에도 보수 차감 후 평가금액을 새 계약의 원금으로 승계한다.
+    // → 개별 계좌는 기준가·원금대비 수익률이 모두 0%로 초기화되고,
+    //   전체 실적은 순입금(principal) 기준이므로 영향을 받지 않는다.
+    var contractPrincipal = 0;
     var cumIndex = NAV_BASE; // 보수 수취·재계약과 무관하게 이어지는 누적 성과 지수
     var totalDeposits = 0, totalWithdrawals = 0, totalFees = 0, totalPayouts = 0;
     var lastValuationDate = null, lastResetDate = null, lastCloseoutDate = null;
@@ -104,6 +110,7 @@
         nav: nav,
         eval: evalNow(),
         principal: principal,
+        contractPrincipal: contractPrincipal,
         dailyReturn: null
       };
       if (extra) for (var k in extra) row[k] = extra[k];
@@ -118,8 +125,12 @@
         var addUnits = amount * NAV_BASE / nav;
         units += addUnits;
         principal += amount;
+        contractPrincipal += amount;
         totalDeposits += amount;
-        pushRow(ev, { deltaUnits: addUnits, units: units, eval: evalNow(), principal: principal });
+        pushRow(ev, {
+          deltaUnits: addUnits, units: units, eval: evalNow(),
+          principal: principal, contractPrincipal: contractPrincipal
+        });
 
       } else if (ev.type === 'withdraw') {
         var subUnits = amount * NAV_BASE / nav;
@@ -128,8 +139,12 @@
         }
         units -= subUnits;
         principal -= amount;
+        contractPrincipal -= amount;
         totalWithdrawals += amount;
-        pushRow(ev, { deltaUnits: -subUnits, units: units, eval: evalNow(), principal: principal });
+        pushRow(ev, {
+          deltaUnits: -subUnits, units: units, eval: evalNow(),
+          principal: principal, contractPrincipal: contractPrincipal
+        });
 
       } else if (ev.type === 'valuation' || ev.type === 'maturity') {
         // 만기는 만기 시점의 원리금(상환금)을 평가금액으로 입력하는 이벤트 —
@@ -159,10 +174,14 @@
         if (amount > payEvalBefore + 1e-6) {
           warnings.push(ev.date + ' 이익지급액이 평가금액을 초과합니다. 내역을 확인하세요.');
         }
+        // 이익만 인출하므로 계약원금은 그대로 유지된다
         var payUnits = amount * NAV_BASE / nav;
         units -= payUnits;
         totalPayouts += amount;
-        pushRow(ev, { deltaUnits: -payUnits, units: units, eval: evalNow(), principal: principal });
+        pushRow(ev, {
+          deltaUnits: -payUnits, units: units, eval: evalNow(),
+          principal: principal, contractPrincipal: contractPrincipal
+        });
 
       } else if (ev.type === 'rollover') {
         // 재계약(롤오버): 새 계약이 시작되므로 기준가를 1,000으로 되돌려 계약 기준 수익률을
@@ -187,13 +206,14 @@
         var rollEvalAfter = evalNow();
         nav = NAV_BASE;
         units = rollEvalAfter;  // 기준가 1,000이므로 좌수 = 평가금액
+        contractPrincipal = rollEvalAfter; // 재예치 금액이 새 계약의 원금
         lastResetDate = ev.date;
         lastResetKind = 'rollover';
         lastRolloverDate = ev.date;
         maturedPending = false; // 재계약으로 만기 후속 처리 완료
         pushRow(ev, {
           amount: paidOut, deltaUnits: 0, units: units, nav: nav,
-          eval: rollEvalAfter, principal: principal
+          eval: rollEvalAfter, principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'fee') {
@@ -205,12 +225,19 @@
         units -= amount * NAV_BASE / nav;
         totalFees += amount;
         var evalAfter = evalNow();
-        // 초기화: 기준가 1,000 / 좌수를 차감 후 평가금액으로 재설정 (원금은 유지 — 보수는 원금에서 나가지 않음)
+        // 초기화(만기 재계약과 동일한 방식): 기준가 1,000 / 좌수를 차감 후 평가금액으로 재설정하고,
+        // 보수 차감 후 평가금액을 새 계약의 원금으로 승계한다 → 원금대비 수익률도 0%로 초기화.
+        // 순입금(principal)은 유지된다 — 보수는 원금에서 나가지 않으며, 전체 실적은 순입금 기준이므로
+        // 보수 수취·재계약으로 전체 원금과 수익률이 변하지 않는다.
         nav = NAV_BASE;
         units = evalAfter; // 기준가 1,000이므로 좌수 = 평가금액
+        contractPrincipal = evalAfter;
         lastResetDate = ev.date;
         lastResetKind = 'fee';
-        pushRow(ev, { deltaUnits: 0, units: units, nav: nav, eval: evalAfter, principal: principal });
+        pushRow(ev, {
+          deltaUnits: 0, units: units, nav: nav, eval: evalAfter,
+          principal: principal, contractPrincipal: contractPrincipal
+        });
 
       } else if (ev.type === 'closeout') {
         if (units <= 1e-9) {
@@ -224,9 +251,13 @@
         units = 0;
         nav = NAV_BASE;   // 이후 재입금 시 새 출발
         principal = 0;
+        contractPrincipal = 0;
         lastCloseoutDate = ev.date;
         maturedPending = false; // 만기 후 해지로 후속 처리 완료
-        pushRow(ev, { amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0, principal: 0 });
+        pushRow(ev, {
+          amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0,
+          principal: 0, contractPrincipal: 0
+        });
       }
 
       // 하루 마감 시점 평가금액 기록 (같은 날짜는 마지막 이벤트 값으로 덮어씀)
@@ -246,11 +277,15 @@
       lastCloseoutDate: lastCloseoutDate,
       units: units,
       nav: nav,
-      principal: principal,
+      principal: principal,                 // 순입금 (전체 실적 기준 — 보수·재계약 무관)
+      contractPrincipal: contractPrincipal, // 계약원금 (보수 수취·재계약 시 평가금액으로 승계)
       eval: currentEval,
       pnl: currentEval - principal,
-      navReturn: nav / NAV_BASE - 1,                                        // 기준가 수익률 (보수 수취 후 기준)
-      principalReturn: principal > 0 ? (currentEval - principal) / principal : 0, // 원금대비 수익률
+      contractPnl: currentEval - contractPrincipal,
+      navReturn: nav / NAV_BASE - 1,                                        // 기준가 수익률 (보수 수취·재계약 후 기준)
+      // 계약 기준 원금대비 수익률 — 보수 수취·재계약으로 0%로 초기화된다
+      contractReturn: contractPrincipal > 0 ? (currentEval - contractPrincipal) / contractPrincipal : 0,
+      principalReturn: principal > 0 ? (currentEval - principal) / principal : 0, // 순입금 대비 누적 수익률
       cumReturn: cumIndex / NAV_BASE - 1,                                   // 개설 이후 누적 성과 수익률
       cumIndex: cumIndex,
       totalDeposits: totalDeposits,

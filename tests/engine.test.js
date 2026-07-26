@@ -99,12 +99,70 @@ ok('성과보수 수취 → 기준가 1000, 원금 유지(차감 없음), 평가
   approx(p.nav, 1000);
   approx(p.navReturn, 0);
   approx(p.eval, 108000000);
-  approx(p.principal, 100000000);       // 원금은 보수 수취와 무관하게 유지
-  approx(p.principalReturn, 0.08);      // (1.08억 − 1억) ÷ 1억
+  approx(p.principal, 100000000);       // 순입금은 보수 수취와 무관하게 유지
+  approx(p.principalReturn, 0.08);      // 순입금대비 누적 (1.08억 − 1억) ÷ 1억
   approx(p.units, 108000000);
   approx(p.totalFees, 2000000);
   // 누적 성과 지수는 보수와 무관하게 10% 유지
   approx(p.cumReturn, 0.10, 1e-9);
+});
+
+// 5-2. 보수 수취는 만기 재계약과 같은 방식 — 보수 차감 후 평가금액이 새 계약 원금으로 승계
+ok('보수 수취 → 계약원금 승계로 원금대비 수익률까지 0% 초기화, 전체 실적은 유지', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 }
+    ]
+  });
+  // 개별 계좌: 완전 초기화 (기준가·원금대비 모두 0%)
+  approx(p.contractPrincipal, 108000000); // 보수 차감 후 평가금액을 새 계약 원금으로 승계
+  approx(p.contractReturn, 0);            // 원금대비 수익률도 0%로 초기화
+  approx(p.contractPnl, 0);
+  approx(p.navReturn, 0);
+  // 전체 실적: 순입금·수익률 유지
+  approx(p.principal, 100000000);
+  const s = Engine.computeSummary([p]);
+  approx(s.totalPrincipal, 100000000);
+  approx(s.simpleReturn, 0.10);
+});
+
+// 5-3. 승계된 계약원금 기준으로 이후 성과가 계산된다
+ok('보수 수취 후 5% 성과 → 원금대비 수익률 5%(승계 원금 기준)', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },      // 계약원금 1.08억
+      { id: '4', seq: 4, type: 'valuation', date: '2026-07-31', amount: 113400000 } // 1.08억 × 1.05
+    ]
+  });
+  approx(p.contractReturn, 0.05, 1e-9);  // 승계된 계약원금 1.08억 대비 5%
+  approx(p.navReturn, 0.05, 1e-9);
+  approx(p.principal, 100000000);        // 순입금 불변
+  approx(p.cumReturn, 1.10 * 1.05 - 1, 1e-9);
+  // 전체 실적: (1.134억 + 보수 0.02억 − 1억) ÷ 1억
+  approx(Engine.computeSummary([p]).simpleReturn, 0.154, 1e-9);
+});
+
+// 5-4. 승계 후 추가 입출금은 계약원금에도 반영된다
+ok('보수 수취 후 추가 입금 → 계약원금·순입금 모두 증가', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },   // 계약원금 1.08억
+      { id: '4', seq: 4, type: 'deposit', date: '2026-07-01', amount: 20000000 }
+    ]
+  });
+  approx(p.contractPrincipal, 128000000); // 1.08억 + 2천만
+  approx(p.principal, 120000000);         // 순입금 1억 + 2천만
+  approx(p.contractReturn, 0);            // 입금은 수익률을 왜곡하지 않음
+  approx(p.navReturn, 0);
 });
 
 // 6. 보수 수취 후 추가 성과 → 초기화 이후 수익률만 표시
