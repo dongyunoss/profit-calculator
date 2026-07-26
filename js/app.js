@@ -1108,56 +1108,6 @@
       e.target.elements.amount.value = '';
     });
 
-    // 만기 · 재계약(Rollover) — 재계약 모드는 금액 입력이 필요 없다
-    el('form-maturity').elements.type.addEventListener('change', function (e) {
-      var isRollover = e.target.value.indexOf('rollover-') === 0;
-      var amt = el('form-maturity').elements.amount;
-      amt.disabled = isRollover;
-      amt.required = !isRollover;
-      if (isRollover) amt.value = '';
-      amt.placeholder = isRollover ? '자동 계산' : '예: 103000000';
-    });
-    el('form-maturity').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var form = e.target;
-      var kind = form.elements.type.value;
-      var date = form.elements.date.value;
-      if (!date) { alert('날짜를 입력하세요.'); return; }
-      var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
-
-      if (kind === 'maturity' || kind === 'payout') {
-        var v = readForm(form);
-        if (!v) return;
-        if (kind === 'payout') {
-          if (p && v.amount > p.eval + 1e-6) {
-            alert('이익지급액이 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.');
-            return;
-          }
-          if (!confirm('이익 ' + fmtWon(v.amount) + '을 지급 처리합니다.\n' +
-            '원금은 줄지 않으며 기준가 수익률도 왜곡되지 않습니다. 진행할까요?')) return;
-        }
-        addEvent(selectedAccountId, kind, v.date, v.amount);
-        form.elements.amount.value = '';
-        return;
-      }
-
-      // 재계약(Rollover)
-      if (!p || p.eval <= 0.005) { alert('재계약할 잔액이 없습니다.'); return; }
-      var mode = kind === 'rollover-payout' ? 'payout' : 'compound';
-      var msg;
-      if (mode === 'compound') {
-        msg = '원리금 전액(' + fmtWon(p.eval) + ')을 새 계약 원금으로 재예치합니다.\n';
-      } else {
-        var interest = Math.max(0, p.eval - p.principal);
-        msg = '이익 ' + fmtWon(interest) + '을 지급하고 원금 ' + fmtWon(p.eval - interest) +
-          '만 재예치합니다.\n';
-      }
-      msg += '기준가 1,000 / 계약 기준 수익률 0%로 초기화되며, 누적 성과 수익률과 전체 실적' +
-        ' 수익률은 그대로 이어집니다. 진행할까요?';
-      if (!confirm(msg)) return;
-      addEvent(selectedAccountId, 'rollover', date, 0, { mode: mode });
-    });
-
     // 성과보수 수취
     el('form-fee').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1225,7 +1175,7 @@
     });
 
     // 날짜 기본값
-    ['form-valuation', 'form-flow', 'form-maturity', 'form-fee'].forEach(function (id) {
+    ['form-valuation', 'form-flow', 'form-fee'].forEach(function (id) {
       el(id).elements.date.value = todayStr();
     });
 
