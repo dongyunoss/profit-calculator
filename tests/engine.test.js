@@ -327,6 +327,133 @@ ok('같은 날: 전액출금·보수를 먼저 기입해도 평가 → 보수 �
   approx(Engine.computeComposite([p]).ret, 0.10, 1e-9); // 종합 성과는 순수 성과 10%
 });
 
+// 16. 만기: 만기 원리금은 평가와 동일하게 성과에 반영되고 만기 상태로 표시된다
+ok('만기 평가 → 원리금 반영, 만기 도래 상태', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'maturity', date: '2026-07-02', amount: 103000000 } // 원리금 1.03억
+    ]
+  });
+  approx(p.eval, 103000000);
+  approx(p.navReturn, 0.03);
+  approx(p.cumReturn, 0.03, 1e-9);
+  assert.strictEqual(p.isMatured, true);
+  assert.strictEqual(p.lastMaturityDate, '2026-07-02');
+  approx(Engine.computeComposite([p]).ret, 0.03, 1e-9); // 종합 성과에도 그대로 반영
+});
+
+// 17. 이익지급(이자·쿠폰): 원금 불변, 기준가 수익률 왜곡 없음, 전체 실적엔 가산
+ok('이익지급 → 원금·기준가 수익률 불변, 전체 실적 수익률 유지', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-03-02', amount: 103000000 }, // +3%
+      { id: '3', seq: 3, type: 'payout', date: '2026-03-02', amount: 3000000 }       // 이자 300만 수령
+    ]
+  });
+  approx(p.eval, 100000000);        // 이자 지급 후 잔액
+  approx(p.principal, 100000000);   // 원금은 줄지 않는다
+  approx(p.navReturn, 0.03);        // 자금 유출이므로 기준가 수익률 왜곡 없음
+  approx(p.totalPayouts, 3000000);
+  const s = Engine.computeSummary([p]);
+  approx(s.simpleReturn, 0.03);     // 전체 실적: 지급된 이자를 되살려 3% 유지
+  approx(s.totalPayouts, 3000000);
+});
+
+// 18. 재계약(원리금 재예치): 계약 기준 초기화, 원금·누적성과·전체실적 유지
+ok('재계약(원리금) → 기준가 1,000 초기화, 누적 성과·전체 실적 유지', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'maturity', date: '2026-07-02', amount: 110000000 },  // 원리금 1.1억
+      { id: '3', seq: 3, type: 'rollover', date: '2026-07-02', mode: 'compound', amount: 0 }
+    ]
+  });
+  approx(p.nav, 1000);
+  approx(p.navReturn, 0);            // 새 계약 기준 수익률 0%
+  approx(p.eval, 110000000);         // 원리금 전액 승계
+  approx(p.units, 110000000);
+  approx(p.principal, 100000000);    // 원금(순입금)은 재계약으로 변하지 않는다
+  approx(p.cumReturn, 0.10, 1e-9);   // 누적 성과는 이어진다
+  assert.strictEqual(p.isMatured, false);   // 재계약으로 만기 처리 완료
+  assert.strictEqual(p.lastResetKind, 'rollover');
+  approx(Engine.computeSummary([p]).simpleReturn, 0.10); // 전체 실적 10% 유지
+});
+
+// 19. 재계약(원금만): 이익을 지급하고 원금만 재예치
+ok('재계약(원금만) → 이익 지급 후 원금만 재예치, 전체 실적 수익률 유지', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'maturity', date: '2026-07-02', amount: 110000000 },
+      { id: '3', seq: 3, type: 'rollover', date: '2026-07-02', mode: 'payout', amount: 0 }
+    ]
+  });
+  approx(p.eval, 100000000);         // 이익 1천만 지급 → 원금만 재예치
+  approx(p.principal, 100000000);
+  approx(p.totalPayouts, 10000000);  // 지급된 이익
+  approx(p.nav, 1000);
+  approx(p.navReturn, 0);
+  approx(p.cumReturn, 0.10, 1e-9);
+  approx(Engine.computeSummary([p]).simpleReturn, 0.10); // 전체 실적 10% 유지
+});
+
+// 20. 재계약 후 추가 성과는 새 계약 기준으로 계산되고 누적은 복리로 이어진다
+ok('재계약 후 2% 성과 → 계약 기준 2%, 누적은 복리', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'maturity', date: '2026-07-02', amount: 110000000 },
+      { id: '3', seq: 3, type: 'rollover', date: '2026-07-02', mode: 'compound', amount: 0 },
+      { id: '4', seq: 4, type: 'valuation', date: '2026-07-03', amount: 112200000 } // 1.1억 × 1.02
+    ]
+  });
+  approx(p.navReturn, 0.02, 1e-9);
+  approx(p.cumReturn, 1.10 * 1.02 - 1, 1e-9);
+  approx(Engine.computeComposite([p]).ret, 1.10 * 1.02 - 1, 1e-9); // 종합 성과도 복리로 연속
+});
+
+// 21. 같은 날 처리 순서: 만기 평가 → 보수 → 재계약 (입력 순서 무관)
+ok('같은 날: 재계약·보수를 먼저 기입해도 만기평가 → 보수 → 재계약 순서로 처리', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '4', seq: 2, type: 'rollover', date: '2026-07-02', mode: 'compound', amount: 0 }, // 먼저 기입
+      { id: '3', seq: 3, type: 'fee', date: '2026-07-02', amount: 2000000 },                  // 그 다음
+      { id: '2', seq: 4, type: 'maturity', date: '2026-07-02', amount: 110000000 }            // 마지막
+    ]
+  });
+  // 만기 +10% → 보수 200만 차감 → 재계약 초기화
+  approx(p.eval, 108000000);
+  approx(p.nav, 1000);
+  approx(p.navReturn, 0);
+  approx(p.totalFees, 2000000);
+  assert.strictEqual(p.lastResetKind, 'rollover'); // 보수 뒤에 재계약이 처리됨
+  approx(p.cumReturn, 0.10, 1e-9);
+  approx(Engine.computeComposite([p]).ret, 0.10, 1e-9); // 종합 성과 오염 없음
+});
+
+// 22. 잔액 없는 계좌의 재계약은 무시된다
+ok('해지 후 재계약은 무시되고 경고가 남는다', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'closeout', date: '2026-01-05', amount: 0 },
+      { id: '3', seq: 3, type: 'rollover', date: '2026-01-06', mode: 'compound', amount: 0 }
+    ]
+  });
+  approx(p.eval, 0);
+  assert.ok(p.warnings.some(w => w.includes('재계약')));
+});
+
 console.log('\nxlsx-writer.js');
 
 // 10. xlsx 생성 → ZIP 구조 검증

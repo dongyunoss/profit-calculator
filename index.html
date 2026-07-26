@@ -103,6 +103,29 @@
         해지 시점까지의 성과는 종합 성과 수익률에 그대로 보존됩니다.</p>
       </form>
 
+      <form id="form-maturity" class="mini-form">
+        <h3>만기 · 재계약</h3>
+        <label>처리
+          <select name="type">
+            <option value="maturity">만기 평가(원리금·상환금)</option>
+            <option value="payout">이익 지급(이자·쿠폰·배당)</option>
+            <option value="rollover-compound">재계약 — 원리금 재예치</option>
+            <option value="rollover-payout">재계약 — 원금만(이익 지급)</option>
+          </select>
+        </label>
+        <label>일자 <input type="date" name="date" required></label>
+        <label>금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 103000000"></label>
+        <button class="btn warn">처리</button>
+        <p class="hint">예금·채권·ELS·펀드의 만기 처리 방식을 그대로 옮긴 기능입니다.
+        <b>만기 평가</b>는 만기 시점의 원리금(상환금)을 평가금액으로 입력합니다 — 일반 평가와 같이
+        성과에 반영되고 만기 도래로 표시됩니다.
+        <b>이익 지급</b>은 이자·쿠폰·배당 수령액을 인출 처리합니다(원금은 줄지 않고 기준가 수익률도 왜곡되지 않음).
+        <b>재계약</b>은 새 계약 시작이므로 기준가 1,000 / 수익률 0%로 초기화합니다 —
+        원리금 전액을 재예치하려면 <b>원리금 재예치</b>, 이익만 받고 원금만 재예치하려면
+        <b>원금만</b>을 선택하세요(지급액은 평가금액 − 원금으로 자동 계산, 금액 입력 불필요).
+        재계약 후에도 누적 성과 수익률과 전체 실적 수익률은 그대로 이어집니다.</p>
+      </form>
+
       <form id="form-fee" class="mini-form">
         <h3>성과보수 수취</h3>
         <label>일자 <input type="date" name="date" required></label>

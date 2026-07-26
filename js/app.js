@@ -218,8 +218,9 @@
     wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal), '누적입금 ' + fmtWon(s.totalDeposits) + ' · 누적출금 ' + fmtWon(s.totalWithdrawals)));
     wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
-    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '(총평가 + 누적보수 − 총원금) ÷ 총원금', pctClass(s.simpleReturn)));
-    wrap.appendChild(card('누적 성과보수', fmtWon(s.totalFees), ''));
+    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '(총평가 + 누적보수 + 이익지급 − 총원금) ÷ 총원금', pctClass(s.simpleReturn)));
+    wrap.appendChild(card('누적 성과보수', fmtWon(s.totalFees),
+      s.totalPayouts > 0 ? '이익지급 ' + fmtWon(s.totalPayouts) : ''));
   }
 
   function renderAccountsTable(result) {
@@ -231,7 +232,8 @@
     result.processed.forEach(function (p) {
       var nameCell = h('td', { class: 'name' }, [
         h('span', { text: p.name }),
-        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null
+        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
+        (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
       ]);
       var tr = h('tr', {
         class: p.id === selectedAccountId ? 'selected' : '',
@@ -331,6 +333,13 @@
     render();
   }
 
+  // 기준가 수익률의 기산 시점 안내 (보수 수취 / 재계약으로 초기화됨)
+  function resetNote(p) {
+    if (!p.lastResetDate) return '개설 이후';
+    var label = p.lastResetKind === 'rollover' ? '재계약' : '보수수취';
+    return label + '(' + p.lastResetDate + ') 이후';
+  }
+
   function renderDetail(result) {
     var panel = el('detail-panel');
     var p = result.processed.find(function (x) { return x.id === selectedAccountId; });
@@ -339,7 +348,8 @@
       return;
     }
     panel.hidden = false;
-    el('detail-title').textContent = p.name + (p.isClosed ? ' (해지)' : '');
+    el('detail-title').textContent = p.name +
+      (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기 도래)' : ''));
 
     var cards = el('detail-cards');
     cards.innerHTML = '';
@@ -347,10 +357,14 @@
     cards.appendChild(card('좌수', fmtNum(p.units, 0), ''));
     cards.appendChild(card('원금', fmtWon(p.principal), ''));
     cards.appendChild(card('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.pnl), pctClass(p.pnl)));
-    cards.appendChild(card('기준가 수익률', fmtPct(p.navReturn), p.lastResetDate ? '보수수취(' + p.lastResetDate + ') 이후' : '개설 이후', pctClass(p.navReturn)));
+    cards.appendChild(card('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
     cards.appendChild(card('원금대비 수익률', fmtPct(p.principalReturn), '', pctClass(p.principalReturn)));
-    cards.appendChild(card('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취 무관, 개설 이후', pctClass(p.cumReturn)));
+    cards.appendChild(card('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
     cards.appendChild(card('누적 성과보수', fmtWon(p.totalFees), ''));
+    if (p.totalPayouts > 0 || p.lastMaturityDate) {
+      cards.appendChild(card('누적 이익지급', fmtWon(p.totalPayouts || 0),
+        p.lastMaturityDate ? '최근 만기 ' + p.lastMaturityDate : '이자·쿠폰·배당'));
+    }
 
     var warnBox = el('detail-warnings');
     warnBox.innerHTML = '';
@@ -378,14 +392,14 @@
       tbody.appendChild(h('tr', {}, [
         h('td', { text: row.date, class: 'date' }),
         h('td', {}, [h('span', { class: 'tag tag-' + row.type, text: row.label })]),
-        h('td', { text: row.type === 'valuation' ? '-' : fmtWon(row.amount), class: 'num' }),
+        h('td', { text: VALUATION_TYPES[row.type] ? '-' : fmtWon(row.amount), class: 'num' }),
         h('td', { text: row.deltaUnits ? fmtNum(row.deltaUnits, 0) : '-', class: 'num' }),
         h('td', { text: fmtNum(row.units, 0), class: 'num' }),
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
         h('td', { text: fmtWon(row.principal), class: 'num' }),
-        h('td', { text: row.type === 'valuation' && row.principal > 0 ? fmtPct((row.eval - row.principal) / row.principal) : '-',
-          class: 'num ' + (row.type === 'valuation' && row.principal > 0 ? pctClass((row.eval - row.principal) / row.principal) : '') }),
+        h('td', { text: VALUATION_TYPES[row.type] && row.principal > 0 ? fmtPct((row.eval - row.principal) / row.principal) : '-',
+          class: 'num ' + (VALUATION_TYPES[row.type] && row.principal > 0 ? pctClass((row.eval - row.principal) / row.principal) : '') }),
         h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) }),
         h('td', {}, [delBtn])
       ]));
@@ -427,7 +441,7 @@
   function renderDailyTable(p) {
     var tbody = el('daily-table').querySelector('tbody');
     tbody.innerHTML = '';
-    var vals = p.history.filter(function (r) { return r.type === 'valuation'; });
+    var vals = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
     vals.slice().reverse().forEach(function (row) {
       var pr = row.principal > 0 ? (row.eval - row.principal) / row.principal : null;
       tbody.appendChild(h('tr', {}, [
@@ -446,7 +460,7 @@
 
   // ---------- 이벤트 추가 ----------
 
-  function addEvent(accountId, type, date, amount) {
+  function addEvent(accountId, type, date, amount, extra) {
     var acc = getAccount(accountId);
     if (!acc) return;
     if (type === 'valuation') {
@@ -459,7 +473,9 @@
         return;
       }
     }
-    acc.events.push({ id: uid(), seq: seqCounter++, type: type, date: date, amount: amount });
+    var event = { id: uid(), seq: seqCounter++, type: type, date: date, amount: amount };
+    if (extra) Object.keys(extra).forEach(function (k) { event[k] = extra[k]; });
+    acc.events.push(event);
     saveState();
     render();
   }
@@ -491,6 +507,7 @@
       [{ v: '누적 입금' }, { v: Math.round(s.totalDeposits), s: S.INT }],
       [{ v: '누적 출금' }, { v: Math.round(s.totalWithdrawals), s: S.INT }],
       [{ v: '누적 성과보수' }, { v: Math.round(s.totalFees), s: S.INT }],
+      [{ v: '누적 이익지급(이자·쿠폰·배당)' }, { v: Math.round(s.totalPayouts || 0), s: S.INT }],
       [],
       [
         { v: '계좌명', s: S.HEAD }, { v: '원금', s: S.HEAD }, { v: '평가금액', s: S.HEAD },
@@ -569,11 +586,11 @@
         { v: '원금대비 수익률', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }
       ]];
       p.history.forEach(function (row) {
-        var pr = (row.type === 'valuation' && row.principal > 0) ? (row.eval - row.principal) / row.principal : null;
+        var pr = (VALUATION_TYPES[row.type] && row.principal > 0) ? (row.eval - row.principal) / row.principal : null;
         rows.push([
           { v: row.date },
           { v: row.label },
-          row.type === 'valuation' ? null : { v: Math.round(row.amount), s: S.INT },
+          VALUATION_TYPES[row.type] ? null : { v: Math.round(row.amount), s: S.INT },
           row.deltaUnits ? { v: Math.round(row.deltaUnits), s: S.INT } : null,
           { v: Math.round(row.units), s: S.INT },
           { v: row.nav, s: S.DEC },
@@ -681,6 +698,8 @@
 
   // 원금 흐름에 해당하는 이벤트만 추출 (입금·출금·전액출금). 성과보수는 원금 흐름이 아님.
   var FLOW_TYPES = { deposit: 1, withdraw: 1, closeout: 1 };
+  // 평가 성격의 이벤트(평가금액이 곧 금액인 행) — 만기는 만기 시점 원리금 평가다
+  var VALUATION_TYPES = { valuation: 1, maturity: 1 };
 
   function flowSign(type) { return type === 'deposit' ? 1 : -1; }
 
@@ -885,7 +904,10 @@
       if (!accountMap[accName]) {
         accountMap[accName] = { name: accName, events: [] };
       }
-      accountMap[accName].events.push({ date: date, type: type, amount: amount });
+      var imported = { date: date, type: type, amount: amount };
+      // 재계약은 지급액이 기록돼 있으면 '원금만 재계약(이익 지급)', 없으면 '원리금 재계약'
+      if (type === 'rollover') imported.mode = amount > 0 ? 'payout' : 'compound';
+      accountMap[accName].events.push(imported);
     });
 
     // 계좌 생성
@@ -905,13 +927,15 @@
       var createdDate = data.events[0].date;
 
       data.events.forEach(function (ev) {
-        events.push({
+        var out = {
           id: 'ev' + seq,
           seq: seq,
           type: ev.type,
           date: ev.date,
           amount: ev.amount
-        });
+        };
+        if (ev.mode) out.mode = ev.mode;
+        events.push(out);
         seq++;
       });
 
@@ -938,9 +962,14 @@
 
   function normalizeType(str) {
     var m = str.toLowerCase();
+    // '전액출금'은 '출금'을 포함하므로 해지 판정을 먼저 한다
+    if (m.includes('전액') || m.includes('해지') || m === 'closeout') return 'closeout';
     if (m.includes('입금') || m === 'deposit') return 'deposit';
     if (m.includes('출금') || m === 'withdraw') return 'withdraw';
-    if (m.includes('해지') || m === 'closeout') return 'closeout';
+    if (m.includes('만기') || m === 'maturity') return 'maturity';
+    if (m.includes('재계약') || m.includes('롤오버') || m === 'rollover') return 'rollover';
+    if (m.includes('이익지급') || m.includes('이자') || m.includes('쿠폰') ||
+        m.includes('배당') || m === 'payout') return 'payout';
     if (m.includes('평가') || m === 'valuation') return 'valuation';
     if (m.includes('보수') || m === 'fee') return 'fee';
     return null;
@@ -1062,6 +1091,56 @@
       e.target.elements.amount.value = '';
     });
 
+    // 만기 · 재계약(Rollover) — 재계약 모드는 금액 입력이 필요 없다
+    el('form-maturity').elements.type.addEventListener('change', function (e) {
+      var isRollover = e.target.value.indexOf('rollover-') === 0;
+      var amt = el('form-maturity').elements.amount;
+      amt.disabled = isRollover;
+      amt.required = !isRollover;
+      if (isRollover) amt.value = '';
+      amt.placeholder = isRollover ? '자동 계산' : '예: 103000000';
+    });
+    el('form-maturity').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var form = e.target;
+      var kind = form.elements.type.value;
+      var date = form.elements.date.value;
+      if (!date) { alert('날짜를 입력하세요.'); return; }
+      var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
+
+      if (kind === 'maturity' || kind === 'payout') {
+        var v = readForm(form);
+        if (!v) return;
+        if (kind === 'payout') {
+          if (p && v.amount > p.eval + 1e-6) {
+            alert('이익지급액이 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.');
+            return;
+          }
+          if (!confirm('이익 ' + fmtWon(v.amount) + '을 지급 처리합니다.\n' +
+            '원금은 줄지 않으며 기준가 수익률도 왜곡되지 않습니다. 진행할까요?')) return;
+        }
+        addEvent(selectedAccountId, kind, v.date, v.amount);
+        form.elements.amount.value = '';
+        return;
+      }
+
+      // 재계약(Rollover)
+      if (!p || p.eval <= 0.005) { alert('재계약할 잔액이 없습니다.'); return; }
+      var mode = kind === 'rollover-payout' ? 'payout' : 'compound';
+      var msg;
+      if (mode === 'compound') {
+        msg = '원리금 전액(' + fmtWon(p.eval) + ')을 새 계약 원금으로 재예치합니다.\n';
+      } else {
+        var interest = Math.max(0, p.eval - p.principal);
+        msg = '이익 ' + fmtWon(interest) + '을 지급하고 원금 ' + fmtWon(p.eval - interest) +
+          '만 재예치합니다.\n';
+      }
+      msg += '기준가 1,000 / 계약 기준 수익률 0%로 초기화되며, 누적 성과 수익률과 전체 실적' +
+        ' 수익률은 그대로 이어집니다. 진행할까요?';
+      if (!confirm(msg)) return;
+      addEvent(selectedAccountId, 'rollover', date, 0, { mode: mode });
+    });
+
     // 성과보수 수취
     el('form-fee').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1126,7 +1205,7 @@
     });
 
     // 날짜 기본값
-    ['form-valuation', 'form-flow', 'form-fee'].forEach(function (id) {
+    ['form-valuation', 'form-flow', 'form-maturity', 'form-fee'].forEach(function (id) {
       el(id).elements.date.value = todayStr();
     });
 

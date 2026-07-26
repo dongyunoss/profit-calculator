@@ -9,37 +9,65 @@
  *    기준가를 1,000으로, 좌수를 차감 후 평가금액으로 재설정하여 수익률을 초기화한다.
  *    원금(순입금)은 보수로 인해 줄어들지 않는다 — 보수는 원금이 아닌 수익에서 지출되는 비용이다.
  *
+ * 만기 · 재계약(Rollover) 회계:
+ *  실물 자산의 만기 처리 관행을 이벤트로 옮긴 것이다.
+ *   · 예금        : 만기 원리금 확정 → 원리금 재예치 / 원금만 재예치(이자 수령) / 해지
+ *   · 채권        : 이표(쿠폰) 수령, 만기 상환(액면 + 최종이자) → 재투자 / 출금
+ *   · ELS         : 조기·만기 상환(원금 + 쿠폰) 또는 손실 상환 → 재투자(롤오버) / 출금
+ *   · 펀드(폐쇄형): 만기 청산·상환 → 재설정(롤오버) / 환매
+ *  - 만기(maturity)는 만기 시점의 원리금(상환금)을 평가금액으로 입력하는 이벤트다.
+ *    평가와 동일하게 기준가·성과에 반영되며, 만기 도래 상태로 표시된다.
+ *  - 이익지급(payout)은 이자·쿠폰·배당·상환수익의 인출이다. 출금과 동일한 자금 유출(flow)이므로
+ *    기준가 수익률을 왜곡하지 않으며, 원금(순입금)도 줄이지 않는다(보수와 같은 취급).
+ *  - 재계약(rollover)은 새 계약의 시작이므로 기준가를 1,000으로 되돌려 계약 기준 수익률을
+ *    0%로 초기화한다. 두 가지 모드를 지원한다.
+ *      · compound (원리금 재계약) : 원리금 전액을 새 계약 원금으로 승계 — 평가금액 그대로
+ *      · payout   (원금만 재계약) : 이익(평가금액 − 원금)을 지급한 뒤 원금만 재예치
+ *  - 개별 계좌는 재계약으로 초기화되지만, 누적 성과 지수(cumIndex)와 종합 성과 수익률은
+ *    끊기지 않고 이어진다. 지급된 이익은 전체 실적 수익률에 다시 가산되어(computeSummary)
+ *    재계약·지급으로 전체 수익률이 깎여 보이지 않는다.
+ *
  * 이벤트 처리 순서(같은 날짜):
- *  - 입금/출금/평가는 사용자가 입력한 순서(seq)대로 처리한다.
+ *  - 입금/출금/평가/만기는 사용자가 입력한 순서(seq)대로 처리한다.
  *    · 입금 기입 → 평가 입력: 입금은 직전 기준가로 좌수 발행 후 평가로 기준가 갱신
  *    · 평가 입력 → 입금 기입: 입금은 그날 갱신된 기준가로 발행되어 수익률 희석 없음
- *  - 성과보수는 입력 순서와 무관하게 당일 평가 반영 후에 처리한다.
- *    (당일 평가 반영 → 보수 차감 → 초기화 순서가 보장되어야
+ *  - 이익지급·성과보수는 입력 순서와 무관하게 당일 평가(만기) 반영 후에 처리한다.
+ *    (당일 평가 반영 → 보수·이익 차감 → 초기화 순서가 보장되어야
  *     기준가 수익률이 정확히 0으로 초기화되고 종합 성과 수익률이 오염되지 않는다)
- *  - 전액출금(해지)은 그날의 가장 마지막(보수 처리 후)에 처리한다.
+ *  - 재계약은 그 뒤(보수·이익지급 후), 전액출금(해지)은 그날의 가장 마지막에 처리한다.
  */
 (function (global) {
   'use strict';
 
   var NAV_BASE = 1000;
-  var EVENT_ORDER = { deposit: 0, withdraw: 1, valuation: 2, fee: 3, closeout: 4 };
-  var EVENT_LABEL = { deposit: '입금', withdraw: '출금', valuation: '평가', fee: '성과보수', closeout: '전액출금' };
+  var EVENT_ORDER = {
+    deposit: 0, withdraw: 1, valuation: 2, maturity: 3,
+    payout: 4, fee: 5, rollover: 6, closeout: 7
+  };
+  var EVENT_LABEL = {
+    deposit: '입금', withdraw: '출금', valuation: '평가', maturity: '만기',
+    payout: '이익지급', fee: '성과보수', rollover: '재계약', closeout: '전액출금'
+  };
 
-  // 같은 날짜 안에서의 처리 단계: 일반(입금/출금/평가) → 성과보수 → 전액출금
+  // 같은 날짜 안에서의 처리 단계:
+  //   일반(입금/출금/평가/만기) → 이익지급·성과보수 → 재계약 → 전액출금
   function dayRank(type) {
-    if (type === 'fee') return 1;
-    if (type === 'closeout') return 2;
+    if (type === 'payout' || type === 'fee') return 1;
+    if (type === 'rollover') return 2;
+    if (type === 'closeout') return 3;
     return 0;
   }
 
   function sortEvents(events) {
     return events.slice().sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-      // 성과보수는 입력 순서와 무관하게 당일 평가 반영 후, 전액출금은 그보다도 뒤에 처리한다.
-      // (당일 평가 → 보수 차감·초기화 → 잔액 전액 출금 순서가 보장되어야 수익률이 오염되지 않는다)
+      // 이익지급·성과보수는 입력 순서와 무관하게 당일 평가(만기) 반영 후, 재계약은 그 뒤,
+      // 전액출금은 그보다도 뒤에 처리한다.
+      // (당일 평가 → 보수·이익 차감 → 재계약 초기화 → 잔액 전액 출금 순서가 보장되어야
+      //  수익률이 오염되지 않는다)
       var r = dayRank(a.type) - dayRank(b.type);
       if (r !== 0) return r;
-      // 나머지(입금/출금/평가)는 입력 순서(seq)대로 — 실제 발생 순서와 일치시킨다.
+      // 나머지(입금/출금/평가/만기)는 입력 순서(seq)대로 — 실제 발생 순서와 일치시킨다.
       var s = (a.seq || 0) - (b.seq || 0);
       if (s !== 0) return s;
       return EVENT_ORDER[a.type] - EVENT_ORDER[b.type];
@@ -50,10 +78,13 @@
     var events = sortEvents(account.events || []);
     var units = 0;          // 좌수
     var nav = NAV_BASE;     // 기준가 (1,000좌당)
-    var principal = 0;      // 원금 (순입금, 보수 수취 시 재설정)
-    var cumIndex = NAV_BASE; // 보수 수취와 무관하게 이어지는 누적 성과 지수
-    var totalDeposits = 0, totalWithdrawals = 0, totalFees = 0;
+    var principal = 0;      // 원금 (순입금 — 보수·이익지급·재계약으로 변하지 않음)
+    var cumIndex = NAV_BASE; // 보수 수취·재계약과 무관하게 이어지는 누적 성과 지수
+    var totalDeposits = 0, totalWithdrawals = 0, totalFees = 0, totalPayouts = 0;
     var lastValuationDate = null, lastResetDate = null, lastCloseoutDate = null;
+    var lastResetKind = null;   // 'fee' | 'rollover' — 기준가를 초기화한 마지막 사유
+    var lastMaturityDate = null, lastRolloverDate = null;
+    var maturedPending = false; // 만기 도래 후 재계약·해지 등 후속 처리가 없는 상태
     var history = [];
     var daily = [];         // 종합(컴포지트) 계산용 일간 수익률
     var evalByDate = {};    // 종합 가중치 갱신용: 일자별 하루 마감 시점 평가금액
@@ -100,9 +131,12 @@
         totalWithdrawals += amount;
         pushRow(ev, { deltaUnits: -subUnits, units: units, eval: evalNow(), principal: principal });
 
-      } else if (ev.type === 'valuation') {
+      } else if (ev.type === 'valuation' || ev.type === 'maturity') {
+        // 만기는 만기 시점의 원리금(상환금)을 평가금액으로 입력하는 이벤트 —
+        // 기준가·성과 반영은 일반 평가와 동일하고, 만기 도래 상태만 추가로 표시한다.
         if (units <= 1e-9) {
-          warnings.push(ev.date + ' 좌수가 0인 상태의 평가금액 입력은 무시되었습니다.');
+          warnings.push(ev.date + ' 좌수가 0인 상태의 ' +
+            (ev.type === 'maturity' ? '만기 원리금' : '평가금액') + ' 입력은 무시되었습니다.');
           continue;
         }
         var beginEval = evalNow();
@@ -112,7 +146,55 @@
         cumIndex *= (1 + ret);
         daily.push({ date: ev.date, ret: ret, beginEval: beginEval, endEval: amount });
         lastValuationDate = ev.date;
+        if (ev.type === 'maturity') {
+          lastMaturityDate = ev.date;
+          maturedPending = true;
+        }
         pushRow(ev, { nav: nav, eval: evalNow(), dailyReturn: ret });
+
+      } else if (ev.type === 'payout') {
+        // 이자·쿠폰·배당·상환수익의 인출. 출금과 같은 자금 유출(flow)이므로 기준가는 그대로 —
+        // 수익률 왜곡이 없고, 원금(순입금)도 줄지 않는다(보수와 동일한 취급).
+        var payEvalBefore = evalNow();
+        if (amount > payEvalBefore + 1e-6) {
+          warnings.push(ev.date + ' 이익지급액이 평가금액을 초과합니다. 내역을 확인하세요.');
+        }
+        var payUnits = amount * NAV_BASE / nav;
+        units -= payUnits;
+        totalPayouts += amount;
+        pushRow(ev, { deltaUnits: -payUnits, units: units, eval: evalNow(), principal: principal });
+
+      } else if (ev.type === 'rollover') {
+        // 재계약(롤오버): 새 계약이 시작되므로 기준가를 1,000으로 되돌려 계약 기준 수익률을
+        // 0%로 초기화한다. 누적 성과 지수(cumIndex)는 끊기지 않고 이어진다.
+        if (units <= 1e-9) {
+          warnings.push(ev.date + ' 잔액이 없는 상태의 재계약은 무시되었습니다.');
+          continue;
+        }
+        var rollEvalBefore = evalNow();
+        var paidOut = 0;
+        if (ev.mode === 'payout') {
+          // 원금만 재계약: 이익(평가금액 − 원금)을 지급한 뒤 원금만 재예치.
+          // 평가금액이 원금 이하(손실)면 지급할 이익이 없으므로 초기화만 한다.
+          paidOut = rollEvalBefore - principal;
+          if (paidOut > 1e-6) {
+            units -= paidOut * NAV_BASE / nav;
+            totalPayouts += paidOut;
+          } else {
+            paidOut = 0;
+          }
+        }
+        var rollEvalAfter = evalNow();
+        nav = NAV_BASE;
+        units = rollEvalAfter;  // 기준가 1,000이므로 좌수 = 평가금액
+        lastResetDate = ev.date;
+        lastResetKind = 'rollover';
+        lastRolloverDate = ev.date;
+        maturedPending = false; // 재계약으로 만기 후속 처리 완료
+        pushRow(ev, {
+          amount: paidOut, deltaUnits: 0, units: units, nav: nav,
+          eval: rollEvalAfter, principal: principal
+        });
 
       } else if (ev.type === 'fee') {
         var evalBefore = evalNow();
@@ -127,6 +209,7 @@
         nav = NAV_BASE;
         units = evalAfter; // 기준가 1,000이므로 좌수 = 평가금액
         lastResetDate = ev.date;
+        lastResetKind = 'fee';
         pushRow(ev, { deltaUnits: 0, units: units, nav: nav, eval: evalAfter, principal: principal });
 
       } else if (ev.type === 'closeout') {
@@ -142,6 +225,7 @@
         nav = NAV_BASE;   // 이후 재입금 시 새 출발
         principal = 0;
         lastCloseoutDate = ev.date;
+        maturedPending = false; // 만기 후 해지로 후속 처리 완료
         pushRow(ev, { amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0, principal: 0 });
       }
 
@@ -172,8 +256,13 @@
       totalDeposits: totalDeposits,
       totalWithdrawals: totalWithdrawals,
       totalFees: totalFees,
+      totalPayouts: totalPayouts,          // 누적 이익지급(이자·쿠폰·배당·상환수익)
       lastValuationDate: lastValuationDate,
-      lastResetDate: lastResetDate
+      lastResetDate: lastResetDate,
+      lastResetKind: lastResetKind,         // 기준가 초기화 사유: 'fee' | 'rollover'
+      lastMaturityDate: lastMaturityDate,
+      lastRolloverDate: lastRolloverDate,
+      isMatured: maturedPending && currentEval > 1e-6 // 만기 도래·후속 처리 대기
     };
   }
 
@@ -225,26 +314,31 @@
   }
 
   function computeSummary(processedAccounts) {
-    var totalEval = 0, totalPrincipal = 0, totalFees = 0, totalDeposits = 0, totalWithdrawals = 0;
+    var totalEval = 0, totalPrincipal = 0, totalFees = 0, totalPayouts = 0;
+    var totalDeposits = 0, totalWithdrawals = 0;
     processedAccounts.forEach(function (p) {
       totalEval += p.eval;
       totalPrincipal += p.principal;
       totalFees += p.totalFees;
+      totalPayouts += p.totalPayouts || 0;
       totalDeposits += p.totalDeposits;
       totalWithdrawals += p.totalWithdrawals;
     });
     var totalPnl = totalEval - totalPrincipal;
-    // 전체 실적 기준 성과: 수취한 성과보수(실현 성과)를 되살려 계산한다.
-    // 개별 계좌는 보수 수취 시 기준가·수익률이 0으로 초기화되지만,
-    // 종합(전체) 실적에서는 보수 유출로 성과가 깎여 보이지 않도록 보수를 다시 더한다.
-    var grossPnl = totalEval + totalFees - totalPrincipal;
+    // 전체 실적 기준 성과: 이미 실현되어 계좌 밖으로 나간 성과를 되살려 계산한다.
+    //  · 성과보수(totalFees)  — 수익에서 지출된 비용
+    //  · 이익지급(totalPayouts) — 만기·이표 시 지급된 이자·쿠폰·배당·상환수익
+    // 개별 계좌는 보수 수취·재계약 시 기준가·수익률이 0으로 초기화되지만,
+    // 종합(전체) 실적에서는 이 유출로 성과가 깎여 보이지 않도록 다시 더한다.
+    var grossPnl = totalEval + totalFees + totalPayouts - totalPrincipal;
     return {
       totalEval: totalEval,
       totalPrincipal: totalPrincipal,
-      totalPnl: totalPnl,          // 현재 보유 기준 평가손익 (보수 유출 후 실보유)
-      grossPnl: grossPnl,          // 보수 포함 총성과 (전체 실적 기준 — 보수 수취와 무관하게 유지)
-      simpleReturn: totalPrincipal > 0 ? grossPnl / totalPrincipal : 0, // 원금대비 단순 수익률 (보수 수취로 줄지 않음)
+      totalPnl: totalPnl,          // 현재 보유 기준 평가손익 (보수·이익지급 유출 후 실보유)
+      grossPnl: grossPnl,          // 보수·이익지급 포함 총성과 (전체 실적 기준 — 수취·재계약과 무관)
+      simpleReturn: totalPrincipal > 0 ? grossPnl / totalPrincipal : 0, // 원금대비 단순 수익률 (보수·재계약으로 줄지 않음)
       totalFees: totalFees,
+      totalPayouts: totalPayouts,
       totalDeposits: totalDeposits,
       totalWithdrawals: totalWithdrawals
     };
