@@ -106,10 +106,11 @@
     // 현재 계약이 시작된 이후 계좌 밖으로 나간 금액. 계약 기준 수익률의 분자에 되살려
     // 배당·보수 지급이 계약 수익률을 깎지 않게 한다. 계약이 새로 시작되면(보수·재계약) 0으로.
     var contractFees = 0, contractPayouts = 0;
-    // 해지(closeout)로 확정된 실적. 해지 시 원금이 0이 되므로 그때까지의 원금·총수익 성과를
-    // 따로 확정해 두어야 전체 실적에서 사라지지 않는다.
-    var realizedPrincipal = 0, realizedGross = 0;
-    var settledFees = 0, settledPayouts = 0; // realizedGross에 이미 반영된 유출 누계
+    // 보수 되살린 계약원금 — 계약원금(contractPrincipal)과 같지만 보수 차감 '전' 평가금액으로
+    // 재설정된다. 전액 출금(해지) 시 원금 흐름에서 차감할 "남은 원금"이 이 값이다.
+    // 일반 출금으로 계좌를 정리할 때 사용자가 기입하는 금액과 같은 기준이므로,
+    // 해지로 기입하든 출금으로 기입하든 전체 성과가 동일하게 나온다.
+    var contractPrincipalGross = 0;
     var cumIndex = NAV_BASE; // 보수 수취·재계약과 무관하게 이어지는 누적 성과 지수
     var totalDeposits = 0, totalWithdrawals = 0, totalFees = 0, totalPayouts = 0;
     var lastValuationDate = null, lastResetDate = null, lastCloseoutDate = null;
@@ -157,6 +158,7 @@
         units += addUnits;
         principal += amount;
         contractPrincipal += amount;
+        contractPrincipalGross += amount;
         totalDeposits += amount;
         pushRow(ev, {
           deltaUnits: addUnits, units: units, eval: evalNow(),
@@ -178,6 +180,7 @@
         units -= subUnits;
         principal -= amount;
         contractPrincipal -= amount;
+        contractPrincipalGross -= amount;
         totalWithdrawals += amount;
         pushRow(ev, {
           deltaUnits: -subUnits, units: units, eval: evalNow(),
@@ -249,6 +252,7 @@
         nav = NAV_BASE;
         units = rollEvalAfter;  // 기준가 1,000이므로 좌수 = 평가금액
         contractPrincipal = rollEvalAfter; // 재예치 금액이 새 계약의 원금
+        contractPrincipalGross = rollEvalBefore; // 지급분을 되살린 기준
         contractFees = 0;                  // 새 계약이 시작되므로 계약 기준 성과는 0에서 다시
         contractPayouts = 0;
         lastResetDate = ev.date;
@@ -281,6 +285,7 @@
         nav = NAV_BASE;
         units = evalAfter; // 기준가 1,000이므로 좌수 = 평가금액
         contractPrincipal = evalAfter;
+        contractPrincipalGross = evalBefore; // 보수를 되살린 기준 — 해지 시 차감할 남은 원금
         contractFees = 0;  // 새 계약이 시작되므로 계약 기준 성과는 0에서 다시
         contractPayouts = 0;
         lastResetDate = ev.date;
@@ -299,23 +304,21 @@
         var amountOut = evalNow();
         var deltaOut = -units;
         totalWithdrawals += amountOut;
-        // 원금을 0으로 지우기 전에 여기까지의 실적을 총수익 기준으로 확정한다.
-        // (확정하지 않으면 해지 계좌는 원금 0 · 유출액만 남아 전체 수익률이 왜곡된다)
-        realizedPrincipal += principal;
-        realizedGross += (amountOut + (totalFees - settledFees) + (totalPayouts - settledPayouts)) - principal;
-        settledFees = totalFees;
-        settledPayouts = totalPayouts;
+        // 원금 흐름에서는 "남은 원금"(보수 되살린 계약원금)을 차감한다.
+        // 같은 정리를 일반 출금으로 기입했을 때와 동일한 결과가 나오도록 맞춘 것이다.
+        // 이익까지 인출한 계좌는 원금이 음수가 되며, 그만큼이 실현이익으로 잡힌다.
         units = 0;
         nav = NAV_BASE;   // 이후 재입금 시 새 출발
-        principal = 0;
+        principal -= contractPrincipalGross;
         contractPrincipal = 0;
+        contractPrincipalGross = 0;
         contractFees = 0;
         contractPayouts = 0;
         lastCloseoutDate = ev.date;
         maturedPending = false; // 만기 후 해지로 후속 처리 완료
         pushRow(ev, {
           amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0,
-          principal: 0, contractPrincipal: 0
+          principal: principal, contractPrincipal: 0
         });
       }
 
@@ -324,12 +327,9 @@
     }
 
     var currentEval = evalNow();
-    // 아직 해지로 확정되지 않은 유출액 — 총수익 수익률의 분자로 되살릴 금액
-    var openFees = totalFees - settledFees;
-    var openPayouts = totalPayouts - settledPayouts;
-    // 총수익 기준 성과: 현재 보유분 성과 + 해지로 확정된 성과
-    var grossPrincipal = principal + realizedPrincipal;
-    var grossPnl = (currentEval + openFees + openPayouts - principal) + realizedGross;
+    // 총수익 기준 성과 — 계좌 밖으로 나간 보수·배당을 분자에 되살린다
+    var grossPrincipal = principal;
+    var grossPnl = currentEval + totalFees + totalPayouts - principal;
     var contractPnl = currentEval + contractFees + contractPayouts - contractPrincipal;
     return {
       id: account.id,
@@ -350,10 +350,7 @@
       grossPrincipal: grossPrincipal,       // 해지분 포함 원금 (전체 실적 집계 기준)
       grossPnl: grossPnl,                   // 총수익 성과 (배당·보수 유출분을 되살린 값)
       contractPnl: contractPnl,             // 계약 기준 총수익 손익
-      openFees: openFees,
-      openPayouts: openPayouts,
-      realizedPrincipal: realizedPrincipal,
-      realizedGross: realizedGross,
+      contractPrincipalGross: contractPrincipalGross, // 해지 시 원금에서 차감할 남은 원금
       contractFees: contractFees,
       contractPayouts: contractPayouts,
       navReturn: nav / NAV_BASE - 1,                                        // 기준가 수익률 (보수 수취·재계약 후 기준)
@@ -361,7 +358,7 @@
       // 계약 기간 중의 배당·이익지급은 되살려 계산하므로 지급으로 깎이지 않는다.
       contractReturn: contractPrincipal > 0 ? contractPnl / contractPrincipal : 0,
       // 원금 흐름 대비 누적 수익률 — 개설 이후 나간 배당·보수를 모두 되살린 총수익 기준
-      principalReturn: grossPrincipal > 0 ? grossPnl / grossPrincipal : 0,
+      principalReturn: grossPrincipal !== 0 ? grossPnl / grossPrincipal : 0,
       cumReturn: cumIndex / NAV_BASE - 1,                                   // 개설 이후 누적 성과 수익률
       cumIndex: cumIndex,
       totalDeposits: totalDeposits,

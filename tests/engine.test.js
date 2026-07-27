@@ -384,11 +384,35 @@ ok('같은 날: 전액출금·보수를 먼저 기입해도 평가 → 보수 �
   approx(p.eval, 0);
   assert.strictEqual(p.isClosed, true);
   approx(Engine.computeComposite([p]).ret, 0.10, 1e-9); // 종합 성과는 순수 성과 10%
-  // 해지로 원금이 0이 되어도 그때까지의 원금·총수익 성과는 전체 실적에 남는다
+  // 해지는 원금 흐름에서 "남은 원금"(보수 되살린 계약원금 1.1억)을 차감한다
+  approx(p.principal, -10000000);
   const s = Engine.computeSummary([p]);
-  approx(s.totalPrincipal, 100000000);
-  approx(s.grossPnl, 10000000);
-  approx(s.simpleReturn, 0.10);
+  approx(s.grossPnl, 15000000);  // 평가 0 + 보수 500만 − 원금(−1천만)
+});
+
+// 15-2. 같은 정리를 '전액 출금(해지)'로 기입하든 '일반 출금'으로 기입하든 결과가 같아야 한다
+ok('해지 = 남은 원금만큼 일반 출금 — 전체 성과가 동일', () => {
+  const base = [
+    { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+    { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+    { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 5000000 }  // 잔액 1.05억
+  ];
+  // (가) 전액 출금(해지)으로 정리
+  const byCloseout = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: base.concat([{ id: '4', seq: 4, type: 'closeout', date: '2026-07-01', amount: 0 }])
+  });
+  // (나) 남은 원금(보수 차감 전 평가 1.1억)을 일반 출금으로 기입
+  const byWithdraw = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: base.concat([{ id: '4', seq: 4, type: 'withdraw', date: '2026-07-01', amount: 110000000 }])
+  });
+  approx(byCloseout.principal, byWithdraw.principal);
+  approx(byCloseout.eval, byWithdraw.eval);
+  approx(byCloseout.grossPnl, byWithdraw.grossPnl);
+  const a = Engine.computeSummary([byCloseout]), b = Engine.computeSummary([byWithdraw]);
+  approx(a.totalPrincipal, b.totalPrincipal);
+  approx(a.simpleReturn, b.simpleReturn);
 });
 
 // 16. 만기: 만기 원리금은 평가와 동일하게 성과에 반영되고 만기 상태로 표시된다
