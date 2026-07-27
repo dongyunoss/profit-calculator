@@ -569,6 +569,29 @@ ok('해지 후 재계약은 무시되고 경고가 남는다', () => {
   assert.ok(p.warnings.some(w => w.includes('재계약')));
 });
 
+// 24. 출금액이 평가금액을 초과해도 좌수·평가금액은 음수가 되지 않는다
+//     (보수 수취 후 손실이 나면 "남은 원금"이 실제 잔고보다 커진다 — 출금액은 원금 차감액)
+ok('출금액 > 평가금액 → 좌수 0으로 정리, 원금은 전액 차감', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },        // 잔액 1.08억
+      { id: '4', seq: 4, type: 'valuation', date: '2026-09-30', amount: 90000000 },  // 손실
+      // 남은 원금 1.08억을 정리 — 실제 잔고 0.9억보다 크다
+      { id: '5', seq: 5, type: 'withdraw', date: '2026-10-01', amount: 108000000 }
+    ]
+  });
+  approx(p.units, 0);              // 좌수는 음수로 가지 않는다
+  approx(p.eval, 0);               // 평가금액도 음수가 되지 않는다
+  approx(p.principal, -8000000);   // 원금 흐름은 입력한 금액대로 차감 (1억 − 1.08억)
+  approx(p.contractPrincipal, 0);  // 계약원금 1.08억 − 1.08억
+  assert.ok(/초과합니다/.test(p.warnings[0]), '초과 경고가 남아야 한다');
+  // 가드가 전체 성과의 총원금 합계를 바꾸지 않는다
+  approx(Engine.computeSummary([p]).totalPrincipal, -8000000);
+});
+
 console.log('\nxlsx-writer.js');
 
 // 10. xlsx 생성 → ZIP 구조 검증

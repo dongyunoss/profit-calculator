@@ -164,9 +164,16 @@
         });
 
       } else if (ev.type === 'withdraw') {
+        // 출금액은 원금 차감액이므로 평가금액을 초과할 수 있다.
+        // (보수 수취 후 손실이 나면 "남은 원금"이 실제 잔고보다 커진다)
+        // 좌수는 실제 잔고까지만 환매하고(하한 0), 원금은 입력한 금액대로 차감한다.
         var subUnits = amount * NAV_BASE / nav;
         if (subUnits > units + 1e-6) {
-          warnings.push(ev.date + ' 출금액이 평가금액을 초과하여 좌수가 음수가 되었습니다. 내역을 확인하세요.');
+          warnings.push(ev.date + ' 출금액(' + Math.round(amount).toLocaleString() +
+            '원)이 평가금액(' + Math.round(evalNow()).toLocaleString() +
+            '원)을 초과합니다. 좌수는 0으로 정리하고 원금만 전액 차감했습니다.' +
+            ' 잔여 평가금액이 있다면 입금으로 기입하세요.');
+          subUnits = units;
         }
         units -= subUnits;
         principal -= amount;
@@ -209,6 +216,7 @@
         // 지급액은 contractPayouts에 쌓아 계약 기준 수익률의 분자로 되살린다 →
         // 배당을 지급해도 원금이 줄지 않고, 수익률도 지급액만큼 깎이지 않는다.
         var payUnits = amount * NAV_BASE / nav;
+        if (payUnits > units) payUnits = units; // 좌수는 음수가 되지 않는다
         units -= payUnits;
         totalPayouts += amount;
         contractPayouts += amount;
@@ -260,7 +268,9 @@
         // 보수는 성과가 아니라 자금 유출(flow)로 처리 → 수익률 왜곡 없음.
         // 배당 지급과 똑같이 원금에서 나가지 않으며, 나간 금액은 원금흐름대비·전체 성과
         // 수익률의 분자에 되살아난다.
-        units -= amount * NAV_BASE / nav;
+        var feeUnits = amount * NAV_BASE / nav;
+        if (feeUnits > units) feeUnits = units; // 좌수는 음수가 되지 않는다
+        units -= feeUnits;
         totalFees += amount;
         contractFees += amount;
         var evalAfter = evalNow();
