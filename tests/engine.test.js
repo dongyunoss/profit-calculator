@@ -100,7 +100,8 @@ ok('성과보수 수취 → 기준가 1000, 원금 유지(차감 없음), 평가
   approx(p.navReturn, 0);
   approx(p.eval, 108000000);
   approx(p.principal, 100000000);       // 순입금은 보수 수취와 무관하게 유지
-  approx(p.principalReturn, 0.08);      // 순입금대비 누적 (1.08억 − 1억) ÷ 1억
+  // 순입금대비는 총수익 기준 — 나간 보수 200만을 되살려 10% (8%로 깎이지 않는다)
+  approx(p.principalReturn, 0.10);
   approx(p.units, 108000000);
   approx(p.totalFees, 2000000);
   // 누적 성과 지수는 보수와 무관하게 10% 유지
@@ -383,6 +384,11 @@ ok('같은 날: 전액출금·보수를 먼저 기입해도 평가 → 보수 �
   approx(p.eval, 0);
   assert.strictEqual(p.isClosed, true);
   approx(Engine.computeComposite([p]).ret, 0.10, 1e-9); // 종합 성과는 순수 성과 10%
+  // 해지로 원금이 0이 되어도 그때까지의 원금·총수익 성과는 전체 실적에 남는다
+  const s = Engine.computeSummary([p]);
+  approx(s.totalPrincipal, 100000000);
+  approx(s.grossPnl, 10000000);
+  approx(s.simpleReturn, 0.10);
 });
 
 // 16. 만기: 만기 원리금은 평가와 동일하게 성과에 반영되고 만기 상태로 표시된다
@@ -416,9 +422,60 @@ ok('이익지급 → 원금·기준가 수익률 불변, 전체 실적 수익률
   approx(p.principal, 100000000);   // 원금은 줄지 않는다
   approx(p.navReturn, 0.03);        // 자금 유출이므로 기준가 수익률 왜곡 없음
   approx(p.totalPayouts, 3000000);
+  // 배당(이익지급)은 원금에서 까지지 않고, 수익률도 지급액만큼 깎이지 않는다 —
+  // 계약·순입금 기준 수익률 모두 기준가 수익률과 동일한 3%로 유지된다.
+  approx(p.contractReturn, 0.03);
+  approx(p.principalReturn, 0.03);
+  approx(p.contractPnl, 3000000);
   const s = Engine.computeSummary([p]);
   approx(s.simpleReturn, 0.03);     // 전체 실적: 지급된 이자를 되살려 3% 유지
   approx(s.totalPayouts, 3000000);
+});
+
+// 17-2. 배당을 여러 번 지급해도 계약 기준 수익률이 계단식으로 깎이지 않는다
+ok('배당 반복 지급 → 원금 불변, 계약 수익률이 지급액만큼 깎이지 않음', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-03-31', amount: 103000000 },
+      { id: '3', seq: 3, type: 'payout', date: '2026-03-31', amount: 3000000 },   // 1분기 배당
+      { id: '4', seq: 4, type: 'valuation', date: '2026-06-30', amount: 104000000 },
+      { id: '5', seq: 5, type: 'payout', date: '2026-06-30', amount: 4000000 }    // 2분기 배당
+    ]
+  });
+  approx(p.eval, 100000000);       // 두 번의 배당을 모두 지급하고 원금만 남음
+  approx(p.principal, 100000000);  // 원금은 배당으로 줄지 않는다
+  approx(p.totalPayouts, 7000000);
+  // 기준가는 지급액을 재투자한 것으로 보는 시간가중 수익률 → 1.03 × 1.04 − 1 = 7.12%
+  approx(p.navReturn, 1.03 * 1.04 - 1, 1e-9);
+  // 계약·순입금 기준은 지급액을 액면 그대로 되살리는 금액가중 수익률 → 700만 ÷ 1억 = 7%
+  // (0%로 깎이지 않는 것이 핵심. 기준가와의 0.12%p 차이는 지급받은 배당의 재투자 복리분)
+  approx(p.contractReturn, 0.07, 1e-9);
+  approx(p.principalReturn, 0.07, 1e-9);
+  approx(Engine.computeSummary([p]).simpleReturn, 0.07, 1e-9);
+});
+
+// 17-3. 보수 수취(= 배당 지급) 후에도 새 계약 안에서 배당이 수익률을 깎지 않는다
+ok('보수 수취 후 배당 지급 → 새 계약 수익률이 기준가 수익률과 일치', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },       // 계약원금 1.08억
+      { id: '4', seq: 4, type: 'valuation', date: '2026-09-30', amount: 118800000 }, // 1.08억 × 1.10
+      { id: '5', seq: 5, type: 'payout', date: '2026-09-30', amount: 3000000 }       // 배당 300만
+    ]
+  });
+  approx(p.eval, 115800000);
+  approx(p.contractPrincipal, 108000000);  // 배당은 계약원금을 줄이지 않는다
+  approx(p.principal, 100000000);          // 순입금도 그대로
+  approx(p.navReturn, 0.10, 1e-9);
+  approx(p.contractReturn, 0.10, 1e-9);    // 배당 300만을 되살려 10% 유지
+  // 순입금대비: (1.158억 + 보수 200만 + 배당 300만 − 1억) ÷ 1억
+  approx(p.principalReturn, 0.208, 1e-9);
+  approx(Engine.computeSummary([p]).simpleReturn, 0.208, 1e-9);
 });
 
 // 18. 재계약(원리금 재예치): 계약 기준 초기화, 원금·누적성과·전체실적 유지

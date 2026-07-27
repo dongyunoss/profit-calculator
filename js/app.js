@@ -218,7 +218,7 @@
     wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal), '누적입금 ' + fmtWon(s.totalDeposits) + ' · 누적출금 ' + fmtWon(s.totalWithdrawals)));
     wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
-    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '(총평가 + 누적보수 + 이익지급 − 총원금) ÷ 총원금', pctClass(s.simpleReturn)));
+    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
     wrap.appendChild(card('누적 성과보수', fmtWon(s.totalFees),
       s.totalPayouts > 0 ? '이익지급 ' + fmtWon(s.totalPayouts) : ''));
   }
@@ -358,14 +358,17 @@
     // 원금·원금대비 수익률은 계약 기준(보수 수취·재계약 시 평가금액 승계)으로 표시하고,
     // 순입금과 차이가 나면 순입금·누적 실적을 함께 보여준다.
     var carried = Math.abs(p.contractPrincipal - p.principal) > 0.5;
+    var paidOutNow = (p.contractFees || 0) + (p.contractPayouts || 0);
     cards.appendChild(card('원금', fmtWon(p.contractPrincipal),
       carried ? '순입금 ' + fmtWon(p.principal) : ''));
     cards.appendChild(card('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.contractPnl), pctClass(p.contractPnl)));
     cards.appendChild(card('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
-    cards.appendChild(card('원금대비 수익률', fmtPct(p.contractReturn), resetNote(p), pctClass(p.contractReturn)));
-    if (carried) {
+    cards.appendChild(card('원금대비 수익률', fmtPct(p.contractReturn),
+      paidOutNow > 0.5 ? '지급분 ' + fmtWon(paidOutNow) + ' 포함(총수익)' : resetNote(p),
+      pctClass(p.contractReturn)));
+    if (carried || (p.totalFees + (p.totalPayouts || 0)) > 0.5) {
       cards.appendChild(card('순입금대비 수익률', fmtPct(p.principalReturn),
-        '보수수취·재계약 무관, 개설 이후', pctClass(p.principalReturn)));
+        '총수익 기준 — 배당·보수 되살림, 개설 이후', pctClass(p.principalReturn)));
     }
     cards.appendChild(card('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
     cards.appendChild(card('누적 성과보수', fmtWon(p.totalFees), ''));
@@ -406,12 +409,18 @@
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
         h('td', { text: fmtWon(row.contractPrincipal), class: 'num' }),
-        h('td', { text: VALUATION_TYPES[row.type] && row.contractPrincipal > 0 ? fmtPct((row.eval - row.contractPrincipal) / row.contractPrincipal) : '-',
-          class: 'num ' + (VALUATION_TYPES[row.type] && row.contractPrincipal > 0 ? pctClass((row.eval - row.contractPrincipal) / row.contractPrincipal) : '') }),
+        h('td', { text: rowRet(row) === null ? '-' : fmtPct(rowRet(row)),
+          class: 'num ' + (rowRet(row) === null ? '' : pctClass(rowRet(row))) }),
         h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) }),
         h('td', {}, [delBtn])
       ]));
     });
+  }
+
+  // 평가 행의 원금대비 수익률 — 엔진이 계산한 계약 기준 총수익 수익률
+  // (배당·이익지급으로 나간 금액이 되살아나 있어 지급 때문에 수익률이 꺾이지 않는다)
+  function rowRet(row) {
+    return VALUATION_TYPES[row.type] ? (row.contractReturn === undefined ? null : row.contractReturn) : null;
   }
 
   // 원금 원장: 원금(최초) → [추가입금, 원금합] 반복 → 현재 원금
@@ -451,7 +460,7 @@
     tbody.innerHTML = '';
     var vals = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
     vals.slice().reverse().forEach(function (row) {
-      var pr = row.contractPrincipal > 0 ? (row.eval - row.contractPrincipal) / row.contractPrincipal : null;
+      var pr = rowRet(row);
       tbody.appendChild(h('tr', {}, [
         h('td', { text: row.date, class: 'date' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
@@ -602,8 +611,7 @@
         { v: '원금대비 수익률', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }
       ]];
       p.history.forEach(function (row) {
-        var pr = (VALUATION_TYPES[row.type] && row.contractPrincipal > 0)
-          ? (row.eval - row.contractPrincipal) / row.contractPrincipal : null;
+        var pr = rowRet(row);
         rows.push([
           { v: row.date },
           { v: row.label },
