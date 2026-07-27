@@ -6,15 +6,14 @@
  *  - 입금/출금은 "현재 기준가"로 좌수를 발행/환매하므로 수익률(기준가)에 영향을 주지 않는다.
  *  - 일일 평가금액이 입력되면 기준가 = 평가금액 × 1000 ÷ 좌수 로 갱신된다.
  *  - 성과보수 수취 시 보수액을 차감(출금과 동일하게 좌수 차감)한 뒤,
- *    기준가를 1,000으로, 좌수를 차감 후 평가금액으로 재설정하여 기준가 수익률을 초기화한다.
+ *    기준가를 1,000으로, 좌수를 차감 후 평가금액으로 재설정하여 수익률을 초기화한다.
  *
- * 원금(principal)의 정의:
- *  원금은 오직 입출금으로만 산정한다 — 입금하면 늘고 출금하면 준다. 그게 전부다.
- *  성과보수 수취·배당(이익지급)·만기 재계약은 원금을 전혀 건드리지 않는다.
- *  (보수·배당은 원금이 아니라 수익에서 나가는 돈이므로 원금을 승계·재설정하지 않는다)
- *  따라서 보수를 수취해도 초기화되는 것은 "기준가 수익률"뿐이고,
- *  "원금대비 수익률"은 개설 이후로 계속 누적된다.
- *  예외는 전액 출금(해지)뿐이며, 이때도 그 시점까지의 원금·성과는 확정되어 보존된다.
+ * 원금의 두 기준 — 보는 시점에 따라 다른 원금을 쓴다:
+ *  · contractPrincipal (계약원금) — 보수 수취·재계약 시 평가금액을 새 계약 원금으로 승계.
+ *    **개별 계좌를 열어 볼 때** 쓰는 기준이다. 재설정된 원금 대비 성과가 보인다.
+ *  · principal (원금 흐름) — 입금하면 늘고 출금하면 주는 것이 전부. 보수·배당·재계약이
+ *    건드리지 않는다. **전체 성과 측정(computeSummary)** 에 쓰는 기준이다.
+ *  두 기준 모두 보수는 원금에서 나가지 않는다 — 보수는 수익에서 지출되는 비용이다.
  *
  * 만기 · 재계약(Rollover) 회계:
  *  실물 자산의 만기 처리 관행을 이벤트로 옮긴 것이다.
@@ -25,7 +24,7 @@
  *  - 만기(maturity)는 만기 시점의 원리금(상환금)을 평가금액으로 입력하는 이벤트다.
  *    평가와 동일하게 기준가·성과에 반영되며, 만기 도래 상태로 표시된다.
  *  - 이익지급(payout)은 이자·쿠폰·배당·상환수익의 인출이다. 출금과 동일한 자금 유출(flow)이므로
- *    기준가 수익률을 왜곡하지 않으며, 원금도 줄이지 않는다(보수와 같은 취급).
+ *    기준가 수익률을 왜곡하지 않으며, 두 기준의 원금도 줄이지 않는다(보수와 같은 취급).
  *
  * 총수익(Total Return) 회계 — 배당·보수 지급이 수익률을 깎지 않게 하는 원칙:
  *  펀드가 배당(분배금)을 지급하면 순자산은 줄지만 원금은 줄지 않는다. 이때 수익률을
@@ -33,13 +32,14 @@
  *  그래서 지급·수취되어 계좌 밖으로 나간 금액(배당·이자·성과보수)은 수익률 분자에 되살린다
  *  (분배금 재투자 기준 = Total Return).
  *    · 기준가(nav) — 지급액만큼 좌수를 상환하므로 기준가 자체는 변하지 않는다 → 왜곡 없음
- *    · 원금 대비 수익률 — 개설 이후 유출액(openFees·openPayouts)을 되살려 계산
+ *    · 계약 기준 수익률 — 계약 시작 이후 유출액(contractFees·contractPayouts)을 되살려 계산
+ *    · 원금 흐름 대비 수익률 — 개설 이후 유출액 전부를 되살려 계산
  *    · 전체 실적(computeSummary) — 계좌별 총수익 성과를 그대로 합산
  *  세 지표가 모두 같은 기준을 쓰므로, 배당을 주든 보수를 떼든 개별 계좌·전체 실적 어디에서도
  *  수익률이 깎여 보이지 않는다.
- *  - 재계약(rollover)은 새 계약의 시작이므로 기준가를 1,000으로 되돌려 기준가 수익률을
- *    0%로 초기화한다(원금은 그대로). 두 가지 모드를 지원한다.
- *      · compound (원리금 재계약) : 원리금 전액을 그대로 재예치 — 평가금액 그대로
+ *  - 재계약(rollover)은 새 계약의 시작이므로 기준가를 1,000으로 되돌려 계약 기준 수익률을
+ *    0%로 초기화한다. 두 가지 모드를 지원한다.
+ *      · compound (원리금 재계약) : 원리금 전액을 새 계약 원금으로 승계 — 평가금액 그대로
  *      · payout   (원금만 재계약) : 이익(평가금액 − 원금)을 지급한 뒤 원금만 재예치
  *  - 개별 계좌는 재계약으로 초기화되지만, 누적 성과 지수(cumIndex)와 종합 성과 수익률은
  *    끊기지 않고 이어진다. 지급된 이익은 전체 실적 수익률에 다시 가산되어(computeSummary)
@@ -96,8 +96,16 @@
     var events = sortEvents(account.events || []);
     var units = 0;          // 좌수
     var nav = NAV_BASE;     // 기준가 (1,000좌당)
-    // 원금: 오직 입출금으로만 산정한다. 성과보수 수취·이익지급·재계약은 원금을 건드리지 않는다.
-    var principal = 0;
+    var principal = 0;      // 원금 흐름 (전체 성과 기준 — 보수·이익지급·재계약으로 변하지 않음)
+    // 계약원금: 현재 계약의 원금 기준.
+    // 만기 재계약에서 원리금을 새 계약 원금으로 승계하는 것과 같은 방식으로,
+    // 성과보수 수취 시에도 보수 차감 후 평가금액을 새 계약의 원금으로 승계한다.
+    // → 개별 계좌는 기준가·원금대비 수익률이 모두 0%로 초기화되고,
+    //   전체 성과는 원금 흐름(principal) 기준이므로 영향을 받지 않는다.
+    var contractPrincipal = 0;
+    // 현재 계약이 시작된 이후 계좌 밖으로 나간 금액. 계약 기준 수익률의 분자에 되살려
+    // 배당·보수 지급이 계약 수익률을 깎지 않게 한다. 계약이 새로 시작되면(보수·재계약) 0으로.
+    var contractFees = 0, contractPayouts = 0;
     // 해지(closeout)로 확정된 실적. 해지 시 원금이 0이 되므로 그때까지의 원금·총수익 성과를
     // 따로 확정해 두어야 전체 실적에서 사라지지 않는다.
     var realizedPrincipal = 0, realizedGross = 0;
@@ -127,15 +135,16 @@
         nav: nav,
         eval: evalNow(),
         principal: principal,
+        contractPrincipal: contractPrincipal,
         dailyReturn: null
       };
       if (extra) for (var k in extra) row[k] = extra[k];
-      // 원금대비 손익·수익률은 총수익(Total Return) 기준 — 지급·수취되어 계좌 밖으로 나간
-      // 금액을 되살려 계산한다. (배당·보수가 나가도 그 행의 수익률이 내려가지 않는다)
-      row.openFees = totalFees - settledFees;
-      row.openPayouts = totalPayouts - settledPayouts;
-      row.grossPnl = row.eval + row.openFees + row.openPayouts - row.principal;
-      row.principalReturn = row.principal > 0 ? row.grossPnl / row.principal : null;
+      // 계약 기준 손익·수익률은 총수익(Total Return) 기준 — 계약 시작 이후 지급·수취되어
+      // 나간 금액을 되살려 계산한다. (배당을 지급해도 그 행의 수익률이 내려가지 않는다)
+      row.contractFees = contractFees;
+      row.contractPayouts = contractPayouts;
+      row.contractPnl = row.eval + contractFees + contractPayouts - row.contractPrincipal;
+      row.contractReturn = row.contractPrincipal > 0 ? row.contractPnl / row.contractPrincipal : null;
       history.push(row);
     }
 
@@ -147,10 +156,11 @@
         var addUnits = amount * NAV_BASE / nav;
         units += addUnits;
         principal += amount;
+        contractPrincipal += amount;
         totalDeposits += amount;
         pushRow(ev, {
           deltaUnits: addUnits, units: units, eval: evalNow(),
-          principal: principal
+          principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'withdraw') {
@@ -160,10 +170,11 @@
         }
         units -= subUnits;
         principal -= amount;
+        contractPrincipal -= amount;
         totalWithdrawals += amount;
         pushRow(ev, {
           deltaUnits: -subUnits, units: units, eval: evalNow(),
-          principal: principal
+          principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'valuation' || ev.type === 'maturity') {
@@ -189,26 +200,26 @@
 
       } else if (ev.type === 'payout') {
         // 이자·쿠폰·배당·상환수익의 인출. 출금과 같은 자금 유출(flow)이므로 기준가는 그대로 —
-        // 수익률 왜곡이 없고, 원금도 줄지 않는다(보수와 동일한 취급).
+        // 수익률 왜곡이 없고, 두 기준의 원금도 줄지 않는다(보수와 동일한 취급).
         var payEvalBefore = evalNow();
         if (amount > payEvalBefore + 1e-6) {
           warnings.push(ev.date + ' 이익지급액이 평가금액을 초과합니다. 내역을 확인하세요.');
         }
-        // 이익만 인출하므로 원금은 그대로 유지된다. 지급액은 totalPayouts에 쌓여
-        // 원금대비 수익률의 분자로 되살아난다 → 배당을 지급해도 원금이 줄지 않고,
-        // 수익률도 지급액만큼 깎이지 않는다.
+        // 이익만 인출하므로 계약원금은 그대로 유지된다.
+        // 지급액은 contractPayouts에 쌓아 계약 기준 수익률의 분자로 되살린다 →
+        // 배당을 지급해도 원금이 줄지 않고, 수익률도 지급액만큼 깎이지 않는다.
         var payUnits = amount * NAV_BASE / nav;
         units -= payUnits;
         totalPayouts += amount;
+        contractPayouts += amount;
         pushRow(ev, {
           deltaUnits: -payUnits, units: units, eval: evalNow(),
-          principal: principal
+          principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'rollover') {
-        // 재계약(롤오버): 새 계약이 시작되므로 기준가를 1,000으로 되돌려 기준가 수익률을
-        // 0%로 초기화한다. 원금은 입출금으로만 산정하므로 재계약으로도 변하지 않는다.
-        // 누적 성과 지수(cumIndex)는 끊기지 않고 이어진다.
+        // 재계약(롤오버): 새 계약이 시작되므로 기준가를 1,000으로 되돌려 계약 기준 수익률을
+        // 0%로 초기화한다. 누적 성과 지수(cumIndex)는 끊기지 않고 이어진다.
         if (units <= 1e-9) {
           warnings.push(ev.date + ' 잔액이 없는 상태의 재계약은 무시되었습니다.');
           continue;
@@ -216,9 +227,9 @@
         var rollEvalBefore = evalNow();
         var paidOut = 0;
         if (ev.mode === 'payout') {
-          // 원금만 재계약: 이익(평가금액 − 원금)을 지급한 뒤 원금만 재예치.
+          // 원금만 재계약: 이익(평가금액 − 계약원금)을 지급한 뒤 원금만 재예치.
           // 평가금액이 원금 이하(손실)면 지급할 이익이 없으므로 초기화만 한다.
-          paidOut = rollEvalBefore - principal;
+          paidOut = rollEvalBefore - contractPrincipal;
           if (paidOut > 1e-6) {
             units -= paidOut * NAV_BASE / nav;
             totalPayouts += paidOut;
@@ -229,13 +240,16 @@
         var rollEvalAfter = evalNow();
         nav = NAV_BASE;
         units = rollEvalAfter;  // 기준가 1,000이므로 좌수 = 평가금액
+        contractPrincipal = rollEvalAfter; // 재예치 금액이 새 계약의 원금
+        contractFees = 0;                  // 새 계약이 시작되므로 계약 기준 성과는 0에서 다시
+        contractPayouts = 0;
         lastResetDate = ev.date;
         lastResetKind = 'rollover';
         lastRolloverDate = ev.date;
         maturedPending = false; // 재계약으로 만기 후속 처리 완료
         pushRow(ev, {
           amount: paidOut, deltaUnits: 0, units: units, nav: nav,
-          eval: rollEvalAfter, principal: principal
+          eval: rollEvalAfter, principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'fee') {
@@ -244,21 +258,26 @@
           warnings.push(ev.date + ' 성과보수가 평가금액을 초과합니다. 내역을 확인하세요.');
         }
         // 보수는 성과가 아니라 자금 유출(flow)로 처리 → 수익률 왜곡 없음.
-        // 배당 지급과 똑같이 원금에서 나가지 않으며, 나간 금액은 원금대비·전체 실적
+        // 배당 지급과 똑같이 원금에서 나가지 않으며, 나간 금액은 원금흐름대비·전체 성과
         // 수익률의 분자에 되살아난다.
         units -= amount * NAV_BASE / nav;
         totalFees += amount;
+        contractFees += amount;
         var evalAfter = evalNow();
-        // 기준가 초기화(하이워터마크 리셋): 기준가 1,000 / 좌수를 차감 후 평가금액으로 재설정.
-        // 원금(principal)은 건드리지 않는다 — 원금은 오직 입출금으로만 산정하므로 보수 차감
-        // 평가금액을 원금으로 승계하지 않으며, 원금대비 수익률도 초기화되지 않고 계속 누적된다.
+        // 초기화(만기 재계약과 동일한 방식): 기준가 1,000 / 좌수를 차감 후 평가금액으로 재설정하고,
+        // 보수 차감 후 평가금액을 새 계약의 원금으로 승계한다 → 원금대비 수익률도 0%로 초기화.
+        // 원금 흐름(principal)은 유지된다 — 보수는 원금에서 나가지 않으며, 전체 성과는
+        // 원금 흐름 기준이므로 보수 수취로 총원금과 수익률이 변하지 않는다.
         nav = NAV_BASE;
         units = evalAfter; // 기준가 1,000이므로 좌수 = 평가금액
+        contractPrincipal = evalAfter;
+        contractFees = 0;  // 새 계약이 시작되므로 계약 기준 성과는 0에서 다시
+        contractPayouts = 0;
         lastResetDate = ev.date;
         lastResetKind = 'fee';
         pushRow(ev, {
           deltaUnits: 0, units: units, nav: nav, eval: evalAfter,
-          principal: principal
+          principal: principal, contractPrincipal: contractPrincipal
         });
 
       } else if (ev.type === 'closeout') {
@@ -279,11 +298,14 @@
         units = 0;
         nav = NAV_BASE;   // 이후 재입금 시 새 출발
         principal = 0;
+        contractPrincipal = 0;
+        contractFees = 0;
+        contractPayouts = 0;
         lastCloseoutDate = ev.date;
         maturedPending = false; // 만기 후 해지로 후속 처리 완료
         pushRow(ev, {
           amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0,
-          principal: 0
+          principal: 0, contractPrincipal: 0
         });
       }
 
@@ -298,6 +320,7 @@
     // 총수익 기준 성과: 현재 보유분 성과 + 해지로 확정된 성과
     var grossPrincipal = principal + realizedPrincipal;
     var grossPnl = (currentEval + openFees + openPayouts - principal) + realizedGross;
+    var contractPnl = currentEval + contractFees + contractPayouts - contractPrincipal;
     return {
       id: account.id,
       name: account.name,
@@ -310,18 +333,24 @@
       lastCloseoutDate: lastCloseoutDate,
       units: units,
       nav: nav,
-      principal: principal,                 // 원금 — 입출금으로만 산정 (보수·배당·재계약 무관)
+      principal: principal,                 // 원금 흐름 (전체 성과 기준 — 보수·재계약 무관)
+      contractPrincipal: contractPrincipal, // 계약원금 (보수 수취·재계약 시 평가금액으로 승계)
       eval: currentEval,
       pnl: currentEval - principal,         // 실보유 평가손익 (유출분 제외)
       grossPrincipal: grossPrincipal,       // 해지분 포함 원금 (전체 실적 집계 기준)
       grossPnl: grossPnl,                   // 총수익 성과 (배당·보수 유출분을 되살린 값)
+      contractPnl: contractPnl,             // 계약 기준 총수익 손익
       openFees: openFees,
       openPayouts: openPayouts,
       realizedPrincipal: realizedPrincipal,
       realizedGross: realizedGross,
+      contractFees: contractFees,
+      contractPayouts: contractPayouts,
       navReturn: nav / NAV_BASE - 1,                                        // 기준가 수익률 (보수 수취·재계약 후 기준)
-      // 원금대비 누적 수익률 — 개설 이후 나간 배당·보수를 모두 되살린 총수익 기준.
-      // 원금이 입출금으로만 산정되므로 보수 수취로 초기화되지 않고 개설 이후로 계속 누적된다.
+      // 계약 기준 원금대비 수익률 — 보수 수취·재계약으로 0%로 초기화되고,
+      // 계약 기간 중의 배당·이익지급은 되살려 계산하므로 지급으로 깎이지 않는다.
+      contractReturn: contractPrincipal > 0 ? contractPnl / contractPrincipal : 0,
+      // 원금 흐름 대비 누적 수익률 — 개설 이후 나간 배당·보수를 모두 되살린 총수익 기준
       principalReturn: grossPrincipal > 0 ? grossPnl / grossPrincipal : 0,
       cumReturn: cumIndex / NAV_BASE - 1,                                   // 개설 이후 누적 성과 수익률
       cumIndex: cumIndex,

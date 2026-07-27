@@ -99,8 +99,8 @@ ok('성과보수 수취 → 기준가 1000, 원금 유지(차감 없음), 평가
   approx(p.nav, 1000);
   approx(p.navReturn, 0);
   approx(p.eval, 108000000);
-  approx(p.principal, 100000000);       // 원금은 보수 수취와 무관하게 유지
-  // 원금대비는 총수익 기준 — 나간 보수 200만을 되살려 10% (8%로 깎이지 않는다)
+  approx(p.principal, 100000000);       // 원금 흐름은 보수 수취와 무관하게 유지
+  // 원금흐름대비는 총수익 기준 — 나간 보수 200만을 되살려 10% (8%로 깎이지 않는다)
   approx(p.principalReturn, 0.10);
   approx(p.units, 108000000);
   approx(p.totalFees, 2000000);
@@ -108,8 +108,8 @@ ok('성과보수 수취 → 기준가 1000, 원금 유지(차감 없음), 평가
   approx(p.cumReturn, 0.10, 1e-9);
 });
 
-// 5-2. 원금은 오직 입출금으로만 산정 — 보수 수취는 원금을 전혀 건드리지 않는다
-ok('보수 수취 → 원금 불변(입출금 기준), 기준가 수익률만 0% 초기화', () => {
+// 5-2. 보수 수취는 만기 재계약과 같은 방식 — 보수 차감 후 평가금액이 새 계약 원금으로 승계
+ok('보수 수취 → 계약원금 승계로 원금대비 수익률까지 0% 초기화, 전체 실적은 유지', () => {
   const p = Engine.processAccount({
     id: 'a', name: 'A',
     events: [
@@ -118,54 +118,52 @@ ok('보수 수취 → 원금 불변(입출금 기준), 기준가 수익률만 0%
       { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 }
     ]
   });
-  // 원금은 입금 1억 그대로 — 보수 차감 후 평가금액(1.08억)으로 승계되지 않는다
-  approx(p.principal, 100000000);
-  approx(p.eval, 108000000);
-  // 초기화되는 것은 기준가 수익률뿐
+  // 개별 계좌: 완전 초기화 (기준가·원금대비 모두 0%)
+  approx(p.contractPrincipal, 108000000); // 보수 차감 후 평가금액을 새 계약 원금으로 승계
+  approx(p.contractReturn, 0);            // 원금대비 수익률도 0%로 초기화
+  approx(p.contractPnl, 0);
   approx(p.navReturn, 0);
-  // 원금대비 수익률은 초기화되지 않고, 나간 보수를 되살려 10%로 유지된다
-  approx(p.principalReturn, 0.10);
-  approx(p.grossPnl, 10000000);
+  // 전체 실적: 원금 흐름·수익률 유지
+  approx(p.principal, 100000000);
   const s = Engine.computeSummary([p]);
   approx(s.totalPrincipal, 100000000);
   approx(s.simpleReturn, 0.10);
 });
 
-// 5-3. 보수 수취 후에도 원금은 그대로이므로 원금대비 수익률은 계속 누적된다
-ok('보수 수취 후 5% 성과 → 기준가는 5%, 원금대비는 개설 이후 누적', () => {
+// 5-3. 승계된 계약원금 기준으로 이후 성과가 계산된다
+ok('보수 수취 후 5% 성과 → 원금대비 수익률 5%(승계 원금 기준)', () => {
   const p = Engine.processAccount({
     id: 'a', name: 'A',
     events: [
       { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
       { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
-      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },      // 잔액 1.08억
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },      // 계약원금 1.08억
       { id: '4', seq: 4, type: 'valuation', date: '2026-07-31', amount: 113400000 } // 1.08억 × 1.05
     ]
   });
-  approx(p.navReturn, 0.05, 1e-9);       // 기준가는 보수 수취 이후 기산 → 5%
-  approx(p.principal, 100000000);        // 원금은 입금 1억 그대로
-  // 원금대비는 개설 이후 누적: (1.134억 + 보수 0.02억 − 1억) ÷ 1억
-  approx(p.principalReturn, 0.154, 1e-9);
+  approx(p.contractReturn, 0.05, 1e-9);  // 승계된 계약원금 1.08억 대비 5%
+  approx(p.navReturn, 0.05, 1e-9);
+  approx(p.principal, 100000000);        // 원금 흐름 불변
   approx(p.cumReturn, 1.10 * 1.05 - 1, 1e-9);
+  // 전체 실적: (1.134억 + 보수 0.02억 − 1억) ÷ 1억
   approx(Engine.computeSummary([p]).simpleReturn, 0.154, 1e-9);
 });
 
-// 5-4. 원금은 오직 입출금으로만 움직인다 — 보수 수취 후 입금하면 딱 그만큼만 늘어난다
-ok('보수 수취 후 추가 입금 → 원금은 입금액만큼만 증가', () => {
+// 5-4. 승계 후 추가 입출금은 계약원금에도 반영된다
+ok('보수 수취 후 추가 입금 → 계약원금·원금 흐름 모두 증가', () => {
   const p = Engine.processAccount({
     id: 'a', name: 'A',
     events: [
       { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
       { id: '2', seq: 2, type: 'valuation', date: '2026-06-30', amount: 110000000 },
-      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },   // 잔액 1.08억
+      { id: '3', seq: 3, type: 'fee', date: '2026-06-30', amount: 2000000 },   // 계약원금 1.08억
       { id: '4', seq: 4, type: 'deposit', date: '2026-07-01', amount: 20000000 }
     ]
   });
-  approx(p.principal, 120000000);         // 1억 + 2천만 — 보수 차감 잔액(1.08억)은 원금에 안 섞임
-  approx(p.eval, 128000000);
-  approx(p.navReturn, 0);                 // 입금은 기준가 수익률을 왜곡하지 않음
-  // 원금대비: (1.28억 + 보수 0.02억 − 1.2억) ÷ 1.2억
-  approx(p.principalReturn, 10000000 / 120000000, 1e-9);
+  approx(p.contractPrincipal, 128000000); // 1.08억 + 2천만
+  approx(p.principal, 120000000);         // 원금 흐름 1억 + 2천만
+  approx(p.contractReturn, 0);            // 입금은 수익률을 왜곡하지 않음
+  approx(p.navReturn, 0);
 });
 
 // 6. 보수 수취 후 추가 성과 → 초기화 이후 수익률만 표시
@@ -425,9 +423,10 @@ ok('이익지급 → 원금·기준가 수익률 불변, 전체 실적 수익률
   approx(p.navReturn, 0.03);        // 자금 유출이므로 기준가 수익률 왜곡 없음
   approx(p.totalPayouts, 3000000);
   // 배당(이익지급)은 원금에서 까지지 않고, 수익률도 지급액만큼 깎이지 않는다 —
-  // 계약·순입금 기준 수익률 모두 기준가 수익률과 동일한 3%로 유지된다.
+  // 계약·원금 흐름 기준 수익률 모두 기준가 수익률과 동일한 3%로 유지된다.
+  approx(p.contractReturn, 0.03);
   approx(p.principalReturn, 0.03);
-  approx(p.grossPnl, 3000000);
+  approx(p.contractPnl, 3000000);
   const s = Engine.computeSummary([p]);
   approx(s.simpleReturn, 0.03);     // 전체 실적: 지급된 이자를 되살려 3% 유지
   approx(s.totalPayouts, 3000000);
@@ -450,8 +449,9 @@ ok('배당 반복 지급 → 원금 불변, 계약 수익률이 지급액만큼 
   approx(p.totalPayouts, 7000000);
   // 기준가는 지급액을 재투자한 것으로 보는 시간가중 수익률 → 1.03 × 1.04 − 1 = 7.12%
   approx(p.navReturn, 1.03 * 1.04 - 1, 1e-9);
-  // 계약·순입금 기준은 지급액을 액면 그대로 되살리는 금액가중 수익률 → 700만 ÷ 1억 = 7%
+  // 계약·원금 흐름 기준은 지급액을 액면 그대로 되살리는 금액가중 수익률 → 700만 ÷ 1억 = 7%
   // (0%로 깎이지 않는 것이 핵심. 기준가와의 0.12%p 차이는 지급받은 배당의 재투자 복리분)
+  approx(p.contractReturn, 0.07, 1e-9);
   approx(p.principalReturn, 0.07, 1e-9);
   approx(Engine.computeSummary([p]).simpleReturn, 0.07, 1e-9);
 });
@@ -469,9 +469,11 @@ ok('보수 수취 후 배당 지급 → 새 계약 수익률이 기준가 수익
     ]
   });
   approx(p.eval, 115800000);
-  approx(p.principal, 100000000);          // 배당·보수는 원금을 줄이지 않는다
+  approx(p.contractPrincipal, 108000000);  // 배당은 계약원금을 줄이지 않는다
+  approx(p.principal, 100000000);          // 원금 흐름도 그대로
   approx(p.navReturn, 0.10, 1e-9);
-  // 원금대비: (1.158억 + 보수 200만 + 배당 300만 − 1억) ÷ 1억 — 지급으로 깎이지 않는다
+  approx(p.contractReturn, 0.10, 1e-9);    // 배당 300만을 되살려 10% 유지
+  // 원금흐름대비: (1.158억 + 보수 200만 + 배당 300만 − 1억) ÷ 1억
   approx(p.principalReturn, 0.208, 1e-9);
   approx(Engine.computeSummary([p]).simpleReturn, 0.208, 1e-9);
 });
@@ -490,7 +492,7 @@ ok('재계약(원리금) → 기준가 1,000 초기화, 누적 성과·전체 �
   approx(p.navReturn, 0);            // 새 계약 기준 수익률 0%
   approx(p.eval, 110000000);         // 원리금 전액 승계
   approx(p.units, 110000000);
-  approx(p.principal, 100000000);    // 원금(순입금)은 재계약으로 변하지 않는다
+  approx(p.principal, 100000000);    // 원금(원금 흐름)은 재계약으로 변하지 않는다
   approx(p.cumReturn, 0.10, 1e-9);   // 누적 성과는 이어진다
   assert.strictEqual(p.isMatured, false);   // 재계약으로 만기 처리 완료
   assert.strictEqual(p.lastResetKind, 'rollover');

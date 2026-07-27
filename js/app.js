@@ -215,7 +215,9 @@
     var s = result.summary, comp = result.composite;
     var wrap = el('summary-cards');
     wrap.innerHTML = '';
-    wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal), '누적입금 ' + fmtWon(s.totalDeposits) + ' · 누적출금 ' + fmtWon(s.totalWithdrawals)));
+    // 전체 성과는 원금 흐름(입금 − 출금) 기준 — 개별 계좌의 계약원금 재설정과 무관하다
+    wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal),
+      '원금 흐름 기준 · 입금 ' + fmtWon(s.totalDeposits) + ' − 출금 ' + fmtWon(s.totalWithdrawals)));
     wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
     wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
@@ -245,13 +247,13 @@
         }
       }, [
         nameCell,
-        h('td', { text: fmtWon(p.principal), class: 'num' }),
+        h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
         h('td', { text: fmtWon(p.eval), class: 'num' }),
-        h('td', { text: fmtWon(p.grossPnl), class: 'num ' + pctClass(p.grossPnl) }),
+        h('td', { text: fmtWon(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
         h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
         h('td', { text: fmtNum(p.units, 0), class: 'num' }),
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
-        h('td', { text: fmtPct(p.principalReturn), class: 'num ' + pctClass(p.principalReturn) }),
+        h('td', { text: fmtPct(p.contractReturn), class: 'num ' + pctClass(p.contractReturn) }),
         h('td', { text: p.lastValuationDate || '-', class: 'date' }),
         h('td', { class: 'drag-cell', title: '끌어서 순서 변경' }, [
           h('span', { class: 'drag-handle', text: '⠿' })
@@ -355,16 +357,21 @@
     cards.innerHTML = '';
     cards.appendChild(card('기준가', fmtNum(p.nav, 2), '1,000좌 기준'));
     cards.appendChild(card('좌수', fmtNum(p.units, 0), ''));
-    // 원금은 오직 입출금으로만 산정한다 — 보수 수취·배당·재계약으로 변하지 않는다.
-    // 보수 수취로 초기화되는 것은 기준가 수익률뿐이고, 원금대비 수익률은 개설 이후로 누적된다.
-    var paidOut = (p.openFees || 0) + (p.openPayouts || 0);
-    cards.appendChild(card('원금', fmtWon(p.principal),
-      '입금 ' + fmtWon(p.totalDeposits) + ' − 출금 ' + fmtWon(p.totalWithdrawals)));
-    cards.appendChild(card('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.grossPnl), pctClass(p.grossPnl)));
+    // 개별 계좌는 계약 기준으로 본다 — 보수 수취·재계약 시 평가금액을 새 계약 원금으로 승계.
+    // 전체 성과(종합 요약)는 원금 흐름 기준이므로, 둘이 갈리면 원금 흐름도 함께 보여준다.
+    var carried = Math.abs(p.contractPrincipal - p.principal) > 0.5;
+    var paidOutNow = (p.contractFees || 0) + (p.contractPayouts || 0);
+    cards.appendChild(card('원금', fmtWon(p.contractPrincipal),
+      carried ? '계약 기준 · 원금흐름 ' + fmtWon(p.principal) : '계약 기준'));
+    cards.appendChild(card('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.contractPnl), pctClass(p.contractPnl)));
     cards.appendChild(card('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
-    cards.appendChild(card('원금대비 수익률', fmtPct(p.principalReturn),
-      paidOut > 0.5 ? '지급분 ' + fmtWon(paidOut) + ' 포함 · 개설 이후' : '개설 이후',
-      pctClass(p.principalReturn)));
+    cards.appendChild(card('원금대비 수익률', fmtPct(p.contractReturn),
+      paidOutNow > 0.5 ? '지급분 ' + fmtWon(paidOutNow) + ' 포함(총수익)' : resetNote(p),
+      pctClass(p.contractReturn)));
+    if (carried || (p.totalFees + (p.totalPayouts || 0)) > 0.5) {
+      cards.appendChild(card('원금흐름대비 수익률', fmtPct(p.principalReturn),
+        '전체 성과와 같은 기준 · 개설 이후', pctClass(p.principalReturn)));
+    }
     cards.appendChild(card('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
     cards.appendChild(card('누적 성과보수', fmtWon(p.totalFees), ''));
     if (p.totalPayouts > 0 || p.lastMaturityDate) {
@@ -403,7 +410,7 @@
         h('td', { text: fmtNum(row.units, 0), class: 'num' }),
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
-        h('td', { text: fmtWon(row.principal), class: 'num' }),
+        h('td', { text: fmtWon(row.contractPrincipal), class: 'num' }),
         h('td', { text: rowRet(row) === null ? '-' : fmtPct(rowRet(row)),
           class: 'num ' + (rowRet(row) === null ? '' : pctClass(rowRet(row))) }),
         h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) }),
@@ -415,7 +422,7 @@
   // 평가 행의 원금대비 수익률 — 엔진이 계산한 계약 기준 총수익 수익률
   // (배당·이익지급으로 나간 금액이 되살아나 있어 지급 때문에 수익률이 꺾이지 않는다)
   function rowRet(row) {
-    return VALUATION_TYPES[row.type] ? (row.principalReturn === undefined ? null : row.principalReturn) : null;
+    return VALUATION_TYPES[row.type] ? (row.contractReturn === undefined ? null : row.contractReturn) : null;
   }
 
   // 원금 원장: 원금(최초) → [추가입금, 원금합] 반복 → 현재 원금
@@ -440,7 +447,7 @@
       }
     });
     tbody.appendChild(h('tr', { class: 'lg-final' }, [
-      h('td', { text: '현재 원금' }),
+      h('td', { text: '현재 원금(원금 흐름)' }),
       h('td', { text: '', class: 'date' }),
       h('td', { text: fmtWon(p.principal), class: 'num' })
     ]));
@@ -523,10 +530,11 @@
       [{ v: '누적 이익지급(이자·쿠폰·배당)' }, { v: Math.round(s.totalPayouts || 0), s: S.INT }],
       [],
       [
-        { v: '계좌명', s: S.HEAD }, { v: '원금', s: S.HEAD },
+        { v: '계좌명', s: S.HEAD }, { v: '원금(계약 기준)', s: S.HEAD }, { v: '원금(흐름 기준)', s: S.HEAD },
         { v: '평가금액', s: S.HEAD },
         { v: '평가손익', s: S.HEAD }, { v: '기준가', s: S.HEAD }, { v: '좌수', s: S.HEAD },
         { v: '기준가 수익률', s: S.HEAD }, { v: '원금대비 수익률', s: S.HEAD },
+        { v: '원금흐름대비 수익률', s: S.HEAD },
         { v: '누적 성과 수익률', s: S.HEAD }, { v: '누적입금', s: S.HEAD },
         { v: '누적출금', s: S.HEAD }, { v: '누적 성과보수', s: S.HEAD },
         { v: '누적 이익지급', s: S.HEAD },
@@ -536,12 +544,14 @@
     result.processed.forEach(function (p) {
       summaryRows.push([
         { v: p.name + (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기)' : '')) },
+        { v: Math.round(p.contractPrincipal), s: S.INT },
         { v: Math.round(p.principal), s: S.INT },
         { v: Math.round(p.eval), s: S.INT },
-        { v: Math.round(p.grossPnl), s: S.INT },
+        { v: Math.round(p.contractPnl), s: S.INT },
         { v: p.nav, s: S.DEC },
         { v: Math.round(p.units), s: S.INT },
         { v: p.navReturn, s: S.PCT },
+        { v: p.contractReturn, s: S.PCT },
         { v: p.principalReturn, s: S.PCT },
         { v: p.cumReturn, s: S.PCT },
         { v: Math.round(p.totalDeposits), s: S.INT },
@@ -554,11 +564,12 @@
     });
     summaryRows.push([
       { v: '합계', s: S.BOLD },
+      null,
       { v: Math.round(s.totalPrincipal), s: S.BOLD_INT },
       { v: Math.round(s.totalEval), s: S.BOLD_INT },
-      { v: Math.round(s.grossPnl), s: S.BOLD_INT },
+      { v: Math.round(s.totalPnl), s: S.BOLD_INT },
       null, null,
-      null,
+      null, null,
       { v: s.simpleReturn, s: S.PCT },
       null,
       { v: Math.round(s.totalDeposits), s: S.BOLD_INT },
@@ -599,7 +610,7 @@
       var rows = [[
         { v: '일자', s: S.HEAD }, { v: '구분', s: S.HEAD }, { v: '금액', s: S.HEAD },
         { v: '좌수 증감', s: S.HEAD }, { v: '좌수', s: S.HEAD }, { v: '기준가', s: S.HEAD },
-        { v: '평가금액', s: S.HEAD }, { v: '원금', s: S.HEAD },
+        { v: '평가금액', s: S.HEAD }, { v: '원금(계약)', s: S.HEAD },
         { v: '원금대비 수익률', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }
       ]];
       p.history.forEach(function (row) {
@@ -612,7 +623,7 @@
           { v: Math.round(row.units), s: S.INT },
           { v: row.nav, s: S.DEC },
           { v: Math.round(row.eval), s: S.INT },
-          { v: Math.round(row.principal), s: S.INT },
+          { v: Math.round(row.contractPrincipal), s: S.INT },
           pr === null ? null : { v: pr, s: S.PCT },
           row.dailyReturn === null ? null : { v: row.dailyReturn, s: S.PCT }
         ]);
@@ -638,19 +649,19 @@
             date: f.date, amount: (isDep ? 1 : -1) * f.amount, signed: true });
         }
       });
-      lines.push({ k: '현재 원금', date: '', amount: p.principal, isFinal: true });
+      lines.push({ k: '현재 원금(원금 흐름)', date: '', amount: p.principal, isFinal: true });
       return { p: p, lines: lines };
     });
 
     var maxLines = columns.reduce(function (m, c) { return Math.max(m, c.lines.length); }, 0);
     var rows = [];
 
-    // 1행: 계좌명 + 원금대비 수익률 (원금은 입출금으로만 산정)
+    // 1행: 계좌명 + 원금흐름대비 수익률 (원금 원장은 입출금 내역이므로 흐름 기준으로 표시)
     var titleRow = [];
     columns.forEach(function (c, i) {
       if (i > 0) titleRow.push(null); // 블록 사이 간격 열
       titleRow.push({ v: c.p.name + (c.p.isClosed ? ' (해지)' : ''), s: S.BOLD });
-      titleRow.push({ v: '원금대비', s: S.HEAD });
+      titleRow.push({ v: '원금흐름대비', s: S.HEAD });
       titleRow.push({ v: c.p.principalReturn, s: S.PCT });
     });
     rows.push(titleRow);
@@ -820,7 +831,7 @@
     });
     // 현재 원금 (합계, 강조)
     rows.push(h('tr', { class: 'lg-final' }, [
-      h('td', { text: '현재 원금', class: 'lg-k' }),
+      h('td', { text: '현재 원금(원금 흐름)', class: 'lg-k' }),
       h('td', { text: '', class: 'lg-d' }),
       h('td', { text: fmtWon(p.principal), class: 'num lg-v' })
     ]));
@@ -829,7 +840,7 @@
       h('div', { class: 'ledger-head' }, [
         h('div', { class: 'ledger-name', text: p.name + (p.isClosed ? ' (해지)' : '') }),
         h('div', { class: 'ledger-ret ' + pctClass(p.principalReturn),
-          text: '원금대비 ' + fmtPct(p.principalReturn) })
+          text: '원금흐름대비 ' + fmtPct(p.principalReturn) })
       ]),
       h('table', { class: 'ledger-table' }, [h('tbody', {}, rows)])
     ]);
@@ -1119,10 +1130,9 @@
         return;
       }
       var after = p ? p.eval - v.amount : 0;
-      if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 평가금액이 ' + fmtWon(after) + '이 되고\n' +
-        '기준가 1,000 / 기준가 수익률 0%로 초기화됩니다.\n' +
-        '원금은 입출금으로만 산정되므로 보수로 줄지 않으며,\n' +
-        '원금대비 수익률도 보수를 되살려 그대로 유지됩니다. 진행할까요?')) return;
+      if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다.\n' +
+        '보수 차감 후 평가금액(' + fmtWon(after) + ')이 새 계약의 원금으로 승계되며,\n' +
+        '원금 흐름(입금−출금)과 전체 성과 수익률은 그대로 유지됩니다. 진행할까요?')) return;
       addEvent(selectedAccountId, 'fee', v.date, v.amount);
       e.target.elements.amount.value = '';
     });
