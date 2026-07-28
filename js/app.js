@@ -581,11 +581,18 @@
       { v: Math.round(s.totalPayouts || 0), s: S.BOLD_INT }
     ]);
 
-    var sheets = [{
+    var sheets = [];
+
+    // 종합 시트 — 전 계좌 원금 원장 + 일자별 평가·수익률을 한 장에
+    if (result.processed.length) {
+      sheets.push(buildOverviewSheet(result.processed, S));
+    }
+
+    sheets.push({
       name: '종합요약',
       colWidths: [26, 14, 14, 14, 14, 10, 14, 14, 15, 16, 15, 14, 14, 14, 14, 12, 14],
       rows: summaryRows
-    }];
+    });
 
     // 종합 성과 지수 일별 시계열
     if (comp.series.length) {
@@ -603,7 +610,7 @@
       sheets.push(buildLedgerSheet(result.processed, S));
     }
 
-    var usedNames = { '종합요약': true, '종합지수': true, '원금원장': true };
+    var usedNames = { '종합': true, '종합요약': true, '종합지수': true, '원금원장': true };
     result.processed.forEach(function (p, i) {
       var base = XlsxWriter.sanitizeSheetName(p.name, '계좌' + (i + 1));
       var name = base, n = 2;
@@ -702,6 +709,123 @@
     });
 
     return { name: '원금원장', colWidths: widths, rows: rows };
+  }
+
+  /*
+   * 종합 시트: 전 계좌를 한 장에 가로로 나란히 놓는다.
+   *   윗단 — 계좌별 원금 원장 (원금 → 추가입금 → 원금합), 최종 원금합은 노랑 강조
+   *   아랫단 — 일자별 평가금액·원금대비 수익률 매트릭스, 입출금이 있던 날은 분홍 강조
+   * 두 단 모두 계좌마다 [구분 | 일자 | 금액 | 수익률] 4열 블록을 쓰고 사이에 간격 열을 둔다.
+   */
+  function buildOverviewSheet(processed, S) {
+    var GAP = 1;                 // 계좌 블록 사이 간격 열 수
+    var BLOCK = 4;               // 구분 · 일자 · 금액 · 수익률
+    function blank(n) { var a = []; for (var i = 0; i < n; i++) a.push(null); return a; }
+
+    // ── 윗단: 계좌별 원금 원장 ──
+    // 각 계좌를 {k, date, amount, style} 줄로 펼친 뒤, 가장 긴 계좌 길이에 맞춰 행을 만든다.
+    var ledgers = processed.map(function (p) {
+      var flows = p.history.filter(function (r) { return FLOW_TYPES[r.type]; });
+      var lines = [], running = 0;
+      flows.forEach(function (f, i) {
+        var d = flowDelta(f);
+        running += d;
+        if (i === 0) {
+          lines.push({ k: '원금', date: '', amount: d, bold: true });
+        } else {
+          var note = closeoutNote(f);
+          lines.push({ k: flowLabel(f) + (note ? ' (' + note + ')' : ''), date: f.date, amount: d });
+          lines.push({ k: '원금합', date: '', amount: running, sum: true });
+        }
+      });
+      if (!lines.length) lines.push({ k: '원금', date: '', amount: 0, bold: true });
+      lines[lines.length - 1].last = true; // 마지막 원금합 → 노랑 강조
+      return { p: p, lines: lines };
+    });
+
+    var rows = [];
+    var headRow = [];
+    ledgers.forEach(function (c, i) {
+      if (i > 0) headRow = headRow.concat(blank(GAP));
+      headRow.push({ v: '구분', s: S.HEAD }, { v: '입출금일', s: S.HEAD },
+        { v: c.p.name + (c.p.isClosed ? ' (해지)' : ''), s: S.HEAD }, { v: '수익률', s: S.HEAD });
+    });
+    rows.push(headRow);
+
+    var maxLines = ledgers.reduce(function (m, c) { return Math.max(m, c.lines.length); }, 0);
+    for (var r = 0; r < maxLines; r++) {
+      var row = [];
+      ledgers.forEach(function (c, i) {
+        if (i > 0) row = row.concat(blank(GAP));
+        var ln = c.lines[r];
+        if (!ln) { row = row.concat(blank(BLOCK)); return; }
+        var hl = ln.last;
+        row.push({ v: ln.k, s: hl ? S.YEL : (ln.bold || ln.sum ? S.BOLD : S.TEXT) });
+        row.push({ v: ln.date });
+        row.push({ v: Math.round(ln.amount), s: hl ? S.YEL_INT : (ln.bold || ln.sum ? S.BOLD_INT : S.INT) });
+        // 수익률 열은 마지막 원금합 행에만 — 그 계좌의 최종 원금대비 수익률.
+        // 원금이 0 이하(이익까지 인출)면 분모가 없어 수익률을 표시하지 않는다.
+        row.push(hl && c.p.principal > 0 ? { v: c.p.principalReturn, s: S.PCT } : null);
+      });
+      rows.push(row);
+    }
+
+    rows.push([]); // 두 단 사이 빈 줄
+
+    // ── 아랫단: 일자별 평가금액 · 원금대비 수익률 ──
+    // 계좌별 평가 행을 일자로 인덱싱하고, 평가가 없는 날은 직전 값을 이어 쓴다.
+    var dateSet = {};
+    var byDate = processed.map(function (p) {
+      var m = {};
+      p.history.forEach(function (r) {
+        if (VALUATION_TYPES[r.type]) { m[r.date] = r; dateSet[r.date] = 1; }
+      });
+      return m;
+    });
+    // 입출금이 있던 날 (분홍 강조 대상)
+    var flowDates = {};
+    processed.forEach(function (p) {
+      p.history.forEach(function (r) { if (FLOW_TYPES[r.type]) flowDates[r.date] = 1; });
+    });
+    var dates = Object.keys(dateSet).sort();
+
+    if (dates.length) {
+      var dHead = [];
+      processed.forEach(function (p, i) {
+        if (i > 0) dHead = dHead.concat(blank(GAP));
+        dHead.push({ v: '일자', s: S.HEAD }, { v: '', s: S.HEAD },
+          { v: p.name + (p.isClosed ? ' (해지)' : ''), s: S.HEAD }, { v: '수익률', s: S.HEAD });
+      });
+      rows.push(dHead);
+
+      var last = processed.map(function () { return null; });
+      dates.forEach(function (date) {
+        var pink = !!flowDates[date];
+        var row = [];
+        processed.forEach(function (p, i) {
+          if (i > 0) row = row.concat(blank(GAP));
+          var rec = byDate[i][date];
+          if (rec) last[i] = rec;
+          var cur = rec || last[i];
+          row.push({ v: date, s: pink ? S.PINK : S.TEXT });
+          row.push(pink ? { v: '', s: S.PINK } : null);
+          row.push(cur ? { v: Math.round(cur.eval), s: pink ? S.PINK_INT : S.INT } : (pink ? { v: '', s: S.PINK } : null));
+          var ret = cur ? cur.principalReturn : null;
+          row.push(ret === null || ret === undefined
+            ? (pink ? { v: '', s: S.PINK } : null)
+            : { v: ret, s: pink ? S.PINK_PCT : S.PCT });
+        });
+        rows.push(row);
+      });
+    }
+
+    var widths = [];
+    processed.forEach(function (p, i) {
+      if (i > 0) widths.push(2);
+      widths.push(22, 12, 18, 10);
+    });
+
+    return { name: '종합', colWidths: widths, rows: rows };
   }
 
   function downloadXlsx() {

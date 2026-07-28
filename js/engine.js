@@ -149,6 +149,9 @@
       row.contractPayouts = contractPayouts;
       row.contractPnl = row.eval + contractFees + contractPayouts - row.contractPrincipal;
       row.contractReturn = row.contractPrincipal > 0 ? row.contractPnl / row.contractPrincipal : null;
+      // 원금 흐름 기준(전체 성과와 같은 기준)의 총수익 손익·수익률
+      row.grossPnl = row.eval + totalFees + totalPayouts - row.principal;
+      row.principalReturn = row.principal > 0 ? row.grossPnl / row.principal : null;
       history.push(row);
     }
 

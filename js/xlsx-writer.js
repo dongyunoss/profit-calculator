@@ -21,7 +21,13 @@
     DEC: 3,       // #,##0.00
     PCT: 4,       // 0.00%
     BOLD: 5,      // 굵게
-    BOLD_INT: 6   // 굵게 + #,##0
+    BOLD_INT: 6,  // 굵게 + #,##0
+    // 강조 배경 — 종합 시트에서 원금합(노랑) / 입출금 발생일(분홍)을 눈에 띄게
+    YEL: 7,       // 노랑 배경 + 굵게
+    YEL_INT: 8,   // 노랑 배경 + 굵게 + #,##0
+    PINK: 9,      // 분홍 배경
+    PINK_INT: 10, // 분홍 배경 + #,##0
+    PINK_PCT: 11  // 분홍 배경 + 0.00%
   };
 
   function escXml(s) {
@@ -87,14 +93,16 @@
     '<font><sz val="11"/><name val="Malgun Gothic"/></font>' +
     '<font><b/><sz val="11"/><name val="Malgun Gothic"/></font>' +
     '</fonts>' +
-    '<fills count="3">' +
+    '<fills count="5">' +
     '<fill><patternFill patternType="none"/></fill>' +
     '<fill><patternFill patternType="gray125"/></fill>' +
     '<fill><patternFill patternType="solid"><fgColor rgb="FFEDEFF3"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFFFF2A8"/><bgColor indexed="64"/></patternFill></fill>' +
+    '<fill><patternFill patternType="solid"><fgColor rgb="FFF8C9CC"/><bgColor indexed="64"/></patternFill></fill>' +
     '</fills>' +
     '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
     '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-    '<cellXfs count="7">' +
+    '<cellXfs count="12">' +
     '<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>' +
     '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" applyFont="1" applyFill="1"/>' +
     '<xf numFmtId="164" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>' +
@@ -102,6 +110,11 @@
     '<xf numFmtId="166" fontId="0" fillId="0" borderId="0" applyNumberFormat="1"/>' +
     '<xf numFmtId="0" fontId="1" fillId="0" borderId="0" applyFont="1"/>' +
     '<xf numFmtId="164" fontId="1" fillId="0" borderId="0" applyFont="1" applyNumberFormat="1"/>' +
+    '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" applyFont="1" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="1" fillId="3" borderId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/>' +
+    '<xf numFmtId="0" fontId="0" fillId="4" borderId="0" applyFill="1"/>' +
+    '<xf numFmtId="164" fontId="0" fillId="4" borderId="0" applyFill="1" applyNumberFormat="1"/>' +
+    '<xf numFmtId="166" fontId="0" fillId="4" borderId="0" applyFill="1" applyNumberFormat="1"/>' +
     '</cellXfs>' +
     '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
     '</styleSheet>';
