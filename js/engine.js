@@ -137,6 +137,9 @@
         eval: evalNow(),
         principal: principal,
         contractPrincipal: contractPrincipal,
+        // 이 이벤트로 원금 흐름이 움직인 금액. 입출금은 기입액과 같지만,
+        // 전액출금(해지)은 실제 인출 현금이 아니라 "남은 원금"만큼 차감되므로 다르다.
+        principalDelta: 0,
         dailyReturn: null
       };
       if (extra) for (var k in extra) row[k] = extra[k];
@@ -162,7 +165,8 @@
         totalDeposits += amount;
         pushRow(ev, {
           deltaUnits: addUnits, units: units, eval: evalNow(),
-          principal: principal, contractPrincipal: contractPrincipal
+          principal: principal, contractPrincipal: contractPrincipal,
+          principalDelta: amount
         });
 
       } else if (ev.type === 'withdraw') {
@@ -184,7 +188,8 @@
         totalWithdrawals += amount;
         pushRow(ev, {
           deltaUnits: -subUnits, units: units, eval: evalNow(),
-          principal: principal, contractPrincipal: contractPrincipal
+          principal: principal, contractPrincipal: contractPrincipal,
+          principalDelta: -amount
         });
 
       } else if (ev.type === 'valuation' || ev.type === 'maturity') {
@@ -307,6 +312,10 @@
         // 원금 흐름에서는 "남은 원금"(보수 되살린 계약원금)을 차감한다.
         // 같은 정리를 일반 출금으로 기입했을 때와 동일한 결과가 나오도록 맞춘 것이다.
         // 이익까지 인출한 계좌는 원금이 음수가 되며, 그만큼이 실현이익으로 잡힌다.
+        var principalOut = contractPrincipalGross;
+        // 실제 인출 현금과 원금 차감액의 차이 — 해지 시점의 미실현 손익을 정리한 금액이다.
+        // (손실 상태면 원금이 현금보다 더 줄고, 이익 상태면 덜 줄어든다)
+        var settleAdj = principalOut - amountOut;
         units = 0;
         nav = NAV_BASE;   // 이후 재입금 시 새 출발
         principal -= contractPrincipalGross;
@@ -318,7 +327,10 @@
         maturedPending = false; // 만기 후 해지로 후속 처리 완료
         pushRow(ev, {
           amount: amountOut, deltaUnits: deltaOut, units: 0, nav: nav, eval: 0,
-          principal: principal, contractPrincipal: 0
+          principal: principal, contractPrincipal: 0,
+          principalDelta: -principalOut, // 원금에서 실제로 빠진 금액 (인출 현금과 다를 수 있음)
+          cashOut: amountOut,            // 실제 인출한 현금
+          settleAdj: settleAdj           // 손익 정리분 (+면 손실 정리, −면 이익 정리)
         });
       }
 

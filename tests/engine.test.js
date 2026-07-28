@@ -616,6 +616,34 @@ ok('출금액 > 평가금액 → 좌수 0으로 정리, 원금은 전액 차감'
   approx(Engine.computeSummary([p]).totalPrincipal, -8000000);
 });
 
+// 25. 원금 원장이 맞아떨어져야 한다 — 흐름 행의 principalDelta 합 = 최종 원금
+//     해지 행은 인출 현금이 아니라 "남은 원금"만큼 차감되므로 별도 필드로 노출한다
+ok('원장 합계(principalDelta) = 최종 원금, 해지 행은 인출 현금과 분리', () => {
+  const p = Engine.processAccount({
+    id: 'a', name: 'A',
+    events: [
+      { id: '1', seq: 1, type: 'deposit', date: '2026-01-02', amount: 100000000 },
+      { id: '2', seq: 2, type: 'deposit', date: '2026-02-02', amount: 50000000 },
+      { id: '3', seq: 3, type: 'valuation', date: '2026-06-30', amount: 180000000 },
+      { id: '4', seq: 4, type: 'fee', date: '2026-06-30', amount: 5000000 },        // 잔액 1.75억
+      { id: '5', seq: 5, type: 'withdraw', date: '2026-08-01', amount: 20000000 },
+      { id: '6', seq: 6, type: 'valuation', date: '2026-09-30', amount: 140000000 }, // 손실
+      { id: '7', seq: 7, type: 'closeout', date: '2026-10-01', amount: 0 }
+    ]
+  });
+  const flows = p.history.filter(function (r) {
+    return r.type === 'deposit' || r.type === 'withdraw' || r.type === 'closeout';
+  });
+  const sum = flows.reduce(function (a, r) { return a + r.principalDelta; }, 0);
+  approx(sum, p.principal);   // 원장을 더하면 화면의 '현재 원금'이 나온다
+
+  const co = flows[flows.length - 1];
+  approx(co.cashOut, 140000000);              // 실제 인출한 현금 = 해지 시점 평가금액
+  approx(-co.principalDelta, 160000000);      // 남은 원금 = 보수 차감 전 1.8억 − 출금 2천만
+  approx(co.settleAdj, 20000000);             // 손실 정리분 = 1.6억 − 1.4억
+  approx(co.principalDelta + co.cashOut + co.settleAdj, 0); // 차감 = 인출 + 손실정리
+});
+
 console.log('\nxlsx-writer.js');
 
 // 10. xlsx 생성 → ZIP 구조 검증

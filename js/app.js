@@ -438,11 +438,14 @@
           h('td', { text: fmtWon(f.amount), class: 'num' })
         ]));
       } else {
-        var isDep = f.type === 'deposit';
+        var d = flowDelta(f), note = closeoutNote(f);
         tbody.appendChild(h('tr', {}, [
-          h('td', { text: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금') }),
+          h('td', {}, [
+            h('span', { text: flowLabel(f) }),
+            note ? h('span', { class: 'lg-sub', text: note }) : null
+          ]),
           h('td', { text: f.date, class: 'date' }),
-          h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (isDep ? 'pos' : 'neg') })
+          h('td', { text: (d >= 0 ? '+' : '−') + fmtWon(Math.abs(d)), class: 'num ' + (d >= 0 ? 'pos' : 'neg') })
         ]));
       }
     });
@@ -644,9 +647,9 @@
         if (i === 0) {
           lines.push({ k: '원금', date: '', amount: f.amount, isPrincipal: true });
         } else {
-          var isDep = f.type === 'deposit';
-          lines.push({ k: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'),
-            date: f.date, amount: (isDep ? 1 : -1) * f.amount, signed: true });
+          var note = closeoutNote(f);
+          lines.push({ k: flowLabel(f) + (note ? ' (' + note + ')' : ''),
+            date: f.date, amount: flowDelta(f), signed: true });
         }
       });
       lines.push({ k: '현재 원금(원금 흐름)', date: '', amount: p.principal, isFinal: true });
@@ -731,11 +734,31 @@
 
   function flowSign(type) { return type === 'deposit' ? 1 : -1; }
 
+  // 원금 흐름이 실제로 움직인 금액. 전액출금(해지)은 인출 현금이 아니라
+  // "남은 원금"만큼 차감되므로 기입 금액(amount)과 다를 수 있다.
+  function flowDelta(f) {
+    if (f.principalDelta !== undefined && f.principalDelta !== null) return f.principalDelta;
+    return flowSign(f.type) * f.amount;
+  }
+
+  function flowLabel(f) {
+    if (f.type === 'deposit') return '추가입금';
+    return f.type === 'closeout' ? '전액출금' : '출금';
+  }
+
+  // 해지 행의 근거: 원금 차감액 = 인출 현금 ± 손익 정리분
+  function closeoutNote(f) {
+    if (f.type !== 'closeout' || !f.settleAdj || Math.abs(f.settleAdj) < 0.5) return '';
+    return '인출 ' + fmtWon(f.cashOut) +
+      (f.settleAdj > 0 ? ' + 손실정리 ' : ' − 이익정리 ') + fmtWon(Math.abs(f.settleAdj));
+  }
+
   function collectFlows(p) {
     return p.history.filter(function (r) { return FLOW_TYPES[r.type]; }).map(function (r) {
       return {
         date: r.date, type: r.type, label: r.label,
-        amount: r.amount, signed: flowSign(r.type) * r.amount,
+        amount: r.amount, signed: flowDelta(r),
+        principalDelta: r.principalDelta, cashOut: r.cashOut, settleAdj: r.settleAdj,
         principal: r.principal, accountId: p.id, accountName: p.name
       };
     });
@@ -749,7 +772,8 @@
       var flows = collectFlows(p);
       var dep = 0, wd = 0;
       flows.forEach(function (f) {
-        if (f.type === 'deposit') dep += f.amount; else wd += f.amount;
+        var d = flowDelta(f);
+        if (d >= 0) dep += d; else wd += -d;
       });
       return { p: p, flows: flows, deposits: dep, withdrawals: wd, net: dep - wd };
     });
@@ -761,8 +785,8 @@
     var cards = el('cashflow-cards');
     cards.innerHTML = '';
     cards.appendChild(card('총 입금', fmtWon(totalDep), '전 계좌 누적'));
-    cards.appendChild(card('총 출금', fmtWon(totalWd), '전액출금(해지) 포함'));
-    cards.appendChild(card('순 원금 (입금−출금)', fmtWon(totalDep - totalWd), '현재 투입 원금 합계'));
+    cards.appendChild(card('총 출금', fmtWon(totalWd), '해지 시 남은 원금 차감 포함'));
+    cards.appendChild(card('순 원금 (입금−출금)', fmtWon(totalDep - totalWd), '전 계좌 원금 흐름 합계'));
     cards.appendChild(card('계좌 수', String(processed.length) + '개',
       processed.filter(function (p) { return p.isClosed; }).length + '개 해지'));
 
@@ -821,11 +845,14 @@
           h('td', { text: fmtWon(f.amount), class: 'num lg-v' })
         ]));
       } else {
-        var isDep = f.type === 'deposit';
+        var d = flowDelta(f), note = closeoutNote(f);
         rows.push(h('tr', { class: 'lg-add' }, [
-          h('td', { text: isDep ? '추가입금' : (f.type === 'closeout' ? '전액출금' : '출금'), class: 'lg-k' }),
+          h('td', { class: 'lg-k' }, [
+            h('span', { text: flowLabel(f) }),
+            note ? h('span', { class: 'lg-sub', text: note }) : null
+          ]),
           h('td', { text: f.date, class: 'lg-d' }),
-          h('td', { text: (isDep ? '+' : '−') + fmtWon(f.amount), class: 'num lg-v ' + (isDep ? 'pos' : 'neg') })
+          h('td', { text: (d >= 0 ? '+' : '−') + fmtWon(Math.abs(d)), class: 'num lg-v ' + (d >= 0 ? 'pos' : 'neg') })
         ]));
       }
     });
