@@ -924,6 +924,14 @@
       return;
     }
 
+    // ── 계좌별 원금 원장 (원금 → 추가입금 → 원금합) ──
+    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 원금 원장' }));
+    var grid = h('div', { class: 'ledger-grid' });
+    perAccount.forEach(function (a) {
+      grid.appendChild(ledgerColumn(a.p, a.flows));
+    });
+    body.appendChild(grid);
+
     // ── 전체 통합 내역 (일자순) ──
     var allFlows = [];
     perAccount.forEach(function (a) { allFlows = allFlows.concat(a.flows); });
@@ -932,34 +940,31 @@
     body.appendChild(h('h4', { class: 'cashflow-title', text: '전체 통합 내역' }));
     if (allFlows.length) {
       var runningNet = 0;
+      var prevDate = null;
       var totalRows = allFlows.map(function (f) {
         // 표시 금액과 누적을 같은 기준(원금 차감액)으로 맞춘다 — 해지는 인출 현금과 다르다
         runningNet += f.signed;
         var note = closeoutNote(f);
-        return h('tr', {}, [
-          h('td', { text: f.date, class: 'date' }),
+        var sameDay = f.date === prevDate; // 같은 날 연속 행은 일자를 반복하지 않는다
+        prevDate = f.date;
+        return h('tr', { class: 'compact' }, [
+          h('td', { text: sameDay ? '' : f.date, class: 'date' }),
           h('td', { text: f.accountName, class: 'name' }),
-          h('td', {}, [
-            h('span', { class: 'tag tag-' + f.type, text: f.label }),
-            note ? h('span', { class: 'lg-sub', text: note }) : null
-          ]),
-          h('td', { text: (f.signed >= 0 ? '+' : '−') + fmtWon(Math.abs(f.signed)),
-            class: 'num ' + (f.signed >= 0 ? 'pos' : 'neg') }),
-          h('td', { text: fmtWon(runningNet), class: 'num' })
+          h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
+          h('td', {
+            text: (f.signed >= 0 ? '+' : '−') + fmtWon(Math.abs(f.signed)),
+            class: 'num ' + (f.signed >= 0 ? 'pos' : 'neg'),
+            title: note || undefined
+          }),
+          h('td', { text: fmtWon(runningNet), class: 'num muted-num' })
         ]);
       });
       body.appendChild(flowTable(['일자', '계좌', '구분', '원금 증감', '누적 순원금'], totalRows));
+      body.appendChild(h('p', { class: 'cashflow-hint',
+        text: '해지 행의 금액은 실제 인출 현금이 아니라 원금 차감액입니다. 자세한 내역은 위의 계좌별 원장을 보세요.' }));
     } else {
       body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
     }
-
-    // ── 계좌별 원금 원장 (원금 → 추가입금 → 원금합) ──
-    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 원금 원장' }));
-    var grid = h('div', { class: 'ledger-grid' });
-    perAccount.forEach(function (a) {
-      grid.appendChild(ledgerColumn(a.p, a.flows));
-    });
-    body.appendChild(grid);
 
     el('cashflow-dialog').showModal();
   }
@@ -1019,10 +1024,12 @@
     ]);
   }
 
+  // 마지막 두 열(금액)만 우측 정렬 — 구분 열은 태그라 좌측 정렬이어야 한다
   function flowTable(headers, rows) {
+    var numFrom = headers.length - 2;
     var thead = h('thead', {}, [
       h('tr', {}, headers.map(function (t, i) {
-        return h('th', { text: t, class: i === 0 || i === 1 ? '' : (i >= 2 ? 'num' : '') });
+        return h('th', { text: t, class: i >= numFrom ? 'num' : '' });
       }))
     ]);
     var tbody = h('tbody', {}, rows);
