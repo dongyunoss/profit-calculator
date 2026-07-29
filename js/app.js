@@ -44,7 +44,8 @@
   }
 
   function fmtWon(n) {
-    return Math.round(n).toLocaleString('ko-KR') + '원';
+    // 음수 부호는 화면 전체에서 '−'(U+2212)로 통일한다 (하이픈과 섞이지 않게)
+    return Math.round(n).toLocaleString('ko-KR').replace(/^-/, '−') + '원';
   }
 
   function fmtNum(n, digits) {
@@ -932,16 +933,22 @@
     if (allFlows.length) {
       var runningNet = 0;
       var totalRows = allFlows.map(function (f) {
+        // 표시 금액과 누적을 같은 기준(원금 차감액)으로 맞춘다 — 해지는 인출 현금과 다르다
         runningNet += f.signed;
+        var note = closeoutNote(f);
         return h('tr', {}, [
           h('td', { text: f.date, class: 'date' }),
           h('td', { text: f.accountName, class: 'name' }),
-          h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
-          h('td', { text: (f.signed >= 0 ? '+' : '−') + fmtWon(f.amount), class: 'num ' + (f.type === 'deposit' ? 'pos' : 'neg') }),
+          h('td', {}, [
+            h('span', { class: 'tag tag-' + f.type, text: f.label }),
+            note ? h('span', { class: 'lg-sub', text: note }) : null
+          ]),
+          h('td', { text: (f.signed >= 0 ? '+' : '−') + fmtWon(Math.abs(f.signed)),
+            class: 'num ' + (f.signed >= 0 ? 'pos' : 'neg') }),
           h('td', { text: fmtWon(runningNet), class: 'num' })
         ]);
       });
-      body.appendChild(flowTable(['일자', '계좌', '구분', '입출금액', '누적 순원금'], totalRows));
+      body.appendChild(flowTable(['일자', '계좌', '구분', '원금 증감', '누적 순원금'], totalRows));
     } else {
       body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
     }
@@ -957,41 +964,56 @@
     el('cashflow-dialog').showModal();
   }
 
-  // 한 계좌의 원금 원장 열: 원금(최초) → [추가입금, 원금합] 반복
+  // 한 계좌의 원금 원장 열: 원금(최초) → [추가입금·출금, 원금합] 반복 → 현재 원금
+  // 엑셀 '종합' 시트의 윗단과 같은 구조로, 행을 그대로 더하면 현재 원금이 나온다.
   function ledgerColumn(p, flows) {
-    var rows = [];
+    var rows = [], running = 0;
     flows.forEach(function (f, i) {
+      var d = flowDelta(f);
+      running += d;
       if (i === 0) {
-        // 최초 원금 (출금으로 시작하는 경우는 없음)
         rows.push(h('tr', { class: 'lg-principal' }, [
           h('td', { text: '원금', class: 'lg-k' }),
           h('td', { text: '', class: 'lg-d' }),
-          h('td', { text: fmtWon(f.amount), class: 'num lg-v' })
+          h('td', { text: fmtWon(d), class: 'num lg-v' })
         ]));
-      } else {
-        var d = flowDelta(f), note = closeoutNote(f);
-        rows.push(h('tr', { class: 'lg-add' }, [
-          h('td', { class: 'lg-k' }, [
-            h('span', { text: flowLabel(f) }),
-            note ? h('span', { class: 'lg-sub', text: note }) : null
-          ]),
-          h('td', { text: f.date, class: 'lg-d' }),
-          h('td', { text: (d >= 0 ? '+' : '−') + fmtWon(Math.abs(d)), class: 'num lg-v ' + (d >= 0 ? 'pos' : 'neg') })
+        return;
+      }
+      rows.push(h('tr', { class: 'lg-add' }, [
+        h('td', { text: flowLabel(f), class: 'lg-k' }),
+        h('td', { text: f.date, class: 'lg-d' }),
+        h('td', { text: (d >= 0 ? '+' : '−') + fmtWon(Math.abs(d)),
+          class: 'num lg-v ' + (d >= 0 ? 'pos' : 'neg') })
+      ]));
+      // 해지 행은 인출 현금과 원금 차감액이 다르므로 근거를 한 줄로 덧붙인다
+      var note = closeoutNote(f);
+      if (note) {
+        rows.push(h('tr', { class: 'lg-note' }, [
+          h('td', { text: note, colspan: '3' })
         ]));
       }
+      rows.push(h('tr', { class: 'lg-sum' }, [
+        h('td', { text: '원금합', class: 'lg-k' }),
+        h('td', { text: '', class: 'lg-d' }),
+        h('td', { text: fmtWon(running), class: 'num lg-v' })
+      ]));
     });
-    // 현재 원금 (합계, 강조)
+    if (!flows.length) {
+      rows.push(h('tr', {}, [h('td', { text: '내역 없음', class: 'empty small', colspan: '3' })]));
+    }
     rows.push(h('tr', { class: 'lg-final' }, [
-      h('td', { text: '현재 원금(원금 흐름)', class: 'lg-k' }),
+      h('td', { text: '현재 원금', class: 'lg-k' }),
       h('td', { text: '', class: 'lg-d' }),
       h('td', { text: fmtWon(p.principal), class: 'num lg-v' })
     ]));
 
+    // 원금이 0 이하(이익까지 인출)면 분모가 없어 수익률을 표시하지 않는다
+    var showRet = p.principal > 0;
     return h('div', { class: 'ledger-col' }, [
       h('div', { class: 'ledger-head' }, [
         h('div', { class: 'ledger-name', text: p.name + (p.isClosed ? ' (해지)' : '') }),
-        h('div', { class: 'ledger-ret ' + pctClass(p.principalReturn),
-          text: '원금흐름대비 ' + fmtPct(p.principalReturn) })
+        h('div', { class: 'ledger-ret ' + (showRet ? pctClass(p.principalReturn) : 'muted'),
+          text: showRet ? '원금대비 ' + fmtPct(p.principalReturn) : '원금 소진' })
       ]),
       h('table', { class: 'ledger-table' }, [h('tbody', {}, rows)])
     ]);

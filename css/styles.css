@@ -494,7 +494,9 @@ dialog.wide-dialog {
   width: min(1200px, 96vw);
   max-height: 88vh;
   overflow-y: auto;
+  overflow-x: hidden;
 }
+#cashflow-body { min-width: 0; }
 
 .dialog-head {
   display: flex;
@@ -533,16 +535,22 @@ dialog.wide-dialog {
 
 .empty.small { padding: 8px 0; font-size: 12px; text-align: left; }
 
-/* 계좌별 원금 원장 (열별 나열) */
+/* 계좌별 원금 원장 — 엑셀 '종합' 시트처럼 계좌를 가로로 나란히.
+   계좌가 많으면 이 영역만 가로로 스크롤되고 다이얼로그 본문은 밀리지 않는다. */
 .ledger-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  display: flex;
+  align-items: flex-start;
   gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: thin;
 }
 .ledger-col {
+  flex: 0 0 300px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
+  background: #fff;
 }
 .ledger-head {
   display: flex;
@@ -596,4 +604,17 @@ dialog.wide-dialog {
   margin-top: 2px;
   white-space: normal;
 }
-.ledger-table .lg-k { white-space: normal; }
+.ledger-table .lg-k { white-space: nowrap; }
+
+/* 해지 행의 근거 줄 (원금 차감액 = 인출 현금 ± 손익 정리분) */
+.ledger-table tr.lg-note td,
+tr.lg-note td {
+  padding: 2px 12px 8px;
+  font-size: 11px;
+  color: var(--muted);
+  border-bottom: 1px solid #eef1f5;
+  text-align: right;
+  white-space: normal;
+  line-height: 1.45;
+}
+.ledger-ret.muted { color: var(--muted); font-weight: 500; }
