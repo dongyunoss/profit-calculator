@@ -100,7 +100,14 @@
         var x = xOf(pt.x), y = yOf(pt.y);
         d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1) + ' ';
       });
-      root.appendChild(svg('path', { d: d.trim(), fill: 'none', stroke: s.color, 'stroke-width': s.emphasis ? 2.75 : 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+      var pathAttrs = {
+        d: d.trim(), fill: 'none', stroke: s.color,
+        'stroke-width': s.emphasis ? 2.75 : 2,
+        'stroke-linejoin': 'round', 'stroke-linecap': 'round'
+      };
+      // 벤치마크처럼 비교용 선은 점선으로 구분한다
+      if (s.dashed) pathAttrs['stroke-dasharray'] = '6 4';
+      root.appendChild(svg('path', pathAttrs));
       // 마지막 점 마커 + 라벨
       var last = s.points[s.points.length - 1];
       var lx = xOf(last.x), ly = yOf(last.y);

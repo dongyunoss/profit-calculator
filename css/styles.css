@@ -660,3 +660,26 @@ tr.lg-note td {
 #cashflow-body table.grid th:nth-child(5),
 #cashflow-body table.grid td:nth-child(5) { width: 27%; }
 #cashflow-body table.grid td { overflow: hidden; text-overflow: ellipsis; }
+
+/* 벤치마크 범례 스와치는 점선 라인과 맞춰 줄무늬로 */
+.legend-swatch.dashed {
+  background-image: repeating-linear-gradient(90deg, currentColor 0 5px, transparent 5px 9px) !important;
+  background-color: transparent !important;
+  color: var(--muted);
+  border-radius: 0;
+  width: 18px;
+  height: 3px;
+}
+
+/* 벤치마크 입력 textarea */
+#form-benchmark textarea {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+#benchmark-dialog { width: min(560px, 94vw); }

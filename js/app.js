@@ -123,6 +123,77 @@
     return pts;
   }
 
+  // ---------- 벤치마크 지수 (코스피 등) ----------
+
+  var BENCHMARK_COLOR = '#8a94a6';
+
+  // '2026.01.02' / '2026/01/02' / '20260102' / '2026-1-2' → '2026-01-02'
+  function normalizeDate(raw) {
+    var t = String(raw).trim().replace(/["']/g, '');
+    var m = t.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
+    if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+    m = t.match(/^(\d{4})(\d{2})(\d{2})$/);
+    if (m) return m[1] + '-' + m[2] + '-' + m[3];
+    return null;
+  }
+
+  // 붙여넣은 텍스트를 {date, value} 배열로.
+  // 한 줄에서 "날짜 + 그 뒤의 첫 숫자"를 뽑는다. 천 단위 쉼표(2,540.11)가 구분자로
+  // 오인되지 않도록 구분자 분해 대신 정규식으로 통째로 읽는다.
+  var BM_LINE = /^\s*["']?\s*(\d{4}(?:[.\/-]\d{1,2}){2}|\d{8})\s*["']?\s*[,;\t|\s]\s*["']?\s*(\d[\d,\s]*(?:\.\d+)?)/;
+
+  function parseBenchmarkText(text) {
+    var pts = [], bad = 0;
+    String(text).split(/\r?\n/).forEach(function (line) {
+      if (!line.trim()) return;
+      var m = line.match(BM_LINE);
+      var date = m && normalizeDate(m[1]);
+      var value = m ? parseFloat(m[2].replace(/[,\s]/g, '')) : NaN;
+      if (date && isFinite(value) && value > 0) pts.push({ date: date, value: value });
+      else bad++;
+    });
+    pts.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+    // 같은 날짜가 여러 번이면 마지막 값으로
+    var out = [];
+    pts.forEach(function (p) {
+      if (out.length && out[out.length - 1].date === p.date) out[out.length - 1] = p;
+      else out.push(p);
+    });
+    return { points: out, skipped: bad };
+  }
+
+  // 해당 일자 이하의 마지막 지수값 (휴장일·평가일 불일치 대응)
+  function benchmarkValueAt(points, date) {
+    var v = null;
+    for (var i = 0; i < points.length; i++) {
+      if (points[i].date > date) break;
+      v = points[i].value;
+    }
+    return v;
+  }
+
+  // 차트 x축(cats)에 맞춰 첫 시점을 0%로 정규화한 시리즈
+  function benchmarkSeries(cats) {
+    var bm = state.benchmark;
+    if (!bm || !bm.points || bm.points.length < 2 || !cats.length) return null;
+    var base = null, pts = [];
+    cats.forEach(function (c) {
+      var v = benchmarkValueAt(bm.points, c);
+      if (v === null) return;          // 벤치마크 데이터가 시작되기 전 구간은 건너뛴다
+      if (base === null) base = v;
+      pts.push({ x: c, y: v / base - 1 });
+    });
+    if (pts.length < 2) return null;
+    return { name: bm.name || '벤치마크', color: BENCHMARK_COLOR, points: pts, dashed: true };
+  }
+
+  function legendItem(name, color, dashed) {
+    return h('span', { class: 'legend-item' }, [
+      h('span', { class: 'legend-swatch' + (dashed ? ' dashed' : ''), style: 'background:' + color }),
+      h('span', { text: name })
+    ]);
+  }
+
   function renderChart(result) {
     var panel = el('chart-panel');
     var processed = result.processed;
@@ -145,11 +216,14 @@
       var pts = [{ x: comp.series.length ? firstDate(processed) : '', y: 0 }].filter(function (p) { return p.x; });
       comp.series.forEach(function (s) { pts.push({ x: s.date, y: s.index / Engine.NAV_BASE - 1 }); });
       var cats = pts.map(function (p) { return p.x; });
-      Chart.renderLineChart(el('chart-area'), {
-        series: [{ name: '종합 성과 수익률', color: COMPOSITE_COLOR, points: pts, emphasis: true }],
-        categories: cats
-      });
-      note.textContent = '전 계좌를 자산가중으로 합산한 종합 성과 지수(1,000 시작)의 누적 수익률입니다. 입출금·성과보수의 영향을 배제한 순수 운용 성과입니다.';
+      var seriesList = [{ name: '종합 성과 수익률', color: COMPOSITE_COLOR, points: pts, emphasis: true }];
+      var bm = benchmarkSeries(cats);
+      if (bm) seriesList.push(bm);
+      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
+      legend.appendChild(legendItem('종합 성과 수익률', COMPOSITE_COLOR));
+      if (bm) legend.appendChild(legendItem(bm.name, bm.color, true));
+      note.textContent = '전 계좌를 자산가중으로 합산한 종합 성과 지수(1,000 시작)의 누적 수익률입니다. 입출금·성과보수의 영향을 배제한 순수 운용 성과입니다.'
+        + (bm ? ' 점선은 같은 시점을 0%로 맞춘 ' + bm.name + ' 지수입니다.' : '');
     } else {
       // 평가 데이터가 있는 계좌만
       var active = processed.filter(function (p) { return p.daily.length > 0; });
@@ -188,6 +262,11 @@
       });
 
       var cats = Object.keys(dateSet).sort();
+      var bmA = benchmarkSeries(cats);
+      if (bmA) {
+        seriesList.push(bmA);
+        legend.appendChild(legendItem(bmA.name, bmA.color, true));
+      }
       Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
       note.textContent = selectedChartAccountId
         ? '선택한 계좌의 개설 이후 누적 수익률입니다. 범례에서 계좌명을 다시 누르면 전체 계좌를 함께 봅니다.'
@@ -597,13 +676,25 @@
 
     // 종합 성과 지수 일별 시계열
     if (comp.series.length) {
-      var idxRows = [[
+      var bm = state.benchmark;
+      var bmName = bm && bm.points && bm.points.length ? (bm.name || '벤치마크') : null;
+      var bmBase = null;
+      var idxHead = [
         { v: '일자', s: S.HEAD }, { v: '일간 수익률', s: S.HEAD }, { v: '성과 지수', s: S.HEAD }
-      ]];
+      ];
+      if (bmName) idxHead.push({ v: bmName, s: S.HEAD }, { v: bmName + ' 누적', s: S.HEAD });
+      var idxRows = [idxHead];
       comp.series.forEach(function (r) {
-        idxRows.push([{ v: r.date }, { v: r.ret, s: S.PCT }, { v: r.index, s: S.DEC }]);
+        var row = [{ v: r.date }, { v: r.ret, s: S.PCT }, { v: r.index, s: S.DEC }];
+        if (bmName) {
+          var v = benchmarkValueAt(bm.points, r.date);
+          if (v !== null && bmBase === null) bmBase = v;
+          row.push(v === null ? null : { v: v, s: S.DEC });
+          row.push(v === null || !bmBase ? null : { v: v / bmBase - 1, s: S.PCT });
+        }
+        idxRows.push(row);
       });
-      sheets.push({ name: '종합지수', colWidths: [12, 12, 12], rows: idxRows });
+      sheets.push({ name: '종합지수', colWidths: bmName ? [12, 12, 12, 12, 14] : [12, 12, 12], rows: idxRows });
     }
 
     // 원금 원장 (계좌를 열별로 나열: 원금 → 추가입금 → 원금합)
@@ -1350,6 +1441,45 @@
     // 상단 도구
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
+
+    // 벤치마크 지수 입력
+    el('btn-benchmark').addEventListener('click', function () {
+      var f = el('form-benchmark'), bm = state.benchmark;
+      f.elements.name.value = (bm && bm.name) || '코스피';
+      f.elements.data.value = bm && bm.points
+        ? bm.points.map(function (p) { return p.date + '\t' + p.value; }).join('\n') : '';
+      el('benchmark-dialog').showModal();
+    });
+    el('btn-cancel-benchmark').addEventListener('click', function () { el('benchmark-dialog').close(); });
+    el('btn-delete-benchmark').addEventListener('click', function () {
+      if (!state.benchmark) { el('benchmark-dialog').close(); return; }
+      if (!confirm('벤치마크 데이터를 삭제할까요?')) return;
+      delete state.benchmark;
+      saveState();
+      el('benchmark-dialog').close();
+      render();
+    });
+    el('form-benchmark').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target;
+      var text = f.elements.data.value;
+      if (!text.trim()) {
+        delete state.benchmark;
+      } else {
+        var parsed = parseBenchmarkText(text);
+        if (parsed.points.length < 2) {
+          alert('일자와 지수를 인식하지 못했습니다. 「2026-01-02  2650.12」처럼 일자와 숫자 두 열을 붙여넣어 주세요.');
+          return;
+        }
+        state.benchmark = { name: f.elements.name.value.trim() || '벤치마크', points: parsed.points };
+        if (parsed.skipped) {
+          alert(parsed.points.length + '개를 저장했습니다. 인식하지 못한 ' + parsed.skipped + '줄은 건너뛰었습니다.');
+        }
+      }
+      saveState();
+      el('benchmark-dialog').close();
+      render();
+    });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
     el('btn-import-xlsx').addEventListener('click', function () { el('import-file').click(); });
     el('import-file').addEventListener('change', function (e) {
