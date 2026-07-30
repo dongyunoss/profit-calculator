@@ -19,7 +19,7 @@
     dark:  { muted: '#8b929e', grid: '#262b33', axis: '#39404b', marker: '#1b1e24', fill: '#4fb3c9' },
     light: { muted: '#4b5563', grid: '#dfe3e8', axis: '#9aa2ad', marker: '#ffffff', fill: '#0e7490' }
   };
-  var MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
+  var MONO = "'JetBrains Mono', 'Noto Sans KR', ui-monospace, SFMono-Regular, Menlo, monospace";
 
   function svg(tag, attrs) {
     var e = document.createElementNS(SVGNS, tag);

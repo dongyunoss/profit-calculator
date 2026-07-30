@@ -57,8 +57,9 @@
     var man = Math.round((v % 1e8) / 1e4);
     if (man >= 10000) { eok += 1; man -= 10000; } // 반올림 캐리(예: 9999.6만 → +1억)
     var s;
+    // 억과 만 사이는 줄바꿈 없는 공백(NBSP) — 좁은 칸에서 "381억 / 2,984만원"으로 갈라지지 않게
     if (eok > 0) {
-      s = eok.toLocaleString('ko-KR') + '억' + (man > 0 ? ' ' + man.toLocaleString('ko-KR') + '만' : '');
+      s = eok.toLocaleString('ko-KR') + '억' + (man > 0 ? '\u00a0' + man.toLocaleString('ko-KR') + '만' : '');
     } else if (man > 0) {
       s = man.toLocaleString('ko-KR') + '만';
     } else {
