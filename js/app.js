@@ -1260,99 +1260,97 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
-  // ---------- PDF 리포트 (계좌당 A4 1페이지) ----------
+  // ---------- PDF 리포트 (A4 한 장에 계좌 여러 개) ----------
   //
   // PDF 바이트를 직접 만들지 않고 브라우저 인쇄(→ "PDF로 저장")를 쓴다.
   // 한글은 PDF에 CJK 폰트를 통째로 심어야 그려지는데(수 MB), 인쇄 경로를 쓰면
   // 화면과 같은 폰트·자간으로 정확히 나가고 페이지 나눔도 브라우저가 처리한다.
 
   var REPORT_ROWS = 10;         // 표에 싣는 최근 평가일 수
+  var REPORT_PER_PAGE = 3;      // A4 한 장에 담는 계좌 수
   var REPORT_LINE = '#0e7490';  // 인쇄용 차트 선색 — 흑백 출력에서도 뭉개지지 않는 진한 청록
 
-  function rpCell(label, value, sub, cls) {
-    return h('div', { class: 'rp-cell' }, [
-      h('div', { class: 'rp-cell-label', text: label }),
-      h('div', { class: 'rp-cell-value' + (cls ? ' ' + cls : ''), text: value }),
-      sub ? h('div', { class: 'rp-cell-sub', text: sub }) : null
+  // 요약 스트립 한 칸
+  function rpStat(label, value, cls, sub) {
+    return h('div', { class: 'rp-stat' }, [
+      h('span', { class: 'rp-stat-label', text: label }),
+      h('span', { class: 'rp-stat-value' + (cls ? ' ' + cls : ''), text: value }),
+      sub ? h('span', { class: 'rp-stat-sub', text: sub }) : null
     ]);
   }
 
-  function rpTh(text, num) { return h('th', { text: text, class: num ? 'num' : '' }); }
+  // 두 줄짜리 표 머리 — 좁은 칸에서 "원금대비 수익률"이 열 폭을 밀어내지 않게 나눈다
+  function rpTh(line1, line2) {
+    return h('th', { class: 'num' }, [
+      h('span', { text: line1 }),
+      line2 ? h('span', { class: 'rp-th-2', text: line2 }) : null
+    ]);
+  }
 
-  // 계좌 한 개 = A4 한 페이지
-  function reportPage(p, asOf) {
+  // 계좌 한 개 = 한 블록 (차트 | 최근 평가 표를 좌우로 붙여 높이를 줄인다)
+  function reportBlock(p, asOf) {
     var vals = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
     var recent = vals.slice(-REPORT_ROWS).slice().reverse(); // 최신이 위
     var navRet = p.nav / Engine.NAV_BASE - 1;
-    // 개별 계좌는 계약 기준(보수 수취 시 승계된 원금). 원금 흐름과 갈리면 아래에 함께 적는다.
+    // 개별 계좌는 계약 기준(보수 수취 시 승계된 원금). 원금 흐름과 갈리면 함께 적는다.
     // 해지 계좌는 원금 흐름이 해지 차감의 잔여값이라 음수로 남을 수 있어 리포트에서는 뺀다.
     var carried = !p.isClosed && Math.abs(p.contractPrincipal - p.principal) > 0.5;
-    var status = p.isClosed ? '해지' : (p.isMatured ? '만기 도래' : '운용 중');
+    var status = p.isClosed ? '해지' : (p.isMatured ? '만기' : '운용 중');
 
-    var page = h('section', { class: 'rp-page' }, [
-      h('header', { class: 'rp-head' }, [
-        h('div', { class: 'rp-head-left' }, [
-          h('h2', { class: 'rp-name', text: p.name }),
-          h('span', { class: 'rp-status', text: status })
+    var block = h('article', { class: 'rp-acct' }, [
+      h('div', { class: 'rp-acct-head' }, [
+        h('h2', { class: 'rp-name', text: p.name }),
+        h('span', { class: 'rp-status', text: status }),
+        h('span', { class: 'rp-acct-meta',
+          text: (p.createdDate ? '개설 ' + p.createdDate : '') +
+                (p.lastValuationDate ? '  ·  기준일 ' + p.lastValuationDate : '') })
+      ]),
+
+      h('div', { class: 'rp-strip' }, [
+        rpStat('원금', fmtWon(p.contractPrincipal), null,
+          carried ? '흐름 ' + fmtWon(p.principal) : null),
+        rpStat('평가금액', fmtWon(p.eval)),
+        rpStat('평가손익', fmtWon(p.contractPnl), pctClass(p.contractPnl)),
+        rpStat('원금대비 수익률', fmtPct(p.contractReturn), pctClass(p.contractReturn)),
+        rpStat('기준가', fmtNum(p.nav, 2)),
+        rpStat('좌수', fmtNum(p.units, 0))
+      ]),
+
+      h('div', { class: 'rp-cols' }, [
+        h('div', { class: 'rp-col rp-col-chart' }, [
+          h('h3', { class: 'rp-title', text: '누적 수익률 · 기준가 기준' }),
+          h('div', { class: 'rp-chart' })
         ]),
-        h('div', { class: 'rp-head-right' }, [
-          h('div', { class: 'rp-asof', text: '기준일 ' + (p.lastValuationDate || asOf || '-') }),
-          h('div', { class: 'rp-since', text: p.createdDate ? '개설 ' + p.createdDate : '' })
+        h('div', { class: 'rp-col rp-col-table' }, [
+          h('h3', { class: 'rp-title', text: '최근 ' + REPORT_ROWS + '일 평가 내역' }),
+          h('table', { class: 'rp-table' }, [
+            h('thead', {}, [h('tr', {}, [
+              h('th', {}, [h('span', { text: '일자' })]),
+              rpTh('평가금액'), rpTh('원금대비', '수익률'), rpTh('기준가', '수익률'),
+              rpTh('기준가'), rpTh('좌수')
+            ])]),
+            h('tbody', {}, recent.length ? recent.map(function (row) {
+              var pr = rowRet(row), nr = row.nav / Engine.NAV_BASE - 1;
+              return h('tr', {}, [
+                h('td', { text: row.date }),
+                h('td', { text: fmtWon(row.eval), class: 'num' }),
+                h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
+                h('td', { text: fmtPct(nr), class: 'num ' + pctClass(nr) }),
+                h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
+                h('td', { text: fmtNum(row.units, 0), class: 'num' })
+              ]);
+            }) : [h('tr', {}, [h('td', { colspan: '6', class: 'rp-none', text: '평가 내역이 없습니다.' })])])
+          ])
         ])
-      ]),
-
-      h('div', { class: 'rp-cells' }, [
-        rpCell('원금', fmtWon(p.contractPrincipal), carried ? '원금 흐름 ' + fmtWon(p.principal) : ''),
-        rpCell('평가금액', fmtWon(p.eval), ''),
-        rpCell('평가손익', fmtWon(p.contractPnl), '', pctClass(p.contractPnl)),
-        rpCell('원금대비 수익률', fmtPct(p.contractReturn), '', pctClass(p.contractReturn)),
-        rpCell('기준가', fmtNum(p.nav, 2), '기준가 수익률 ' + fmtPct(navRet)),
-        rpCell('좌수', fmtNum(p.units, 0), '')
-      ]),
-
-      h('div', { class: 'rp-block' }, [
-        h('h3', { class: 'rp-title' }, [
-          h('span', { text: '누적 수익률 추이' }),
-          // 위 요약의 '원금대비 수익률'과 다른 지표라 기준을 명시한다
-          h('span', { class: 'rp-title-sub', text: '기준가 기준 · 개설 이후 · 입출금 영향 제거' })
-        ]),
-        h('div', { class: 'rp-chart' })
-      ]),
-
-      h('div', { class: 'rp-block' }, [
-        h('h3', { class: 'rp-title', text: '최근 ' + REPORT_ROWS + '일 평가 내역' }),
-        h('table', { class: 'rp-table' }, [
-          h('thead', {}, [h('tr', {}, [
-            rpTh('일자'), rpTh('평가금액', 1), rpTh('원금대비 수익률', 1),
-            rpTh('기준가 수익률', 1), rpTh('기준가', 1), rpTh('좌수', 1)
-          ])]),
-          h('tbody', {}, recent.length ? recent.map(function (row) {
-            var pr = rowRet(row), nr = row.nav / Engine.NAV_BASE - 1;
-            return h('tr', {}, [
-              h('td', { text: row.date }),
-              h('td', { text: fmtWon(row.eval), class: 'num' }),
-              h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
-              h('td', { text: fmtPct(nr), class: 'num ' + pctClass(nr) }),
-              h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
-              h('td', { text: fmtNum(row.units, 0), class: 'num' })
-            ]);
-          }) : [h('tr', {}, [h('td', { colspan: '6', class: 'rp-none', text: '평가 내역이 없습니다.' })])])
-        ])
-      ]),
-
-      h('footer', { class: 'rp-foot' }, [
-        h('span', { text: '기준가는 1,000좌당 가격이며 계좌 개설 시 1,000.00에서 시작합니다. ' +
-          '원금대비 수익률은 지급된 성과보수·배당을 되살린 총수익 기준입니다.' }),
-        h('span', { class: 'rp-foot-right', text: '자산운용 수익률 관리 · ' + todayStr() })
       ])
     ]);
 
     // 차트는 DOM에 붙은 뒤 그려야 컨테이너 폭을 잴 수 있다 — 렌더 함수만 매달아 둔다
-    page.__drawChart = function () {
-      var host = page.querySelector('.rp-chart');
+    block.__drawChart = function () {
+      var host = block.querySelector('.rp-chart');
       var pts = accountReturnSeries(p);
       if (pts.length < 2) {
-        host.appendChild(h('p', { class: 'rp-none', text: '평가 데이터가 2일 미만이라 추이를 그릴 수 없습니다.' }));
+        host.appendChild(h('p', { class: 'rp-none', text: '평가 데이터 2일 미만 — 추이 없음' }));
         return;
       }
       Chart.renderLineChart(host, {
@@ -1360,11 +1358,37 @@
         categories: pts.map(function (pt) { return pt.x; }),
         formatY: fmtPct,
         theme: 'light',
-        height: 170,
+        height: 178,   // 오른쪽 표(10행)와 기둥 높이를 맞춰 아래 여백을 남기지 않는다
         interactive: false
       });
     };
-    return page;
+    return block;
+  }
+
+  // 계좌 블록을 REPORT_PER_PAGE개씩 묶어 A4 페이지로
+  function reportPages(processed, asOf) {
+    var pages = [], blocks = [];
+    var total = Math.ceil(processed.length / REPORT_PER_PAGE);
+    for (var i = 0; i < processed.length; i += REPORT_PER_PAGE) {
+      var chunk = processed.slice(i, i + REPORT_PER_PAGE);
+      var body = chunk.map(function (p) { return reportBlock(p, asOf); });
+      blocks = blocks.concat(body);
+      pages.push(h('section', { class: 'rp-page' }, [
+        h('header', { class: 'rp-page-head' }, [
+          h('span', { class: 'rp-page-title', text: '계좌 운용 현황' }),
+          h('span', { class: 'rp-page-meta',
+            text: (asOf ? '기준일 ' + asOf + '  ·  ' : '') + (pages.length + 1) + ' / ' + total })
+        ])
+      ].concat(body).concat([
+        h('footer', { class: 'rp-page-foot' }, [
+          h('span', { text: '기준가는 1,000좌당 가격이며 계좌 개설 시 1,000.00에서 시작합니다. ' +
+            '원금대비 수익률은 지급된 성과보수·배당을 되살린 총수익 기준이고, ' +
+            '누적 수익률 차트는 입출금 영향을 제거한 기준가 기준(개설 이후)입니다.' }),
+          h('span', { class: 'rp-page-foot-right', text: '자산운용 수익률 관리 · ' + todayStr() })
+        ])
+      ])));
+    }
+    return { pages: pages, blocks: blocks };
   }
 
   function downloadReportPdf() {
@@ -1375,9 +1399,9 @@
     var host = el('print-report');
     host.innerHTML = '';
     var asOf = latestValuationDate(lastResult.processed);
-    var pages = lastResult.processed.map(function (p) { return reportPage(p, asOf); });
-    pages.forEach(function (pg) { host.appendChild(pg); });
-    pages.forEach(function (pg) { pg.__drawChart(); });
+    var built = reportPages(lastResult.processed, asOf);
+    built.pages.forEach(function (pg) { host.appendChild(pg); });
+    built.blocks.forEach(function (bl) { bl.__drawChart(); }); // DOM에 붙은 뒤에 그린다
 
     // 브라우저는 저장 파일명을 document.title에서 가져온다 — 인쇄 동안만 바꿔 둔다
     var prevTitle = document.title;
@@ -1390,7 +1414,8 @@
     };
     window.addEventListener('afterprint', restore);
 
-    toast('인쇄 창에서 대상을 "PDF로 저장"으로 선택하세요. 계좌당 1페이지(A4)로 나옵니다.', 'info');
+    toast('인쇄 창에서 대상을 "PDF로 저장"으로 선택하세요. A4 한 장에 계좌 ' +
+      REPORT_PER_PAGE + '개씩 나옵니다.', 'info');
     window.print();
     // afterprint를 지원하지 않는 브라우저 대비 — 넉넉히 기다렸다가 정리
     setTimeout(restore, 60000);
