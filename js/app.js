@@ -226,6 +226,7 @@
     renderSummary(result);
     renderRail(result);
     renderChart(result);
+    renderIndexBar(result);
     renderAccountsTable(result);
     renderDetail(result);
   }
@@ -567,6 +568,54 @@
         h('span', { class: 'ret-value ' + cls, text: fmtPct(ret) })
       ])
     ]);
+  }
+
+  // 벤치마크 시리즈에 한 점을 추가/갱신한다 (계좌 목록 상단 지수 입력용).
+  // 벤치마크(코스피) 다이얼로그로 통째로 붙여넣은 데이터와 같은 저장소를 쓰므로
+  // 여기서 입력해도 수익률 추이 차트·PDF 리포트에 그대로 반영된다.
+  function upsertBenchmarkPoint(date, value) {
+    if (!state.benchmark) state.benchmark = { name: '코스피', points: [] };
+    var pts = state.benchmark.points;
+    var idx = pts.findIndex(function (pt) { return pt.date === date; });
+    if (idx >= 0) pts[idx] = { date: date, value: value };
+    else pts.push({ date: date, value: value });
+    pts.sort(function (a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+  }
+
+  // 계좌 목록 상단 지수 바 — 입력 폼은 static(HTML)이라 다시 그리지 않는다
+  // (매 render마다 새로 만들면 타이핑 중인 값이 날아간다). 우측 통계만 갱신한다.
+  function renderIndexBar(result) {
+    var host = el('index-stats');
+    host.innerHTML = '';
+    var bm = state.benchmark;
+    if (!bm || !bm.points.length) {
+      host.appendChild(h('span', { class: 'index-hint',
+        text: result.processed.length
+          ? '지수를 입력하면 계좌 설정일 대비 변동률이 표시됩니다.'
+          : '계좌를 등록하면 설정일 대비 변동률도 함께 표시됩니다.' }));
+      return;
+    }
+    var latest = bm.points[bm.points.length - 1];
+    host.appendChild(h('span', { class: 'index-current' }, [
+      h('span', { class: 'index-current-value', text: fmtNum(latest.value, 2) }),
+      h('span', { class: 'index-current-date', text: latest.date })
+    ]));
+
+    var baseDate = firstDate(result.processed); // 가장 이른 계좌 설정일(개설일)
+    if (baseDate && bm.points.length >= 1) {
+      var baseVal = benchmarkValueAt(bm.points, baseDate);
+      var exact = baseVal !== null;
+      if (!exact) baseVal = bm.points[0].value; // 지수 데이터가 설정일보다 늦게 시작하면 첫 값으로 대체
+      var baseUsedDate = exact ? baseDate : bm.points[0].date;
+      var chg = baseVal > 0 ? (latest.value / baseVal - 1) : null;
+      if (chg !== null) {
+        host.appendChild(h('span', { class: 'index-change' }, [
+          h('span', { class: 'index-change-label',
+            text: (exact ? '설정일(' : '데이터 시작일(') + baseUsedDate + ') 대비' }),
+          h('span', { class: 'index-change-value ' + pctClass(chg), text: fmtPct(chg) })
+        ]));
+      }
+    }
   }
 
   function renderAccountsTable(result) {
@@ -2056,6 +2105,20 @@
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
 
+    // 계좌 목록 상단 지수 빠른 입력 — 벤치마크(코스피) 다이얼로그와 같은 저장소를 쓴다
+    el('form-index').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var f = e.target;
+      var date = f.elements.date.value;
+      var value = parseFloat(f.elements.value.value);
+      if (!date) { toast('날짜를 입력하세요.', 'warn'); return; }
+      if (!isFinite(value) || value <= 0) { toast('지수를 올바르게 입력하세요.', 'warn'); return; }
+      upsertBenchmarkPoint(date, value);
+      saveState();
+      render();
+      toast(date + ' 코스피 지수 ' + fmtNum(value, 2) + ' 저장', 'ok');
+    });
+
     // 벤치마크 지수 입력
     el('btn-benchmark').addEventListener('click', function () {
       var f = el('form-benchmark'), bm = state.benchmark;
@@ -2121,9 +2184,14 @@
     });
 
     // 날짜 기본값
-    ['form-valuation', 'form-flow', 'form-fee'].forEach(function (id) {
+    ['form-valuation', 'form-flow', 'form-fee', 'form-index'].forEach(function (id) {
       el(id).elements.date.value = todayStr();
     });
+    // 지수 입력값은 저장된 마지막 지수로 미리 채워 둔다(수정하기 편하도록)
+    if (state.benchmark && state.benchmark.points.length) {
+      el('form-index').elements.value.value =
+        state.benchmark.points[state.benchmark.points.length - 1].value;
+    }
 
     render();
 

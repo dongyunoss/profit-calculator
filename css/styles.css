@@ -68,7 +68,7 @@ input[type="date"] { color-scheme: dark; }
 /* 수치는 전부 등폭 + 자릿수 고정 */
 .card-value, .metric-value, table.grid td.num, .ledger-table .lg-v, .ledger-table .lg-d,
 .rail-ret, .rail-eval, .rail-nav, .rail-sum-value, .date-badge, .panel-count,
-.legend-value, .chart-tooltip {
+.legend-value, .chart-tooltip, .index-current-value, .index-change-value {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
@@ -395,6 +395,48 @@ main {
 }
 
 .empty { color: var(--muted-2); text-align: center; padding: 24px 0; margin: 0; font-size: 13px; }
+
+/* ---------- 지수(코스피) 빠른 입력 바 ---------- */
+
+.index-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border-soft);
+}
+.index-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.index-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+.index-form input {
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 5px 8px;
+}
+.index-date { width: 132px; }
+.index-value-input { width: 110px; }
+.index-form input:focus { outline: none; border-color: var(--primary-bd); }
+
+.index-stats { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-family: var(--mono); }
+.index-hint { font-size: 12px; color: var(--muted-2); }
+.index-current { display: flex; align-items: baseline; gap: 6px; }
+.index-current-value { font-size: 15px; font-weight: 700; color: var(--text); }
+.index-current-date { font-size: 11px; color: var(--muted-2); }
+.index-change { display: flex; align-items: baseline; gap: 6px; }
+.index-change-label { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.index-change-value { font-size: 13px; font-weight: 700; }
 
 /* ---------- 테이블 ---------- */
 
@@ -1154,9 +1196,19 @@ tr.lg-note td {
 
   /* 손익 방향을 색뿐 아니라 화살표로도 — 국내 MTS 관례. 색약 사용자·흑백 캡처에서도 구분된다 */
   .card-value.pos::before, .metric-value.pos::before,
-  .rail-ret.pos::before, .ret-value.pos::before, .legend-value.pos::before { content: '▲ '; }
+  .rail-ret.pos::before, .ret-value.pos::before, .legend-value.pos::before,
+  .index-change-value.pos::before { content: '▲ '; }
   .card-value.neg::before, .metric-value.neg::before,
-  .rail-ret.neg::before, .ret-value.neg::before, .legend-value.neg::before { content: '▼ '; }
+  .rail-ret.neg::before, .ret-value.neg::before, .legend-value.neg::before,
+  .index-change-value.neg::before { content: '▼ '; }
+
+  .index-bar { flex-direction: column; align-items: stretch; }
+  .index-form { flex-wrap: wrap; }
+  .index-form-label { width: 100%; }
+  /* 날짜 입력은 네이티브 위젯 최소 폭(달력 아이콘 포함) 아래로 줄이면 글자가 잘린다 */
+  .index-date { flex: 1 1 130px; min-width: 130px; }
+  .index-value-input { flex: 1 1 90px; min-width: 0; }
+  .index-form button { flex: 0 0 auto; }
 
   .forms-row { gap: 10px; }
   .mini-form { padding: 13px 14px; }
