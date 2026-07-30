@@ -81,7 +81,15 @@
         <tbody></tbody>
       </table>
     </div>
-    <p id="accounts-empty" class="empty">아직 등록된 계좌가 없습니다. [+ 계좌 추가] 버튼으로 첫 계좌를 만들어 보세요.</p>
+    <div id="accounts-empty" class="empty-state">
+      <div class="empty-icon" aria-hidden="true">◫</div>
+      <p class="empty-title">아직 등록된 계좌가 없습니다</p>
+      <p class="empty-desc">계좌를 만들고 일일 평가금액을 입력하면 기준가·수익률·종합 성과 지수가 자동으로 계산됩니다.</p>
+      <div class="empty-actions">
+        <button type="button" id="btn-empty-add" class="btn primary">+ 첫 계좌 만들기</button>
+        <button type="button" id="btn-empty-restore" class="btn">백업에서 복원</button>
+      </div>
+    </div>
   </section>
 
   <section class="panel flush" id="detail-panel" hidden>
@@ -175,6 +183,7 @@
             <tbody></tbody>
           </table>
         </div>
+        <div class="table-more" id="daily-more" hidden></div>
       </div>
     </div>
 
@@ -200,6 +209,7 @@
         <tbody></tbody>
       </table>
     </div>
+    <div class="table-more" id="history-more" hidden></div>
     </div>
     </div>
   </section>
@@ -234,6 +244,33 @@
   <div style="margin-top: 16px; text-align: right;">
     <button type="button" id="btn-import-confirm" class="btn primary">계좌 등록</button>
   </div>
+</dialog>
+
+<!-- 토스트: 저장·삭제 등 결과 피드백 (네이티브 alert 대체) -->
+<div id="toast-host" class="toast-host" role="status" aria-live="polite"></div>
+
+<!-- 확인 다이얼로그: 파괴적·되돌릴 수 없는 작업 (네이티브 confirm 대체) -->
+<dialog id="confirm-dialog">
+  <form method="dialog" id="form-confirm">
+    <h3 id="confirm-title"></h3>
+    <p class="confirm-body" id="confirm-body"></p>
+    <div class="dialog-actions">
+      <button type="button" id="btn-confirm-cancel" class="btn">취소</button>
+      <button type="submit" id="btn-confirm-ok" class="btn primary" value="ok">확인</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 입력 다이얼로그: 계좌 이름 변경 등 (네이티브 prompt 대체) -->
+<dialog id="prompt-dialog">
+  <form id="form-prompt">
+    <h3 id="prompt-title"></h3>
+    <label id="prompt-label">값 <input type="text" name="value" required></label>
+    <div class="dialog-actions">
+      <button type="button" id="btn-prompt-cancel" class="btn">취소</button>
+      <button type="submit" class="btn primary">저장</button>
+    </div>
+  </form>
 </dialog>
 
 <dialog id="benchmark-dialog">
