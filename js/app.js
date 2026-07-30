@@ -1260,6 +1260,142 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
+  // ---------- PDF 리포트 (계좌당 A4 1페이지) ----------
+  //
+  // PDF 바이트를 직접 만들지 않고 브라우저 인쇄(→ "PDF로 저장")를 쓴다.
+  // 한글은 PDF에 CJK 폰트를 통째로 심어야 그려지는데(수 MB), 인쇄 경로를 쓰면
+  // 화면과 같은 폰트·자간으로 정확히 나가고 페이지 나눔도 브라우저가 처리한다.
+
+  var REPORT_ROWS = 10;         // 표에 싣는 최근 평가일 수
+  var REPORT_LINE = '#0e7490';  // 인쇄용 차트 선색 — 흑백 출력에서도 뭉개지지 않는 진한 청록
+
+  function rpCell(label, value, sub, cls) {
+    return h('div', { class: 'rp-cell' }, [
+      h('div', { class: 'rp-cell-label', text: label }),
+      h('div', { class: 'rp-cell-value' + (cls ? ' ' + cls : ''), text: value }),
+      sub ? h('div', { class: 'rp-cell-sub', text: sub }) : null
+    ]);
+  }
+
+  function rpTh(text, num) { return h('th', { text: text, class: num ? 'num' : '' }); }
+
+  // 계좌 한 개 = A4 한 페이지
+  function reportPage(p, asOf) {
+    var vals = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
+    var recent = vals.slice(-REPORT_ROWS).slice().reverse(); // 최신이 위
+    var navRet = p.nav / Engine.NAV_BASE - 1;
+    // 개별 계좌는 계약 기준(보수 수취 시 승계된 원금). 원금 흐름과 갈리면 아래에 함께 적는다.
+    // 해지 계좌는 원금 흐름이 해지 차감의 잔여값이라 음수로 남을 수 있어 리포트에서는 뺀다.
+    var carried = !p.isClosed && Math.abs(p.contractPrincipal - p.principal) > 0.5;
+    var status = p.isClosed ? '해지' : (p.isMatured ? '만기 도래' : '운용 중');
+
+    var page = h('section', { class: 'rp-page' }, [
+      h('header', { class: 'rp-head' }, [
+        h('div', { class: 'rp-head-left' }, [
+          h('h2', { class: 'rp-name', text: p.name }),
+          h('span', { class: 'rp-status', text: status })
+        ]),
+        h('div', { class: 'rp-head-right' }, [
+          h('div', { class: 'rp-asof', text: '기준일 ' + (p.lastValuationDate || asOf || '-') }),
+          h('div', { class: 'rp-since', text: p.createdDate ? '개설 ' + p.createdDate : '' })
+        ])
+      ]),
+
+      h('div', { class: 'rp-cells' }, [
+        rpCell('원금', fmtWon(p.contractPrincipal), carried ? '원금 흐름 ' + fmtWon(p.principal) : ''),
+        rpCell('평가금액', fmtWon(p.eval), ''),
+        rpCell('평가손익', fmtWon(p.contractPnl), '', pctClass(p.contractPnl)),
+        rpCell('원금대비 수익률', fmtPct(p.contractReturn), '', pctClass(p.contractReturn)),
+        rpCell('기준가', fmtNum(p.nav, 2), '기준가 수익률 ' + fmtPct(navRet)),
+        rpCell('좌수', fmtNum(p.units, 0), '')
+      ]),
+
+      h('div', { class: 'rp-block' }, [
+        h('h3', { class: 'rp-title' }, [
+          h('span', { text: '누적 수익률 추이' }),
+          // 위 요약의 '원금대비 수익률'과 다른 지표라 기준을 명시한다
+          h('span', { class: 'rp-title-sub', text: '기준가 기준 · 개설 이후 · 입출금 영향 제거' })
+        ]),
+        h('div', { class: 'rp-chart' })
+      ]),
+
+      h('div', { class: 'rp-block' }, [
+        h('h3', { class: 'rp-title', text: '최근 ' + REPORT_ROWS + '일 평가 내역' }),
+        h('table', { class: 'rp-table' }, [
+          h('thead', {}, [h('tr', {}, [
+            rpTh('일자'), rpTh('평가금액', 1), rpTh('원금대비 수익률', 1),
+            rpTh('기준가 수익률', 1), rpTh('기준가', 1), rpTh('좌수', 1)
+          ])]),
+          h('tbody', {}, recent.length ? recent.map(function (row) {
+            var pr = rowRet(row), nr = row.nav / Engine.NAV_BASE - 1;
+            return h('tr', {}, [
+              h('td', { text: row.date }),
+              h('td', { text: fmtWon(row.eval), class: 'num' }),
+              h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
+              h('td', { text: fmtPct(nr), class: 'num ' + pctClass(nr) }),
+              h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
+              h('td', { text: fmtNum(row.units, 0), class: 'num' })
+            ]);
+          }) : [h('tr', {}, [h('td', { colspan: '6', class: 'rp-none', text: '평가 내역이 없습니다.' })])])
+        ])
+      ]),
+
+      h('footer', { class: 'rp-foot' }, [
+        h('span', { text: '기준가는 1,000좌당 가격이며 계좌 개설 시 1,000.00에서 시작합니다. ' +
+          '원금대비 수익률은 지급된 성과보수·배당을 되살린 총수익 기준입니다.' }),
+        h('span', { class: 'rp-foot-right', text: '자산운용 수익률 관리 · ' + todayStr() })
+      ])
+    ]);
+
+    // 차트는 DOM에 붙은 뒤 그려야 컨테이너 폭을 잴 수 있다 — 렌더 함수만 매달아 둔다
+    page.__drawChart = function () {
+      var host = page.querySelector('.rp-chart');
+      var pts = accountReturnSeries(p);
+      if (pts.length < 2) {
+        host.appendChild(h('p', { class: 'rp-none', text: '평가 데이터가 2일 미만이라 추이를 그릴 수 없습니다.' }));
+        return;
+      }
+      Chart.renderLineChart(host, {
+        series: [{ name: p.name, color: REPORT_LINE, points: pts, emphasis: true }],
+        categories: pts.map(function (pt) { return pt.x; }),
+        formatY: fmtPct,
+        theme: 'light',
+        height: 170,
+        interactive: false
+      });
+    };
+    return page;
+  }
+
+  function downloadReportPdf() {
+    if (!lastResult || !lastResult.processed.length) {
+      toast('등록된 계좌가 없습니다.', 'warn');
+      return;
+    }
+    var host = el('print-report');
+    host.innerHTML = '';
+    var asOf = latestValuationDate(lastResult.processed);
+    var pages = lastResult.processed.map(function (p) { return reportPage(p, asOf); });
+    pages.forEach(function (pg) { host.appendChild(pg); });
+    pages.forEach(function (pg) { pg.__drawChart(); });
+
+    // 브라우저는 저장 파일명을 document.title에서 가져온다 — 인쇄 동안만 바꿔 둔다
+    var prevTitle = document.title;
+    document.title = '자산운용_계좌현황_' + todayStr().replace(/-/g, '');
+
+    var restore = function () {
+      document.title = prevTitle;
+      host.innerHTML = '';
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+
+    toast('인쇄 창에서 대상을 "PDF로 저장"으로 선택하세요. 계좌당 1페이지(A4)로 나옵니다.', 'info');
+    window.print();
+    // afterprint를 지원하지 않는 브라우저 대비 — 넉넉히 기다렸다가 정리
+    setTimeout(restore, 60000);
+  }
+
   // ---------- 원금 입출금 내역 ----------
 
   // 원금 흐름에 해당하는 이벤트만 추출 (입금·출금·전액출금). 성과보수는 원금 흐름이 아님.
@@ -1866,6 +2002,7 @@
       render();
     });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
+    el('btn-pdf').addEventListener('click', downloadReportPdf);
     el('btn-import-xlsx').addEventListener('click', function () { el('import-file').click(); });
     el('import-file').addEventListener('change', function (e) {
       if (e.target.files[0]) parseImportXlsx(e.target.files[0]);
