@@ -48,6 +48,35 @@
     return Math.round(n).toLocaleString('ko-KR').replace(/^-/, '−') + '원';
   }
 
+  // 모바일(증권사 MTS 관례): 억/만 단위로 축약 — "55,967,232,129원" → "559억 6,723만원".
+  // 좁은 화면에서 자릿수 많은 원화 금액을 한눈에 읽히게 한다.
+  function fmtWonShort(n) {
+    var neg = n < 0;
+    var v = Math.round(Math.abs(n));
+    var eok = Math.floor(v / 1e8);
+    var man = Math.round((v % 1e8) / 1e4);
+    if (man >= 10000) { eok += 1; man -= 10000; } // 반올림 캐리(예: 9999.6만 → +1억)
+    var s;
+    if (eok > 0) {
+      s = eok.toLocaleString('ko-KR') + '억' + (man > 0 ? ' ' + man.toLocaleString('ko-KR') + '만' : '');
+    } else if (man > 0) {
+      s = man.toLocaleString('ko-KR') + '만';
+    } else {
+      s = v.toLocaleString('ko-KR');
+    }
+    return (neg ? '−' : '') + s + '원';
+  }
+
+  // 화면 폭이 모바일 브레이크포인트(css의 @media max-width:640px)와 같은 기준을 쓴다.
+  // matchMedia는 실제 리사이즈/회전 시 'change' 이벤트를 주므로 아래에서 재렌더링에 사용한다.
+  var MOBILE_MQ = (typeof window !== 'undefined' && window.matchMedia)
+    ? window.matchMedia('(max-width: 640px)') : null;
+  function isMobile() { return !!(MOBILE_MQ && MOBILE_MQ.matches); }
+
+  // 카드·레일·계좌 목록처럼 "한눈에 보는" 자리에서만 모바일 축약 표기를 쓴다.
+  // 원금 원장·거래 이력처럼 대사(reconciliation)가 필요한 표는 항상 fmtWon(전체 자릿수) 그대로.
+  function fmtWonAuto(n) { return isMobile() ? fmtWonShort(n) : fmtWon(n); }
+
   function fmtNum(n, digits) {
     return n.toLocaleString('ko-KR', {
       minimumFractionDigits: digits, maximumFractionDigits: digits
@@ -321,9 +350,9 @@
     var wrap = el('summary-cards');
     wrap.innerHTML = '';
     // 전체 성과는 원금 흐름(입금 − 출금) 기준 — 개별 계좌의 계약원금 재설정과 무관하다
-    wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal),
-      '원금 흐름 기준 · 입금 ' + fmtWon(s.totalDeposits) + ' − 출금 ' + fmtWon(s.totalWithdrawals)));
-    wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
+    wrap.appendChild(card('총 원금', fmtWonAuto(s.totalPrincipal),
+      '원금 흐름 기준 · 입금 ' + fmtWonAuto(s.totalDeposits) + ' − 출금 ' + fmtWonAuto(s.totalWithdrawals)));
+    wrap.appendChild(card('총 평가금액', fmtWonAuto(s.totalEval), '평가손익 ' + fmtWonAuto(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
     wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
 
@@ -366,7 +395,7 @@
           })
         ]),
         h('div', { class: 'rail-row' }, [
-          h('span', { class: 'rail-eval', text: fmtWon(p.eval) }),
+          h('span', { class: 'rail-eval', text: fmtWonAuto(p.eval) }),
           h('span', { class: 'rail-nav', text: '기준가 ' + fmtNum(p.nav, 2) })
         ])
       ]));
@@ -377,9 +406,9 @@
     foot.hidden = false;
     foot.innerHTML = '';
     foot.appendChild(h('div', { class: 'rail-sum-label', text: '누적 성과보수' }));
-    foot.appendChild(h('div', { class: 'rail-sum-value', text: fmtWon(s.totalFees) }));
+    foot.appendChild(h('div', { class: 'rail-sum-value', text: fmtWonAuto(s.totalFees) }));
     if (s.totalPayouts > 0) {
-      foot.appendChild(h('div', { class: 'rail-sum-sub', text: '누적 이익지급 ' + fmtWon(s.totalPayouts) }));
+      foot.appendChild(h('div', { class: 'rail-sum-sub', text: '누적 이익지급 ' + fmtWonAuto(s.totalPayouts) }));
     }
   }
 
@@ -432,8 +461,8 @@
       }, [
         nameCell,
         h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
-        h('td', { text: fmtWon(p.eval), class: 'num eval' }),
-        h('td', { text: fmtWon(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
+        h('td', { text: fmtWonAuto(p.eval), class: 'num eval' }),
+        h('td', { text: fmtWonAuto(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
         h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
         h('td', { text: fmtNum(p.units, 0), class: 'num' }),
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
@@ -550,22 +579,22 @@
     cards.innerHTML = '';
     cards.appendChild(metric('기준가', fmtNum(p.nav, 2), '1,000좌 기준'));
     cards.appendChild(metric('좌수', fmtNum(p.units, 0), ''));
-    cards.appendChild(metric('원금', fmtWon(p.contractPrincipal),
-      carried ? '계약 기준 · 원금흐름 ' + fmtWon(p.principal) : '계약 기준'));
-    cards.appendChild(metric('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.contractPnl), pctClass(p.contractPnl)));
+    cards.appendChild(metric('원금', fmtWonAuto(p.contractPrincipal),
+      carried ? '계약 기준 · 원금흐름 ' + fmtWonAuto(p.principal) : '계약 기준'));
+    cards.appendChild(metric('평가금액', fmtWonAuto(p.eval), '평가손익 ' + fmtWonAuto(p.contractPnl), pctClass(p.contractPnl)));
     cards.appendChild(metric('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
     cards.appendChild(metric('원금대비 수익률', fmtPct(p.contractReturn),
-      paidOutNow > 0.5 ? '지급분 ' + fmtWon(paidOutNow) + ' 포함(총수익)' : resetNote(p),
+      paidOutNow > 0.5 ? '지급분 ' + fmtWonAuto(paidOutNow) + ' 포함(총수익)' : resetNote(p),
       pctClass(p.contractReturn)));
     cards.appendChild(showFlowRet
       ? metric('원금흐름대비 수익률', fmtPct(p.principalReturn), '전체 성과와 같은 기준 · 개설 이후', pctClass(p.principalReturn))
       : metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
-    cards.appendChild(metric('누적 성과보수', fmtWon(p.totalFees),
-      p.totalPayouts > 0 ? '누적 이익지급 ' + fmtWon(p.totalPayouts) : ''));
+    cards.appendChild(metric('누적 성과보수', fmtWonAuto(p.totalFees),
+      p.totalPayouts > 0 ? '누적 이익지급 ' + fmtWonAuto(p.totalPayouts) : ''));
     if (showFlowRet) {
       cards.appendChild(metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
       if (p.totalPayouts > 0 || p.lastMaturityDate) {
-        cards.appendChild(metric('누적 이익지급', fmtWon(p.totalPayouts || 0),
+        cards.appendChild(metric('누적 이익지급', fmtWonAuto(p.totalPayouts || 0),
           p.lastMaturityDate ? '최근 만기 ' + p.lastMaturityDate : '이자·쿠폰·배당'));
       }
     }
@@ -1111,9 +1140,9 @@
     // 요약 카드
     var cards = el('cashflow-cards');
     cards.innerHTML = '';
-    cards.appendChild(card('총 입금', fmtWon(totalDep), '전 계좌 누적'));
-    cards.appendChild(card('총 출금', fmtWon(totalWd), '해지 시 남은 원금 차감 포함'));
-    cards.appendChild(card('순 원금 (입금−출금)', fmtWon(totalDep - totalWd), '전 계좌 원금 흐름 합계'));
+    cards.appendChild(card('총 입금', fmtWonAuto(totalDep), '전 계좌 누적'));
+    cards.appendChild(card('총 출금', fmtWonAuto(totalWd), '해지 시 남은 원금 차감 포함'));
+    cards.appendChild(card('순 원금 (입금−출금)', fmtWonAuto(totalDep - totalWd), '전 계좌 원금 흐름 합계'));
     cards.appendChild(card('계좌 수', String(processed.length) + '개',
       processed.filter(function (p) { return p.isClosed; }).length + '개 해지'));
 
@@ -1613,6 +1642,14 @@
     });
 
     render();
+
+    // 모바일 브레이크포인트를 넘나들 때(창 크기 조절·화면 회전) 축약 표기(fmtWonAuto)가
+    // 바로 반영되도록 다시 그린다. matchMedia는 기준을 실제로 넘을 때만 이벤트를 준다.
+    if (MOBILE_MQ) {
+      var onMqChange = function () { render(); };
+      if (MOBILE_MQ.addEventListener) MOBILE_MQ.addEventListener('change', onMqChange);
+      else if (MOBILE_MQ.addListener) MOBILE_MQ.addListener(onMqChange); // 구형 Safari
+    }
   }
 
   document.addEventListener('DOMContentLoaded', init);
