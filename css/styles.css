@@ -1296,21 +1296,6 @@ tr.lg-note td {
   line-height: 1.5;
 }
 
-/* 벤치마크 입력 */
-#form-benchmark textarea {
-  width: 100%;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.55;
-  padding: 10px 12px;
-  background: var(--input-bg);
-  color: var(--text);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  resize: vertical;
-}
-#form-benchmark textarea:focus { outline: none; border-color: var(--primary-bd); }
-#benchmark-dialog { width: min(560px, 94vw); }
 
 /* ---------- 푸터 ---------- */
 

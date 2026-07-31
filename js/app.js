@@ -305,41 +305,6 @@
   // ---------- 벤치마크 지수 (코스피 등) ----------
 
 
-  // '2026.01.02' / '2026/01/02' / '20260102' / '2026-1-2' → '2026-01-02'
-  function normalizeDate(raw) {
-    var t = String(raw).trim().replace(/["']/g, '');
-    var m = t.match(/^(\d{4})[.\/-](\d{1,2})[.\/-](\d{1,2})$/);
-    if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
-    m = t.match(/^(\d{4})(\d{2})(\d{2})$/);
-    if (m) return m[1] + '-' + m[2] + '-' + m[3];
-    return null;
-  }
-
-  // 붙여넣은 텍스트를 {date, value} 배열로.
-  // 한 줄에서 "날짜 + 그 뒤의 첫 숫자"를 뽑는다. 천 단위 쉼표(2,540.11)가 구분자로
-  // 오인되지 않도록 구분자 분해 대신 정규식으로 통째로 읽는다.
-  var BM_LINE = /^\s*["']?\s*(\d{4}(?:[.\/-]\d{1,2}){2}|\d{8})\s*["']?\s*[,;\t|\s]\s*["']?\s*(\d[\d,\s]*(?:\.\d+)?)/;
-
-  function parseBenchmarkText(text) {
-    var pts = [], bad = 0;
-    String(text).split(/\r?\n/).forEach(function (line) {
-      if (!line.trim()) return;
-      var m = line.match(BM_LINE);
-      var date = m && normalizeDate(m[1]);
-      var value = m ? parseFloat(m[2].replace(/[,\s]/g, '')) : NaN;
-      if (date && isFinite(value) && value > 0) pts.push({ date: date, value: value });
-      else bad++;
-    });
-    pts.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
-    // 같은 날짜가 여러 번이면 마지막 값으로
-    var out = [];
-    pts.forEach(function (p) {
-      if (out.length && out[out.length - 1].date === p.date) out[out.length - 1] = p;
-      else out.push(p);
-    });
-    return { points: out, skipped: bad };
-  }
-
   // 해당 일자 이하의 마지막 지수값 (휴장일·평가일 불일치 대응)
   function benchmarkValueAt(points, date) {
     var v = null;
@@ -621,8 +586,8 @@
   }
 
   // 벤치마크 시리즈에 한 점을 추가/갱신한다 (계좌 목록 상단 지수 입력용).
-  // 벤치마크(코스피) 다이얼로그로 통째로 붙여넣은 데이터와 같은 저장소를 쓰므로
-  // 여기서 입력해도 수익률 추이 차트·PDF 리포트에 그대로 반영된다.
+  // state.benchmark는 수익률 추이 차트·PDF 리포트가 함께 읽는 저장소라
+  // 여기서 입력하면 둘 다에 그대로 반영된다.
   function upsertBenchmarkPoint(date, value) {
     if (!state.benchmark) state.benchmark = { name: '코스피', points: [] };
     var pts = state.benchmark.points;
@@ -1880,174 +1845,6 @@
     reader.readAsText(file);
   }
 
-  // ---------- 엑셀 임포트 ----------
-
-  var importedAccounts = null;
-
-  function parseImportXlsx(file) {
-    var reader = new FileReader();
-    reader.onload = function () {
-      try {
-        var workbook = XLSX.read(reader.result, { type: 'array' });
-        var accounts = extractAccountsFromXlsx(workbook);
-        if (accounts.length === 0) {
-          toast('계좌 데이터를 찾을 수 없습니다.', 'error');
-          return;
-        }
-        importedAccounts = accounts;
-        showImportPreview(accounts);
-        el('import-dialog').showModal();
-      } catch (e) {
-        toast('엑셀 파일을 읽을 수 없습니다: ' + e.message, 'error');
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function extractAccountsFromXlsx(workbook) {
-    var sheet = workbook.Sheets[workbook.SheetNames[0]];
-    if (!sheet) return [];
-    var rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-
-    var accountMap = {};
-    rows.forEach(function (row, idx) {
-      var accName = String(row['계좌명'] || row['name'] || '').trim();
-      var dateStr = String(row['일자'] || row['date'] || '').trim();
-      var typeStr = String(row['구분'] || row['type'] || '').trim();
-      var amtStr = String(row['금액'] || row['amount'] || '').trim();
-
-      if (!accName || !dateStr || !typeStr || !amtStr) return;
-
-      var date = parseDate(dateStr);
-      if (!date) return;
-
-      var type = normalizeType(typeStr);
-      if (!type) return;
-
-      var amount = parseFloat(amtStr);
-      if (isNaN(amount) || amount < 0) return;
-
-      if (!accountMap[accName]) {
-        accountMap[accName] = { name: accName, events: [] };
-      }
-      var imported = { date: date, type: type, amount: amount };
-      // 재계약은 지급액이 기록돼 있으면 '원금만 재계약(이익 지급)', 없으면 '원리금 재계약'
-      if (type === 'rollover') imported.mode = amount > 0 ? 'payout' : 'compound';
-      accountMap[accName].events.push(imported);
-    });
-
-    // 계좌 생성
-    var accounts = [];
-    Object.keys(accountMap).forEach(function (name) {
-      var data = accountMap[name];
-      if (data.events.length === 0) return;
-
-      // 날짜별로 정렬
-      data.events.sort(function (a, b) {
-        return a.date < b.date ? -1 : (a.date > b.date ? 1 : 0);
-      });
-
-      // 계좌 생성
-      var events = [];
-      var seq = 1;
-      var createdDate = data.events[0].date;
-
-      data.events.forEach(function (ev) {
-        var out = {
-          id: 'ev' + seq,
-          seq: seq,
-          type: ev.type,
-          date: ev.date,
-          amount: ev.amount
-        };
-        if (ev.mode) out.mode = ev.mode;
-        events.push(out);
-        seq++;
-      });
-
-      accounts.push({
-        id: uid(),
-        name: data.name,
-        createdDate: createdDate,
-        events: events
-      });
-    });
-
-    return accounts;
-  }
-
-  function parseDate(str) {
-    var match = str.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if (!match) return null;
-    var y = parseInt(match[1], 10);
-    var m = parseInt(match[2], 10);
-    var d = parseInt(match[3], 10);
-    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
-    return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-  }
-
-  function normalizeType(str) {
-    var m = str.toLowerCase();
-    // '전액출금'은 '출금'을 포함하므로 해지 판정을 먼저 한다
-    if (m.includes('전액') || m.includes('해지') || m === 'closeout') return 'closeout';
-    if (m.includes('입금') || m === 'deposit') return 'deposit';
-    if (m.includes('출금') || m === 'withdraw') return 'withdraw';
-    if (m.includes('만기') || m === 'maturity') return 'maturity';
-    if (m.includes('재계약') || m.includes('롤오버') || m === 'rollover') return 'rollover';
-    if (m.includes('이익지급') || m.includes('이자') || m.includes('쿠폰') ||
-        m.includes('배당') || m === 'payout') return 'payout';
-    if (m.includes('평가') || m === 'valuation') return 'valuation';
-    if (m.includes('보수') || m === 'fee') return 'fee';
-    return null;
-  }
-
-  function showImportPreview(accounts) {
-    var container = el('import-preview');
-    container.innerHTML = '';
-
-    var summary = h('div', { style: 'padding: 8px 0; border-bottom: 1px solid #ccc; margin-bottom: 12px;' }, [
-      h('p', { text: '등록할 계좌 수: ' + accounts.length, style: 'margin: 0;' })
-    ]);
-    container.appendChild(summary);
-
-    accounts.forEach(function (acc) {
-      var proc = Engine.processAccount(acc);
-      var card = h('div', { style: 'padding: 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 12px;' }, [
-        h('div', { style: 'font-weight: bold; margin-bottom: 8px;', text: acc.name }),
-        h('div', { style: 'font-size: 0.9em; color: #666;' }, [
-          h('div', { text: '이벤트: ' + acc.events.length + '건' }),
-          h('div', { text: '원금: ' + fmtWon(proc.principal) }),
-          h('div', { text: '평가금액: ' + fmtWon(proc.eval) }),
-          h('div', { text: '기준가: ' + proc.nav.toFixed(2) })
-        ])
-      ]);
-      container.appendChild(card);
-    });
-  }
-
-  function confirmImportXlsx() {
-    if (!importedAccounts) return;
-    // 확인 다이얼로그는 비동기이고 아래에서 importedAccounts를 비우므로 목록을 미리 잡아둔다
-    var pending = importedAccounts, n = pending.length;
-    confirmDialog({
-      title: '계좌 등록',
-      body: '엑셀에서 읽은 계좌 ' + n + '개를 현재 목록에 추가합니다.',
-      okText: '등록'
-    }).then(function (ok) {
-      if (!ok) return;
-      pending.forEach(function (acc) {
-        state.accounts.push(acc);
-      });
-
-      saveState();
-      selectedAccountId = null;
-      render();
-      el('import-dialog').close();
-      toast('계좌 ' + n + '개를 등록했습니다.', 'ok');
-    });
-    importedAccounts = null;
-  }
-
   // ---------- 초기화 ----------
 
   function init() {
@@ -2250,7 +2047,7 @@
       el('cashflow-body').scrollTop = 0;
     });
 
-    // 계좌 목록 상단 지수 빠른 입력 — 벤치마크(코스피) 다이얼로그와 같은 저장소를 쓴다
+    // 계좌 목록 상단 지수 빠른 입력
     el('form-index').addEventListener('submit', function (e) {
       e.preventDefault();
       var f = e.target;
@@ -2264,64 +2061,9 @@
       toast(date + ' 코스피 지수 ' + fmtNum(value, 2) + ' 저장', 'ok');
     });
 
-    // 벤치마크 지수 입력
-    el('btn-benchmark').addEventListener('click', function () {
-      var f = el('form-benchmark'), bm = state.benchmark;
-      f.elements.name.value = (bm && bm.name) || '코스피';
-      f.elements.data.value = bm && bm.points
-        ? bm.points.map(function (p) { return p.date + '\t' + p.value; }).join('\n') : '';
-      el('benchmark-dialog').showModal();
-    });
-    el('btn-cancel-benchmark').addEventListener('click', function () { el('benchmark-dialog').close(); });
-    el('btn-delete-benchmark').addEventListener('click', function () {
-      if (!state.benchmark) { el('benchmark-dialog').close(); return; }
-      confirmDialog({
-        title: '벤치마크 삭제',
-        body: '저장된 벤치마크 지수(' + (state.benchmark.name || '벤치마크') + ')를 삭제합니다.',
-        okText: '삭제', danger: true
-      }).then(function (ok) {
-        if (!ok) return;
-        delete state.benchmark;
-        saveState();
-        el('benchmark-dialog').close();
-        render();
-        toast('벤치마크를 삭제했습니다.', 'ok');
-      });
-    });
-    el('form-benchmark').addEventListener('submit', function (e) {
-      e.preventDefault();
-      var f = e.target;
-      var text = f.elements.data.value;
-      if (!text.trim()) {
-        delete state.benchmark;
-        toast('벤치마크를 비웠습니다.', 'ok');
-      } else {
-        var parsed = parseBenchmarkText(text);
-        if (parsed.points.length < 2) {
-          toast('일자와 지수를 인식하지 못했습니다. 「2026-01-02  2650.12」처럼 일자와 숫자 두 열을 붙여넣어 주세요.', 'error');
-          return;
-        }
-        state.benchmark = { name: f.elements.name.value.trim() || '벤치마크', points: parsed.points };
-        if (parsed.skipped) {
-          toast(parsed.points.length + '개를 저장했습니다. 인식하지 못한 ' + parsed.skipped + '줄은 건너뛰었습니다.', 'warn');
-        } else {
-          toast(state.benchmark.name + ' ' + parsed.points.length + '개 일자를 저장했습니다.', 'ok');
-        }
-      }
-      saveState();
-      el('benchmark-dialog').close();
-      render();
-    });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
     el('btn-pdf').addEventListener('click', downloadReportPdf);
     el('btn-theme').addEventListener('click', toggleTheme);
-    el('btn-import-xlsx').addEventListener('click', function () { el('import-file').click(); });
-    el('import-file').addEventListener('change', function (e) {
-      if (e.target.files[0]) parseImportXlsx(e.target.files[0]);
-      e.target.value = '';
-    });
-    el('btn-close-import').addEventListener('click', function () { el('import-dialog').close(); });
-    el('btn-import-confirm').addEventListener('click', confirmImportXlsx);
     el('btn-backup').addEventListener('click', backupJson);
     el('btn-restore').addEventListener('click', function () { el('restore-file').click(); });
     el('restore-file').addEventListener('change', function (e) {
