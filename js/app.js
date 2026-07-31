@@ -433,7 +433,9 @@
   }
 
   function card(label, value, sub, cls) {
-    return h('div', { class: 'card' }, [
+    // cls(pos/neg)를 카드 전체에도 걸어서 좌측에 손익 색 강조선이 붙게 한다 —
+    // 값을 읽기 전에도 색으로 먼저 스캔할 수 있게(가시성)
+    return h('div', { class: 'card' + (cls ? ' ' + cls : '') }, [
       h('div', { class: 'card-label', text: label }),
       h('div', { class: 'card-value' + (cls ? ' ' + cls : ''), text: value }),
       sub ? h('div', { class: 'card-sub', text: sub }) : null
@@ -464,10 +466,20 @@
     // 계좌가 없으면 전부 0원인 카드가 화면을 채우기만 하므로 숨긴다
     wrap.hidden = !result.processed.length;
     if (wrap.hidden) { el('as-of-badge').hidden = true; return; }
+    // 원금 대비 평가금액이 몇 배인지 — 손익은 아래 '평가손익' 카드가 따로 맡으므로
+    // 여기 서브 텍스트는 겹치지 않게 배율로 보여준다
+    var evalMultiple = s.totalPrincipal > 0 ? s.totalEval / s.totalPrincipal : null;
+    // 보유 잔고 기준 손익률(그대로 인출·재계약되지 않은 부분) — '원금대비 단순 수익률'과 달리
+    // 이미 실현돼 계좌 밖으로 나간 보수·배당은 되살리지 않는다(그래서 두 수익률이 다를 수 있다)
+    var pnlRatio = s.totalPrincipal > 0 ? s.totalPnl / s.totalPrincipal : null;
+
     // 전체 성과는 원금 흐름(입금 − 출금) 기준 — 개별 계좌의 계약원금 재설정과 무관하다
     wrap.appendChild(card('총 원금', fmtWonAuto(s.totalPrincipal),
       '원금 흐름 기준 · 입금 ' + fmtWonAuto(s.totalDeposits) + ' − 출금 ' + fmtWonAuto(s.totalWithdrawals)));
-    wrap.appendChild(card('총 평가금액', fmtWonAuto(s.totalEval), '평가손익 ' + fmtWonAuto(s.totalPnl), pctClass(s.totalPnl)));
+    wrap.appendChild(card('총 평가금액', fmtWonAuto(s.totalEval),
+      evalMultiple === null ? '전 계좌 합계' : '원금 대비 ' + evalMultiple.toFixed(2) + '배'));
+    wrap.appendChild(card('평가손익', fmtWonAuto(s.totalPnl),
+      pnlRatio === null ? '' : '보유 기준 원금대비 ' + fmtPct(pnlRatio), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
     wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
 
