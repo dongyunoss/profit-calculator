@@ -255,6 +255,23 @@
   </form>
 </dialog>
 
+<!-- PDF 리포트에 포함할 계좌 선택 -->
+<dialog id="pdf-select-dialog">
+  <form id="form-pdf-select">
+    <h3>PDF 리포트 — 계좌 선택</h3>
+    <div class="pdf-select-toolbar">
+      <button type="button" id="btn-pdf-select-all" class="btn tiny">전체 선택</button>
+      <button type="button" id="btn-pdf-select-none" class="btn tiny">전체 해제</button>
+      <span class="pdf-select-count" id="pdf-select-count"></span>
+    </div>
+    <div class="pdf-select-list" id="pdf-select-list"></div>
+    <div class="dialog-actions">
+      <button type="button" id="btn-pdf-select-cancel" class="btn">취소</button>
+      <button type="submit" class="btn primary">PDF 생성</button>
+    </div>
+  </form>
+</dialog>
+
 <!-- 화면 모드 전환 — 좌측 하단 고정. 다크일 때 해(=데이로 전환), 라이트일 때 달을 보여준다 -->
 <button id="btn-theme" class="theme-fab" type="button" aria-pressed="false">
   <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" fill="none"
