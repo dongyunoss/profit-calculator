@@ -885,9 +885,22 @@ dialog label {
 }
 #confirm-dialog form, #prompt-dialog form { gap: 14px; }
 
-/* ---------- PDF 리포트 계좌 선택 ---------- */
+/* ---------- PDF 리포트 계좌 선택 ----------
+   버튼 바로 아래에 뜨는 작은 드롭다운. top/left는 openPdfSelect()가 버튼 위치를
+   보고 인라인 스타일로 매 번 정한다 — 여기서는 크기와 "고정 위치"만 잡는다. */
 
-#pdf-select-dialog form { min-width: min(420px, 84vw); gap: 12px; }
+#pdf-select-dialog {
+  position: fixed;
+  margin: 0;
+  padding: 14px;
+  width: 300px;
+  max-width: calc(100vw - 24px);
+}
+/* 작은 드롭다운은 화면 전체를 가리는 어두운 배경이 안 어울린다 — 클릭을 막는
+   역할(모달 동작·포커스 트랩·Esc 닫기)은 유지하되 시각적으로는 투명하게 */
+#pdf-select-dialog::backdrop { background: transparent; }
+
+#pdf-select-dialog form { min-width: 0; width: 100%; gap: 10px; }
 
 .pdf-select-toolbar {
   display: flex;
@@ -904,7 +917,7 @@ dialog label {
 }
 
 .pdf-select-list {
-  max-height: 46vh;
+  max-height: min(280px, 50vh);
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
