@@ -379,12 +379,33 @@ main {
 
 .btn.tiny { padding: 3px 8px; font-size: 11.5px; font-weight: 600; }
 
-/* 화면 모드 전환 — 글자 수가 바뀌어도 툴바가 흔들리지 않게 폭을 고정 */
-.icon-toggle {
-  min-width: 74px;
-  text-align: center;
-  white-space: nowrap;
+/* 화면 모드 전환 — 좌측 하단 고정 아이콘 버튼.
+   아이콘은 currentColor 인라인 SVG라 테마 색을 그대로 따라간다. */
+.theme-fab {
+  position: fixed;
+  left: 20px;
+  bottom: 20px;
+  z-index: 50;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  background: var(--panel);
+  color: var(--muted);
+  cursor: pointer;
+  box-shadow: var(--shadow-toast);
+  transition: background .12s, color .12s, border-color .12s;
 }
+.theme-fab:hover { background: var(--hover); color: var(--text); border-color: var(--primary-bd); }
+.theme-fab svg { display: block; }
+
+/* 다크에서는 "데이로 전환"이므로 해, 라이트에서는 달을 보여준다 */
+:root[data-theme="dark"]  .theme-fab .icon-moon { display: none; }
+:root[data-theme="light"] .theme-fab .icon-sun  { display: none; }
 
 /* 상세 창 제목 옆 연필(이름 변경) 아이콘 */
 .detail-title-wrap {
@@ -1363,7 +1384,8 @@ tr.lg-note td {
   dialog.wide-dialog { padding: 16px; }
 
   /* 토스트: 한 손 조작 범위인 화면 하단에 가로 꽉 차게 */
-  .toast-host { left: 12px; right: 12px; bottom: 12px; align-items: stretch; }
+  /* 좌측 하단 테마 버튼(40px + 여백)을 피해 토스트를 오른쪽으로 붙인다 */
+  .toast-host { left: 68px; right: 12px; bottom: 12px; align-items: stretch; }
   .toast { max-width: none; font-size: 13px; padding: 12px 14px; }
 
   /* 확인/입력 다이얼로그는 화면 폭에 맞춰 넓게 */
@@ -1536,7 +1558,7 @@ tr.lg-note td {
 @media print {
   html, body { background: #fff; }
   /* 앱 화면은 통째로 감추고 리포트만 남긴다 */
-  body > *:not(.print-report) { display: none !important; }
+  body > *:not(.print-report) { display: none !important; }  /* .theme-fab 포함 */
   .print-report {
     position: static;
     width: auto;

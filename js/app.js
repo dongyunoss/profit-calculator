@@ -127,10 +127,11 @@
     document.documentElement.setAttribute('data-theme', theme);
     var btn = el('btn-theme');
     if (btn) {
-      var toLight = theme === 'dark';
-      btn.textContent = toLight ? '☀ 데이' : '☾ 다크';
-      btn.title = toLight ? '데이 모드로 전환' : '다크 모드로 전환';
-      btn.setAttribute('aria-label', btn.title);
+      // 해/달 아이콘 전환은 CSS([data-theme])가 한다. 여기서 textContent를 건드리면
+      // 버튼 안의 SVG 두 개가 지워지므로 접근성 라벨만 갱신한다.
+      var label = theme === 'dark' ? '데이 모드로 전환' : '다크 모드로 전환';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
       btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
     }
   }
