@@ -450,57 +450,56 @@ main {
 
 /* ---------- KPI 카드 ---------- */
 
+/* 카드 5장을 각각 테두리·그림자로 띄우던 것 대신, 원금 입출금 내역 다이얼로그의
+   '요약 스트립'(.cf-stats)과 같은 언어로 통일했다 — 칸을 나누는 얇은 구분선 하나로
+   묶어 훨씬 조밀하고, 다이얼로그를 열지 않아도 같은 방식이라 눈에 익다. */
 .cards {
-  /* grid의 auto-fit은 공간이 모자라면 다음 줄로 넘겼다 — 늘 한 줄로 두고 싶어서
-     flex로 바꿨다. 공간이 있으면 5장이 폭을 고르게 나눠 갖고(flex:1), 좁아지면
-     카드 폭을 줄이는 대신(값이 축약 표기라 최소 폭 밑으로는 못 줄인다) 옆으로
-     스크롤된다 — 모바일 툴바·계좌 레일과 같은 패턴(overflow-x:auto). */
-  display: flex;
-  gap: 14px;
-  overflow-x: auto;
-  padding-bottom: 2px;
+  display: grid;
+  /* 축약 표기 값 중 가장 긴 "▲ 345억 4,652만원" 기준 최소 폭.
+     화면이 좁아 5칸이 안 들어가면 자동으로 다음 줄로 넘어간다 */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left-width: 3px; /* 손익 카드는 색을 여기 입힌다 — 값을 읽기 전에 먼저 스캔된다 */
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  /* 축약 표기 값 중 가장 긴 "▲ 345억 4,652만원"(내용 폭 ≈233px) + 좌우 여백이
-     들어갈 최소 폭. 이 밑으로는 줄이지 않고 대신 .cards가 옆으로 스크롤된다 */
-  flex: 1 1 290px;
-  min-width: 290px;
+  /* 원금 입출금 내역 다이얼로그의 .cf-stat과 동일한 여백 — 같은 스트립 언어를 쓴다 */
+  padding: 10px 14px;
+  border-right: 1px solid var(--border-soft);
+  border-left: 3px solid transparent; /* 손익 칸은 색을 여기 입힌다(자리는 항상 확보) */
+  min-width: 0;
 }
+.card:last-child { border-right: 0; }
 .card.pos { border-left-color: var(--pos); }
 .card.neg { border-left-color: var(--neg); }
 
 .card-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  letter-spacing: .09em;
+  letter-spacing: .06em;
   text-transform: uppercase;
-  margin-bottom: 11px;
 }
 .card-value {
-  font-size: 25px;
-  font-weight: 500;
-  letter-spacing: -0.8px;
-  line-height: 1.05;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
   color: var(--text);
   white-space: nowrap;
+  margin-top: 3px;
 }
-/* 요약 카드는 화면 크기와 무관하게 항상 화살표를 붙인다 — 다른 곳(표·레일 등)은
-   여백이 빠듯해서 모바일에서만 켜지만, 여기는 폭 여유가 있고 한눈에 훑어보는
-   자리라 데스크톱에서도 방향을 바로 보여주는 쪽이 낫다 */
+/* 요약 스트립은 화면 크기와 무관하게 항상 화살표를 붙인다 — 다른 곳(표·레일 등)은
+   여백이 빠듯해서 모바일에서만 켜지만, 여기는 한눈에 훑어보는 자리라 데스크톱에서도
+   방향을 바로 보여주는 쪽이 낫다 */
 .card-value.pos::before { content: '▲ '; }
 .card-value.neg::before { content: '▼ '; }
 .card-sub {
   color: var(--muted-2);
-  font-size: 11.5px;
-  margin-top: 9px;
-  line-height: 1.5;
+  font-size: 10.5px;
+  margin-top: 2px;
+  line-height: 1.4;
   text-wrap: pretty;
 }
 
@@ -1484,11 +1483,16 @@ tr.lg-note td {
   .rail-item.selected { box-shadow: inset 0 -2px 0 var(--primary); }
   .rail-foot { margin-top: 10px; padding: 12px 14px 0; }
 
-  /* KPI 카드·상세 지표: 여백/글자 축소로 1열에서도 숫자가 줄바꿈되지 않게.
-     데스크톱의 "가로 한 줄 + 스크롤"과 달리 모바일은 세로로 쌓는다(엄지 스크롤 우선). */
-  .cards { flex-direction: column; overflow-x: visible; gap: 10px; }
-  .card { flex: none; min-width: 0; padding: 14px 16px; }
-  .card-value { font-size: 21px; }
+  /* 요약 스트립: 모바일은 세로 1열로 쌓는다(엄지 스크롤 우선) — 칸 사이 구분선도
+     오른쪽 대신 아래쪽으로 바뀐다. */
+  .cards { grid-template-columns: minmax(0, 1fr); }
+  .card {
+    padding: 12px 16px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .card:last-child { border-bottom: 0; }
+  .card-value { font-size: 19px; }
   /* 값을 줄이는 대신 열 수를 줄인다 — 최장값("▲ 381억 2,984만원" ≈157px)이
      들어갈 폭이 안 나오면 자동으로 1열이 된다 (작은 폰은 1열, 큰 폰은 2열) */
   .metrics { grid-template-columns: repeat(auto-fit, minmax(186px, 1fr)); }

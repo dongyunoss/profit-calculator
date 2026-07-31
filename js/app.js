@@ -432,10 +432,13 @@
     return dates.sort()[0] || '';
   }
 
-  function card(label, value, sub, cls) {
-    // cls(pos/neg)를 카드 전체에도 걸어서 좌측에 손익 색 강조선이 붙게 한다 —
-    // 값을 읽기 전에도 색으로 먼저 스캔할 수 있게(가시성)
-    return h('div', { class: 'card' + (cls ? ' ' + cls : '') }, [
+  function card(label, value, sub, cls, title) {
+    // cls(pos/neg)를 칸 전체에도 걸어서 좌측에 손익 색 강조선이 붙게 한다 —
+    // 값을 읽기 전에도 색으로 먼저 스캔할 수 있게(가시성).
+    // title은 스트립을 조밀하게 줄이며 뺀 자세한 설명을 마우스오버로 남겨 둔다.
+    var attrs = { class: 'card' + (cls ? ' ' + cls : '') };
+    if (title) attrs.title = title;
+    return h('div', attrs, [
       h('div', { class: 'card-label', text: label }),
       h('div', { class: 'card-value' + (cls ? ' ' + cls : ''), text: value }),
       sub ? h('div', { class: 'card-sub', text: sub }) : null
@@ -473,17 +476,21 @@
     // 이미 실현돼 계좌 밖으로 나간 보수·배당은 되살리지 않는다(그래서 두 수익률이 다를 수 있다)
     var pnlRatio = s.totalPrincipal > 0 ? s.totalPnl / s.totalPrincipal : null;
 
-    // 5장이 한 줄에 들어오도록, 전체 자릿수 대신 억/만 축약(fmtWonShort)을 항상 쓴다.
-    // (이 카드들은 "한눈에 보는" 자리라 축약이 맞고, 정확한 자릿수는 계좌 목록·원금
-    // 원장·원금 입출금 내역처럼 대사가 필요한 표에서 fmtWon으로 그대로 볼 수 있다)
+    // 조밀한 스트립에 맞춰 서브 텍스트는 짧게 줄이고, 뺀 설명은 title(마우스오버)로 남긴다.
+    // 전체 자릿수 대신 억/만 축약(fmtWonShort)도 항상 쓴다 — 이 스트립은 "한눈에 보는"
+    // 자리라 축약이 맞고, 정확한 자릿수는 계좌 목록·원금 원장 같은 표에서 그대로 볼 수 있다.
     wrap.appendChild(card('총 원금', fmtWonShort(s.totalPrincipal),
-      '원금 흐름 기준 · 입금 ' + fmtWonShort(s.totalDeposits) + ' − 출금 ' + fmtWonShort(s.totalWithdrawals)));
+      '입금 ' + fmtWonShort(s.totalDeposits) + ' − 출금 ' + fmtWonShort(s.totalWithdrawals), null,
+      '원금 흐름(입금−출금) 기준 · 개별 계좌의 계약원금 재설정과 무관'));
     wrap.appendChild(card('총 평가금액', fmtWonShort(s.totalEval),
       evalMultiple === null ? '전 계좌 합계' : '원금 대비 ' + evalMultiple.toFixed(2) + '배'));
     wrap.appendChild(card('평가손익', fmtWonShort(s.totalPnl),
-      pnlRatio === null ? '' : '보유 기준 원금대비 ' + fmtPct(pnlRatio), pctClass(s.totalPnl)));
-    wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
-    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
+      pnlRatio === null ? '' : '원금대비 ' + fmtPct(pnlRatio), pctClass(s.totalPnl),
+      '보유 잔고 기준 — 이미 지급된 성과보수·배당은 포함하지 않음'));
+    wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret),
+      '계좌별 일간 기준가 수익률을 직전 평가금액 가중으로 체인링크'));
+    wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준', pctClass(s.simpleReturn),
+      '지급된 성과보수·배당을 되살려 계산 — 재계약으로 수익률이 깎여 보이지 않음'));
 
     var badge = el('as-of-badge');
     var asOf = latestValuationDate(result.processed);
