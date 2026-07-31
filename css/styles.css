@@ -1055,22 +1055,110 @@ dialog.wide-dialog {
   overflow-y: auto;
   overflow-x: hidden;
 }
-#cashflow-body { min-width: 0; }
+
+/* 원금 입출금 내역만: 머리말·요약·컨트롤은 제자리에 두고 본문만 스크롤한다.
+   (예전에는 다이얼로그 전체가 스크롤돼서 아래로 내려가면 요약도 탭도 사라졌다.
+    엑셀 임포트 다이얼로그는 자체 스크롤 영역을 쓰므로 여기 규칙을 적용하지 않는다) */
+#cashflow-dialog {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+#cashflow-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* padding-top을 주면 그 띠 안으로 행이 스크롤돼 들어와 sticky 머리행 위에 비친다.
+     여백은 위쪽 컨트롤의 margin-bottom으로 준다. */
+}
 
 .dialog-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-  position: sticky;
-  top: -22px;
-  background: var(--panel);
-  padding: 4px 0 10px;
-  z-index: 2;
+  gap: 12px;
+  flex: none;
+  padding-bottom: 12px;
 }
 .dialog-head h3 { margin: 0; font-size: 15px; font-weight: 700; }
 
-#cashflow-cards { margin-bottom: 18px; }
+/* ── 요약 스트립 (카드 4장 → 한 줄 4칸) ── */
+.cf-stats {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.cf-stat { padding: 10px 14px; border-right: 1px solid var(--border-soft); min-width: 0; }
+.cf-stat:last-child { border-right: 0; }
+.cf-stat-label { display: block; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; color: var(--muted); }
+.cf-stat-value {
+  display: block;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+.cf-stat-sub { display: block; font-size: 10.5px; color: var(--muted-2); margin-top: 2px; word-break: keep-all; }
+
+/* ── 탭 + 필터 ── */
+.cf-controls {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.cf-tabs { display: flex; gap: 6px; }
+.cf-tabs .chip { white-space: nowrap; }
+.cf-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cf-field {
+  display: flex;
+  flex-direction: row;   /* dialog label { flex-direction: column } 무력화 */
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cf-field select {
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 12.5px;
+  padding: 5px 8px;
+  max-width: 200px;
+}
+.cf-field select:focus { outline: none; border-color: var(--primary-bd); }
+.cf-count {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* 본문이 스크롤 컨테이너라 top:0으로 머리행을 고정할 수 있다 */
+#cashflow-body table.grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+/* 날짜가 바뀌는 지점에 옅은 구분선 — 하루 단위 묶음이 눈에 들어온다 */
+#cashflow-body tbody tr.cf-daystart td { border-top: 1px solid var(--border); }
+#cashflow-body tbody tr.cf-daystart:first-child td { border-top: 0; }
 
 .cashflow-title {
   margin: 22px 0 10px;
@@ -1167,10 +1255,13 @@ tr.lg-note td {
   white-space: normal;
 }
 
-/* 전체 통합 내역 컴팩트 표 */
+/* 전체 통합 내역 컴팩트 표 — 스크롤은 #cashflow-body 하나가 담당한다.
+   여기에 max-height를 또 주면 스크롤바가 이중으로 생기고 표가 잘려 보인다. */
 #cashflow-body .table-wrap {
-  max-height: 46vh;
-  overflow-y: auto;
+  /* 기본 .table-wrap의 overflow-x:auto를 되돌린다 — 스크롤 컨테이너가 되면
+     머리행 sticky가 #cashflow-body가 아니라 이 래퍼 기준이 돼서 안 붙는다.
+     이 표는 table-layout:fixed라 가로로 넘치지 않는다. */
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
@@ -1381,7 +1472,19 @@ tr.lg-note td {
 
   /* 원금 입출금 내역 다이얼로그: 원장 카드 최소폭을 좁혀 1열로 자연스럽게 */
   .ledger-grid { grid-template-columns: minmax(0, 1fr); }
-  dialog.wide-dialog { padding: 16px; }
+  dialog.wide-dialog { padding: 16px; max-height: 92vh; }
+  #cashflow-dialog { max-height: 92vh; }
+  /* 요약 4칸을 2×2로 — 세로로 쌓으면 첫 화면을 전부 먹는다 */
+  .cf-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cf-stat { border-bottom: 1px solid var(--border-soft); }
+  .cf-stat:nth-child(2n) { border-right: 0; }
+  .cf-stat:nth-child(n+3) { border-bottom: 0; }
+  .cf-stat-value { font-size: 15px; }
+  .cf-controls { align-items: stretch; }
+  .cf-tabs .chip { flex: 1; text-align: center; padding: 7px 8px; }
+  .cf-filters { justify-content: space-between; }
+  .cf-field { flex: 1; }
+  .cf-field select { flex: 1; max-width: none; min-width: 0; }
 
   /* 토스트: 한 손 조작 범위인 화면 하단에 가로 꽉 차게 */
   /* 좌측 하단 테마 버튼(40px + 여백)을 피해 토스트를 오른쪽으로 붙인다 */
