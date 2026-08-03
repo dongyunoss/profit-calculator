@@ -1177,3 +1177,150 @@ tr.lg-note td {
   .empty-state { padding: 32px 16px 36px; }
   .empty-actions .btn { flex: 1 1 auto; justify-content: center; }
 }
+
+/* ================================================================
+   PDF 리포트 — 계좌당 A4 1페이지
+   화면에서는 보이지 않지만 레이아웃은 실제로 잡혀 있어야 한다
+   (차트가 컨테이너 폭을 재서 그려지므로 display:none을 쓸 수 없다).
+   ================================================================ */
+
+@page { size: A4 portrait; margin: 12mm; }
+
+.print-report {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 186mm;        /* A4 210mm − 좌우 여백 12mm */
+  height: 0;           /* 높이 0 + overflow hidden = 화면에 아무 자리도 차지하지 않음 */
+  overflow: hidden;
+  opacity: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: #fff;
+  color: #111827;
+}
+
+.rp-page {
+  padding: 0 0 4mm;
+  font-family: 'Pretendard Variable', Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-size: 9.5pt;
+  line-height: 1.5;
+  color: #111827;
+}
+
+/* 머리글 */
+.rp-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1.4pt solid #111827;
+}
+.rp-head-left { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.rp-name { margin: 0; font-size: 15pt; font-weight: 700; letter-spacing: -.2pt; word-break: keep-all; }
+.rp-status {
+  font-size: 8pt;
+  font-weight: 600;
+  color: #4b5563;
+  border: .6pt solid #9aa2ad;
+  border-radius: 2pt;
+  padding: 1pt 5pt;
+  white-space: nowrap;
+}
+.rp-head-right { text-align: right; font-family: var(--mono); font-size: 8.5pt; color: #4b5563; white-space: nowrap; }
+.rp-since { color: #6b7280; }
+
+/* 요약 6칸 — 배경색 없이 헤어라인만으로 구획한다 (배경 인쇄를 꺼도 동일하게 보인다) */
+.rp-cells {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: .6pt solid #cfd5dc;
+  border-radius: 2pt;
+  margin-top: 5mm;
+}
+.rp-cell { padding: 3mm 3.5mm; border-right: .6pt solid #e6e9ed; border-bottom: .6pt solid #e6e9ed; min-width: 0; }
+.rp-cell:nth-child(3n) { border-right: 0; }
+.rp-cell:nth-child(n+4) { border-bottom: 0; }
+.rp-cell-label { font-size: 7.5pt; font-weight: 600; color: #6b7280; letter-spacing: .2pt; }
+.rp-cell-value {
+  font-family: var(--mono);
+  font-size: 12.5pt;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-top: 1mm;
+  word-break: keep-all;
+}
+.rp-cell-sub { font-family: var(--mono); font-size: 7.5pt; color: #6b7280; margin-top: .6mm; }
+
+/* 인쇄에서는 손익 색을 종이용 채도로 (한국 관례: 이익 적색 / 손실 청색) */
+.rp-page .pos { color: #c0392b; }
+.rp-page .neg { color: #1d4ed8; }
+
+.rp-block { margin-top: 6mm; }
+.rp-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 2.5mm;
+  font-size: 9pt;
+  font-weight: 700;
+  color: #374151;
+  padding-bottom: 1.2mm;
+  border-bottom: .6pt solid #cfd5dc;
+}
+.rp-title-sub { font-size: 7pt; font-weight: 500; color: #6b7280; white-space: nowrap; }
+.rp-chart { width: 100%; }
+
+/* 최근 10일 표 */
+.rp-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 8.5pt; }
+.rp-table th {
+  text-align: left;
+  font-size: 7.5pt;
+  font-weight: 600;
+  color: #4b5563;
+  padding: 1.6mm 2mm;
+  border-bottom: .8pt solid #9aa2ad;
+  white-space: nowrap;
+}
+.rp-table td {
+  padding: 1.5mm 2mm;
+  border-bottom: .4pt solid #e6e9ed;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rp-table .num { text-align: right; }
+.rp-table tr:last-child td { border-bottom: 0; }
+.rp-none { color: #6b7280; font-size: 8.5pt; text-align: center; padding: 4mm 0; }
+
+.rp-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6mm;
+  padding-top: 2mm;
+  border-top: .6pt solid #cfd5dc;
+  font-size: 7pt;
+  color: #6b7280;
+  word-break: keep-all;
+}
+.rp-foot-right { white-space: nowrap; font-family: var(--mono); }
+
+@media print {
+  html, body { background: #fff; }
+  /* 앱 화면은 통째로 감추고 리포트만 남긴다 */
+  body > *:not(.print-report) { display: none !important; }
+  .print-report {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    opacity: 1;
+    z-index: auto;
+  }
+  /* 계좌 하나가 한 페이지 — 페이지 안에서는 요소가 잘리지 않게 */
+  .rp-page { break-after: page; break-inside: avoid; }
+  .rp-page:last-child { break-after: auto; }
+  .rp-block, .rp-cells, .rp-table { break-inside: avoid; }
+}

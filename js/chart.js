@@ -13,10 +13,13 @@
   'use strict';
 
   var SVGNS = 'http://www.w3.org/2000/svg';
-  // 다크 데스크 팔레트
-  var INK = '#c8ccd4', MUTED = '#8b929e', GRID = '#262b33', AXIS = '#39404b', PRIMARY_TEXT = '#e8eaed';
+  // 화면용 다크 팔레트 / 인쇄용 라이트 팔레트.
+  // 인쇄는 흰 종이에 배경색 없이 나가는 것을 전제로 선·글자만으로 읽히게 잡았다.
+  var THEMES = {
+    dark:  { muted: '#8b929e', grid: '#262b33', axis: '#39404b', marker: '#1b1e24', fill: '#4fb3c9' },
+    light: { muted: '#4b5563', grid: '#dfe3e8', axis: '#9aa2ad', marker: '#ffffff', fill: '#0e7490' }
+  };
   var MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace";
-  var FILL_ID = 'deskAreaFill';
 
   function svg(tag, attrs) {
     var e = document.createElementNS(SVGNS, tag);
@@ -38,12 +41,16 @@
     return ticks;
   }
 
+  var fillSeq = 0; // 그라디언트 id 충돌 방지 (한 문서에 차트가 여럿일 때)
+
   function renderLineChart(container, opts) {
     container.innerHTML = '';
     var series = opts.series || [];
     var cats = opts.categories || [];
     var fmtY = opts.formatY || defaultFmtPct;
     var baselineY = opts.baselineY == null ? 0 : opts.baselineY;
+    var T = THEMES[opts.theme] || THEMES.dark;
+    var FILL_ID = 'areaFill' + (++fillSeq);
 
     if (!series.length || cats.length < 2) {
       var p = document.createElement('p');
@@ -68,7 +75,7 @@
     minY = Math.min(minY, ticks[0]); maxY = Math.max(maxY, ticks[ticks.length - 1]);
 
     // 레이아웃
-    var H = isNarrow ? 220 : 280;
+    var H = opts.height || (isNarrow ? 220 : 280);
     var mL = isNarrow ? 38 : 54, mR = isNarrow ? 56 : 74, mT = isNarrow ? 12 : 18, mB = isNarrow ? 26 : 34;
     var plotW = W - mL - mR, plotH = H - mT - mB;
     var catIndex = {};
@@ -84,8 +91,8 @@
     // 주 시리즈 하단 영역 그라디언트
     var defs = svg('defs', {});
     var grad = svg('linearGradient', { id: FILL_ID, x1: 0, y1: 0, x2: 0, y2: 1 });
-    grad.appendChild(svg('stop', { offset: '0%', 'stop-color': '#4fb3c9', 'stop-opacity': '.24' }));
-    grad.appendChild(svg('stop', { offset: '100%', 'stop-color': '#4fb3c9', 'stop-opacity': '0' }));
+    grad.appendChild(svg('stop', { offset: '0%', 'stop-color': T.fill, 'stop-opacity': '.24' }));
+    grad.appendChild(svg('stop', { offset: '100%', 'stop-color': T.fill, 'stop-opacity': '0' }));
     defs.appendChild(grad);
     root.appendChild(defs);
 
@@ -96,10 +103,10 @@
     ticks.forEach(function (t) {
       var y = yOf(t);
       var isBase = Math.abs(t - baselineY) < 1e-9;
-      var gridLine = { x1: mL, y1: y, x2: mL + plotW, y2: y, stroke: isBase ? AXIS : GRID, 'stroke-width': 1 };
+      var gridLine = { x1: mL, y1: y, x2: mL + plotW, y2: y, stroke: isBase ? T.axis : T.grid, 'stroke-width': 1 };
       if (!isBase) gridLine['stroke-dasharray'] = '2 4';
       root.appendChild(svg('line', gridLine));
-      var lbl = svg('text', { x: mL - (isNarrow ? 6 : 8), y: y + 4, 'text-anchor': 'end', 'font-size': isNarrow ? 10 : 11, fill: MUTED });
+      var lbl = svg('text', { x: mL - (isNarrow ? 6 : 8), y: y + 4, 'text-anchor': 'end', 'font-size': isNarrow ? 10 : 11, fill: T.muted });
       lbl.textContent = fmtYAxis(t);
       root.appendChild(lbl);
     });
@@ -109,7 +116,7 @@
     cats.forEach(function (c, i) {
       if (i % stepEvery !== 0 && i !== cats.length - 1) return;
       var x = xOf(c);
-      var lbl = svg('text', { x: x, y: mT + plotH + 20, 'text-anchor': 'middle', 'font-size': 11, fill: MUTED });
+      var lbl = svg('text', { x: x, y: mT + plotH + 20, 'text-anchor': 'middle', 'font-size': 11, fill: T.muted });
       lbl.textContent = c.slice(5).replace('-', '/'); // MM/DD
       root.appendChild(lbl);
     });
@@ -142,17 +149,19 @@
       // 마지막 점 마커 + 라벨
       var last = s.points[s.points.length - 1];
       var lx = xOf(last.x), ly = yOf(last.y);
-      root.appendChild(svg('circle', { cx: lx, cy: ly, r: 3.5, fill: s.color, stroke: '#1b1e24', 'stroke-width': 2 }));
+      root.appendChild(svg('circle', { cx: lx, cy: ly, r: 3.5, fill: s.color, stroke: T.marker, 'stroke-width': 2 }));
       var tl = svg('text', { x: Math.min(lx + 8, W - 4), y: ly + 4, 'text-anchor': 'start', 'font-size': isNarrow ? 10.5 : 11.5, 'font-weight': 600, fill: s.color });
       tl.textContent = fmtY(last.y);
       root.appendChild(tl);
     });
 
     // ---- 호버 레이어 (크로스헤어 + 툴팁) ----
-    var hoverLine = svg('line', { y1: mT, y2: mT + plotH, stroke: AXIS, 'stroke-width': 1, 'stroke-dasharray': '3 3', visibility: 'hidden' });
+    // 인쇄용 정적 차트(interactive:false)는 툴팁 DOM을 만들지 않는다
+    if (opts.interactive === false) { container.appendChild(root); return; }
+    var hoverLine = svg('line', { y1: mT, y2: mT + plotH, stroke: T.axis, 'stroke-width': 1, 'stroke-dasharray': '3 3', visibility: 'hidden' });
     root.appendChild(hoverLine);
     var hoverDots = series.map(function (s) {
-      var c = svg('circle', { r: 4, fill: s.color, stroke: '#1b1e24', 'stroke-width': 2, visibility: 'hidden' });
+      var c = svg('circle', { r: 4, fill: s.color, stroke: T.marker, 'stroke-width': 2, visibility: 'hidden' });
       root.appendChild(c);
       return c;
     });

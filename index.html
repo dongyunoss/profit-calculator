@@ -22,6 +22,7 @@
     <button id="btn-import-xlsx" class="btn">엑셀 임포트</button>
     <button id="btn-backup" class="btn">백업</button>
     <button id="btn-restore" class="btn">복원</button>
+    <button id="btn-pdf" class="btn">PDF 리포트</button>
     <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
     <input type="file" id="restore-file" accept=".json,application/json" hidden>
     <input type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
@@ -302,6 +303,9 @@
   <div class="cards" id="cashflow-cards"></div>
   <div id="cashflow-body"></div>
 </dialog>
+
+<!-- PDF 리포트: 화면에서는 숨어 있고 인쇄 시에만 나오는 A4 레이아웃 (계좌당 1페이지) -->
+<div id="print-report" class="print-report" aria-hidden="true"></div>
 
 <script src="js/engine.js"></script>
 <script src="js/xlsx.min.js"></script>
