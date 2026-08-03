@@ -1268,6 +1268,7 @@
 
   var REPORT_ROWS = 10;         // 표에 싣는 최근 평가일 수
   var REPORT_PER_PAGE = 3;      // A4 한 장에 담는 계좌 수
+  var REPORT_FIRST_PAGE = 2;    // 첫 장은 총괄 블록이 들어가 한 계좌 적게
   var REPORT_LINE = '#0e7490';  // 인쇄용 차트 선색 — 흑백 출력에서도 뭉개지지 않는 진한 청록
 
   // 요약 스트립 한 칸
@@ -1365,21 +1366,98 @@
     return block;
   }
 
-  // 계좌 블록을 REPORT_PER_PAGE개씩 묶어 A4 페이지로
-  function reportPages(processed, asOf) {
+  function rpLegend(name, color, dashed) {
+    return h('span', { class: 'rp-legend-item' }, [
+      h('span', { class: 'rp-legend-line' + (dashed ? ' dashed' : ''), style: 'color:' + color }),
+      h('span', { text: name })
+    ]);
+  }
+
+  // 첫 장 최상단 총괄 — 코스피 지수 · 총누적 수익률 · 원금대비 단순 수익률 + 종합 성과 차트
+  function reportSummaryBlock(result) {
+    var comp = result.composite, sm = result.summary;
+
+    // 종합 성과 지수 시계열 (화면 차트와 같은 계산)
+    var pts = [{ x: comp.series.length ? firstDate(result.processed) : '', y: 0 }]
+      .filter(function (pt) { return pt.x; });
+    comp.series.forEach(function (sr) { pts.push({ x: sr.date, y: sr.index / Engine.NAV_BASE - 1 }); });
+    var cats = pts.map(function (pt) { return pt.x; });
+    var bm = benchmarkSeries(cats);
+    var bmRet = bm ? bm.points[bm.points.length - 1].y : null;
+    // 벤치마크 지수의 최신 절대값 — 차트 마지막 날짜 이하의 마지막 지수
+    var bmValue = (state.benchmark && cats.length)
+      ? benchmarkValueAt(state.benchmark.points, cats[cats.length - 1]) : null;
+    var bmName = (state.benchmark && state.benchmark.name) || '코스피';
+
+    var block = h('section', { class: 'rp-summary' }, [
+      h('div', { class: 'rp-strip rp-strip-3' }, [
+        rpStat(bmName + ' 지수',
+          bmValue === null ? '미등록' : fmtNum(bmValue, 2),
+          bmRet === null ? null : pctClass(bmRet),
+          bmRet === null ? '벤치마크 데이터 없음' : '기간 수익률 ' + fmtPct(bmRet)),
+        rpStat('총누적 수익률', fmtPct(comp.ret), pctClass(comp.ret),
+          '종합 성과 지수 ' + fmtNum(comp.index, 2)),
+        rpStat('원금대비 단순 수익률', fmtPct(sm.simpleReturn), pctClass(sm.simpleReturn),
+          '총수익 기준(배당·보수 되살림)')
+      ]),
+      h('div', { class: 'rp-summary-chart-wrap' }, [
+        h('h3', { class: 'rp-title' }, [
+          h('span', { text: '종합 성과 지수' + (bm ? ' vs ' + bmName : '') }),
+          h('span', { class: 'rp-title-sub', text: '차트 시작 시점 0% 기준' })
+        ]),
+        // 인쇄물에는 마우스오버가 없으니 실선/점선이 무엇인지 범례로 못박아 둔다
+        h('div', { class: 'rp-legend' }, [
+          rpLegend('종합 성과 지수', REPORT_LINE, false),
+          bm ? rpLegend(bmName, '#6b7280', true) : null
+        ]),
+        h('div', { class: 'rp-chart rp-summary-chart' })
+      ])
+    ]);
+
+    block.__drawChart = function () {
+      var host = block.querySelector('.rp-chart');
+      if (pts.length < 2) {
+        host.appendChild(h('p', { class: 'rp-none', text: '평가 데이터가 2일 미만이라 추이를 그릴 수 없습니다.' }));
+        return;
+      }
+      var seriesList = [{ name: '종합 성과 지수', color: REPORT_LINE, points: pts, emphasis: true }];
+      if (bm) seriesList.push({ name: bmName, color: '#6b7280', points: bm.points, dashed: true });
+      Chart.renderLineChart(host, {
+        series: seriesList, categories: cats, formatY: fmtPct,
+        theme: 'light', height: 150, interactive: false
+      });
+    };
+    return block;
+  }
+
+  // 계좌 블록을 페이지에 담는다. 첫 장은 총괄 블록이 자리를 차지하므로 한 계좌 적게 싣는다.
+  function reportPages(result, asOf) {
+    var processed = result.processed;
     var pages = [], blocks = [];
-    var total = Math.ceil(processed.length / REPORT_PER_PAGE);
-    for (var i = 0; i < processed.length; i += REPORT_PER_PAGE) {
-      var chunk = processed.slice(i, i + REPORT_PER_PAGE);
+    var summary = reportSummaryBlock(result);
+    blocks.push(summary);
+
+    // 페이지별 계좌 수를 먼저 확정해야 "n / m" 표기를 채울 수 있다
+    var chunks = [], i = 0;
+    while (i < processed.length) {
+      var take = chunks.length === 0 ? REPORT_FIRST_PAGE : REPORT_PER_PAGE;
+      chunks.push(processed.slice(i, i + take));
+      i += take;
+    }
+    if (!chunks.length) chunks.push([]); // 계좌가 없어도 총괄 한 장은 나온다
+
+    chunks.forEach(function (chunk, pi) {
       var body = chunk.map(function (p) { return reportBlock(p, asOf); });
       blocks = blocks.concat(body);
-      pages.push(h('section', { class: 'rp-page' }, [
+      var head = [
         h('header', { class: 'rp-page-head' }, [
           h('span', { class: 'rp-page-title', text: '계좌 운용 현황' }),
           h('span', { class: 'rp-page-meta',
-            text: (asOf ? '기준일 ' + asOf + '  ·  ' : '') + (pages.length + 1) + ' / ' + total })
+            text: (asOf ? '기준일 ' + asOf + '  ·  ' : '') + (pi + 1) + ' / ' + chunks.length })
         ])
-      ].concat(body).concat([
+      ];
+      if (pi === 0) head.push(summary);
+      pages.push(h('section', { class: 'rp-page' }, head.concat(body).concat([
         h('footer', { class: 'rp-page-foot' }, [
           h('span', { text: '기준가는 1,000좌당 가격이며 계좌 개설 시 1,000.00에서 시작합니다. ' +
             '원금대비 수익률은 지급된 성과보수·배당을 되살린 총수익 기준이고, ' +
@@ -1387,7 +1465,7 @@
           h('span', { class: 'rp-page-foot-right', text: '자산운용 수익률 관리 · ' + todayStr() })
         ])
       ])));
-    }
+    });
     return { pages: pages, blocks: blocks };
   }
 
@@ -1399,7 +1477,7 @@
     var host = el('print-report');
     host.innerHTML = '';
     var asOf = latestValuationDate(lastResult.processed);
-    var built = reportPages(lastResult.processed, asOf);
+    var built = reportPages(lastResult, asOf);
     built.pages.forEach(function (pg) { host.appendChild(pg); });
     built.blocks.forEach(function (bl) { bl.__drawChart(); }); // DOM에 붙은 뒤에 그린다
 

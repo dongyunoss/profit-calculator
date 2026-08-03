@@ -1233,6 +1233,26 @@ tr.lg-note td {
 }
 .rp-page-foot-right { white-space: nowrap; font-family: var(--mono); }
 
+/* ── 첫 장 총괄 블록 ── */
+
+.rp-summary { padding: 3.5mm 0 0; }
+.rp-strip.rp-strip-3 { grid-template-columns: repeat(3, 1fr); margin-top: 0; }
+/* 총괄 3칸은 페이지 최상단이라 계좌 요약보다 한 급 크게 */
+.rp-strip-3 .rp-stat { padding: 2.2mm 3mm; }
+.rp-strip-3 .rp-stat-label { font-size: 7.5pt; white-space: nowrap; }
+.rp-strip-3 .rp-stat-value { font-size: 13pt; margin-top: .8mm; }
+.rp-strip-3 .rp-stat-sub { font-size: 7pt; margin-top: .3mm; white-space: nowrap; }
+
+.rp-summary-chart-wrap { margin-top: 3mm; }
+.rp-legend { display: flex; gap: 12px; margin: 1.2mm 0 -1mm; font-size: 7pt; color: #4b5563; }
+.rp-legend-item { display: inline-flex; align-items: center; gap: 3px; }
+/* 선 자체를 색으로 — 배경 인쇄를 꺼도 border는 항상 나온다 */
+.rp-legend-line { display: inline-block; width: 12px; border-top: 1.6pt solid currentColor; }
+.rp-legend-line.dashed { border-top-style: dashed; border-top-width: 1.2pt; }
+.rp-title-sub { font-size: 6.5pt; font-weight: 500; color: #6b7280; white-space: nowrap; }
+/* 총괄 차트는 폭을 다 쓰므로 제목이 좌우로 벌어지게 */
+.rp-summary-chart-wrap .rp-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+
 /* ── 계좌 블록 ── */
 
 .rp-acct { padding: 3mm 0 0; }
@@ -1332,5 +1352,5 @@ tr.lg-note td {
   /* 한 장에 정해진 수만큼 — 계좌 블록이 페이지 경계에서 잘리지 않게 */
   .rp-page { break-after: page; min-height: 273mm; }
   .rp-page:last-child { break-after: auto; }
-  .rp-acct, .rp-strip, .rp-cols, .rp-table { break-inside: avoid; }
+  .rp-acct, .rp-summary, .rp-strip, .rp-cols, .rp-table { break-inside: avoid; }
 }
