@@ -63,6 +63,15 @@
       </div>
       <button id="btn-add-account" class="btn">+ 계좌 추가</button>
     </div>
+    <div class="index-bar" id="index-bar">
+      <form id="form-index" class="index-form">
+        <span class="index-form-label">코스피 지수</span>
+        <input type="date" name="date" class="index-date" required>
+        <input type="number" name="value" class="index-value-input" step="any" min="0" placeholder="예: 2830.39" required>
+        <button type="submit" class="btn tiny primary">저장</button>
+      </form>
+      <div class="index-stats" id="index-stats"></div>
+    </div>
     <div class="table-wrap">
       <table class="grid" id="accounts-table">
         <thead>
