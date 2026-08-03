@@ -223,6 +223,7 @@ main {
 .rail-sum-sub { font-size: 11.5px; color: var(--muted-2); margin-top: 6px; }
 
 .rail-empty { padding: 14px 18px; font-size: 12px; color: var(--muted-2); }
+.rail-empty p { margin: 0 0 10px; }
 
 /* ---------- 버튼 ---------- */
 
@@ -675,6 +676,108 @@ dialog label {
 
 .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 
+/* 확인 다이얼로그 본문 — 긴 안내문이 한 줄로 늘어지지 않게 폭을 잡는다 */
+.confirm-body {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-soft);
+  font-weight: 400;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+#confirm-dialog form, #prompt-dialog form { gap: 14px; }
+
+/* ---------- 토스트 ---------- */
+
+.toast-host {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+}
+.toast {
+  pointer-events: auto;
+  cursor: pointer;
+  max-width: min(380px, calc(100vw - 40px));
+  padding: 11px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  border-left-width: 3px;
+  background: var(--panel-3);
+  color: var(--text-soft);
+  font-size: 12.5px;
+  line-height: 1.55;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  /* 등장 전 상태 — .show가 붙으면 제자리로 */
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .18s ease, transform .18s ease;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.ok    { border-left-color: var(--primary); }
+.toast.warn  { border-left-color: var(--warn); }
+.toast.error { border-left-color: var(--danger); }
+.toast.info  { border-left-color: var(--border-strong); }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast { transition: none; }
+}
+
+/* ---------- 빈 상태 ---------- */
+
+.empty-state {
+  text-align: center;
+  padding: 44px 20px 48px;
+}
+.empty-icon {
+  font-size: 30px;
+  line-height: 1;
+  color: var(--border-strong);
+  margin-bottom: 12px;
+}
+.empty-title { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--text-soft); }
+.empty-desc {
+  margin: 0 auto;
+  max-width: 46ch;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--muted-2);
+  word-break: keep-all;
+}
+.empty-actions { display: flex; justify-content: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+
+/* ---------- 표 더 보기 ---------- */
+
+.table-more {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-soft);
+  background: var(--panel-2);
+}
+.table-more-count { font-family: var(--mono); font-size: 11px; color: var(--muted-2); }
+
+/* ---------- 키보드 포커스 ---------- */
+
+/* 마우스 클릭에는 링이 뜨지 않고 Tab 이동 때만 보이게 (:focus-visible) */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+.rail-item:focus-visible { outline-offset: -2px; }
+#accounts-table tbody tr:focus-visible { outline-offset: -2px; }
+
 /* ---------- 차트 ---------- */
 
 .chart-toggle { display: flex; gap: 6px; }
@@ -1061,4 +1164,16 @@ tr.lg-note td {
   /* 원금 입출금 내역 다이얼로그: 원장 카드 최소폭을 좁혀 1열로 자연스럽게 */
   .ledger-grid { grid-template-columns: minmax(0, 1fr); }
   dialog.wide-dialog { padding: 16px; }
+
+  /* 토스트: 한 손 조작 범위인 화면 하단에 가로 꽉 차게 */
+  .toast-host { left: 12px; right: 12px; bottom: 12px; align-items: stretch; }
+  .toast { max-width: none; font-size: 13px; padding: 12px 14px; }
+
+  /* 확인/입력 다이얼로그는 화면 폭에 맞춰 넓게 */
+  #confirm-dialog form, #prompt-dialog form { min-width: min(320px, calc(100vw - 72px)); }
+  .confirm-body { max-width: none; font-size: 13.5px; }
+  .dialog-actions .btn { flex: 1; justify-content: center; }
+
+  .empty-state { padding: 32px 16px 36px; }
+  .empty-actions .btn { flex: 1 1 auto; justify-content: center; }
 }

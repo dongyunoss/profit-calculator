@@ -111,6 +111,102 @@
     return state.accounts.find(function (a) { return a.id === id; }) || null;
   }
 
+  // ---------- 알림·확인·입력 (네이티브 alert/confirm/prompt 대체) ----------
+
+  // 결과 피드백은 흐름을 끊지 않는 토스트로. type: 'info' | 'ok' | 'warn' | 'error'
+  function toast(message, type) {
+    var host = el('toast-host');
+    if (!host) return;
+    var node = h('div', { class: 'toast ' + (type || 'info'), text: message });
+    host.appendChild(node);
+    // 트랜지션이 걸리도록 다음 프레임에 표시 클래스를 준다
+    requestAnimationFrame(function () { node.classList.add('show'); });
+    var life = (type === 'error' || type === 'warn') ? 5200 : 3000;
+    var timer = setTimeout(close, life);
+    node.addEventListener('click', close);
+    function close() {
+      clearTimeout(timer);
+      if (!node.parentNode) return;
+      node.classList.remove('show');
+      setTimeout(function () { if (node.parentNode) node.parentNode.removeChild(node); }, 200);
+    }
+  }
+
+  // <dialog>가 없는(구형) 환경에서는 네이티브로 폴백해 기능이 막히지 않게 한다
+  function dialogSupported(dlg) { return dlg && typeof dlg.showModal === 'function'; }
+
+  // confirm() 대체. 되돌릴 수 없는 작업은 danger:true로 확인 버튼을 경고색으로.
+  function confirmDialog(opts) {
+    var o = typeof opts === 'string' ? { body: opts } : (opts || {});
+    var dlg = el('confirm-dialog');
+    if (!dialogSupported(dlg)) {
+      return Promise.resolve(window.confirm((o.title ? o.title + '\n\n' : '') + (o.body || '')));
+    }
+    el('confirm-title').textContent = o.title || '확인';
+    el('confirm-body').textContent = o.body || '';
+    var ok = el('btn-confirm-ok');
+    ok.textContent = o.okText || '확인';
+    ok.classList.toggle('danger', !!o.danger);
+    ok.classList.toggle('primary', !o.danger);
+    el('btn-confirm-cancel').textContent = o.cancelText || '취소';
+
+    return new Promise(function (resolve) {
+      function onClose() {
+        dlg.removeEventListener('close', onClose);
+        resolve(dlg.returnValue === 'ok');
+      }
+      dlg.addEventListener('close', onClose);
+      dlg.returnValue = '';
+      dlg.showModal();
+      ok.focus();
+    });
+  }
+
+  // prompt() 대체. 취소하면 null, 확인하면 입력값(공백 제거) 반환.
+  function promptDialog(opts) {
+    var o = opts || {};
+    var dlg = el('prompt-dialog');
+    if (!dialogSupported(dlg)) {
+      var v = window.prompt(o.title || '', o.value || '');
+      return Promise.resolve(v === null ? null : v.trim());
+    }
+    el('prompt-title').textContent = o.title || '입력';
+    var form = el('form-prompt');
+    var input = form.elements.value;
+    el('prompt-label').childNodes[0].nodeValue = (o.label || '값') + ' ';
+    input.value = o.value == null ? '' : o.value;
+    input.placeholder = o.placeholder || '';
+
+    return new Promise(function (resolve) {
+      function onClose() {
+        dlg.removeEventListener('close', onClose);
+        resolve(dlg.returnValue === 'ok' ? input.value.trim() : null);
+      }
+      dlg.addEventListener('close', onClose);
+      dlg.returnValue = '';
+      dlg.showModal();
+      input.focus();
+      input.select();
+    });
+  }
+
+  // 다이얼로그 공통 버튼 배선 (한 번만)
+  function wireDialogs() {
+    var cdlg = el('confirm-dialog');
+    if (dialogSupported(cdlg)) {
+      // 확인 버튼은 value="ok" — method="dialog" 폼이 returnValue를 'ok'로 채운다
+      el('btn-confirm-cancel').addEventListener('click', function () { cdlg.close(''); });
+    }
+    var pdlg = el('prompt-dialog');
+    if (dialogSupported(pdlg)) {
+      el('form-prompt').addEventListener('submit', function (e) {
+        e.preventDefault();
+        pdlg.close('ok');
+      });
+      el('btn-prompt-cancel').addEventListener('click', function () { pdlg.close(''); });
+    }
+  }
+
   // ---------- 계산 ----------
 
   function computeAll() {
@@ -349,6 +445,9 @@
     var s = result.summary, comp = result.composite;
     var wrap = el('summary-cards');
     wrap.innerHTML = '';
+    // 계좌가 없으면 전부 0원인 카드가 화면을 채우기만 하므로 숨긴다
+    wrap.hidden = !result.processed.length;
+    if (wrap.hidden) { el('as-of-badge').hidden = true; return; }
     // 전체 성과는 원금 흐름(입금 − 출금) 기준 — 개별 계좌의 계약원금 재설정과 무관하다
     wrap.appendChild(card('총 원금', fmtWonAuto(s.totalPrincipal),
       '원금 흐름 기준 · 입금 ' + fmtWonAuto(s.totalDeposits) + ' − 출금 ' + fmtWonAuto(s.totalWithdrawals)));
@@ -362,12 +461,58 @@
     badge.textContent = asOf ? '기준일 ' + asOf : '';
   }
 
+  // 계좌 선택(레일·표 공통). 같은 계좌를 다시 누르면 선택 해제.
+  // 좁은 화면에서는 상세 패널이 화면 밖에 있어 "눌렀는데 아무 반응이 없는" 것처럼 보이므로
+  // 선택된 경우에만 상세로 부드럽게 스크롤한다.
+  function toggleAccount(id) {
+    var opening = selectedAccountId !== id;
+    selectedAccountId = opening ? id : null;
+    tableExpanded = { daily: false, history: false }; // 계좌를 바꾸면 다시 최근 건만
+    render();
+    if (!opening) return;
+    var panel = el('detail-panel');
+    if (!panel || panel.hidden) return;
+    var top = panel.getBoundingClientRect().top;
+    if (top < 0 || top > window.innerHeight * 0.7) {
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  // Enter/Space로도 선택되게 (div·tr은 기본적으로 키보드 조작이 안 된다)
+  function onSelectKey(id) {
+    return function (e) {
+      if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+      e.preventDefault();
+      toggleAccount(id);
+    };
+  }
+
+  function attachSelectable(node, id, label) {
+    node.setAttribute('tabindex', '0');
+    // <tr>에 role="button"을 주면 표 구조가 깨지므로 행에는 aria-selected만 쓴다
+    if (node.tagName === 'TR') {
+      node.setAttribute('aria-selected', selectedAccountId === id ? 'true' : 'false');
+    } else {
+      node.setAttribute('role', 'button');
+      node.setAttribute('aria-pressed', selectedAccountId === id ? 'true' : 'false');
+      if (label) node.setAttribute('aria-label', label);
+    }
+    node.addEventListener('keydown', onSelectKey(id));
+    return node;
+  }
+
   // 좌측 계좌 레일 — 계좌 선택을 표에서 사이드바로 옮겨 상세 진입이 항상 한 클릭
   function renderRail(result) {
     var list = el('rail-list');
     list.innerHTML = '';
     if (!result.processed.length) {
-      list.appendChild(h('div', { class: 'rail-empty', text: '등록된 계좌가 없습니다.' }));
+      list.appendChild(h('div', { class: 'rail-empty' }, [
+        h('p', { text: '등록된 계좌가 없습니다.' }),
+        h('button', {
+          class: 'btn tiny', type: 'button', text: '+ 계좌 추가',
+          onclick: function () { el('btn-add-account').click(); }
+        })
+      ]));
       el('rail-foot').hidden = true;
       return;
     }
@@ -376,12 +521,9 @@
       if (p.id === selectedAccountId) cls += ' selected';
       if (p.isClosed) cls += ' closed';
       var showRet = p.contractPrincipal > 0;
-      list.appendChild(h('div', {
+      var item = h('div', {
         class: cls,
-        onclick: function () {
-          selectedAccountId = (selectedAccountId === p.id) ? null : p.id;
-          render();
-        }
+        onclick: function () { toggleAccount(p.id); }
       }, [
         h('div', { class: 'rail-row' }, [
           h('span', { class: 'rail-name' }, [
@@ -398,7 +540,8 @@
           h('span', { class: 'rail-eval', text: fmtWonAuto(p.eval) }),
           h('span', { class: 'rail-nav', text: '기준가 ' + fmtNum(p.nav, 2) })
         ])
-      ]));
+      ]);
+      list.appendChild(attachSelectable(item, p.id, p.name + ' 상세 보기'));
     });
 
     var s = result.summary;
@@ -454,10 +597,7 @@
         class: rowCls,
         'data-id': p.id,
         draggable: 'true',
-        onclick: function () {
-          selectedAccountId = (selectedAccountId === p.id) ? null : p.id;
-          render();
-        }
+        onclick: function () { toggleAccount(p.id); }
       }, [
         nameCell,
         h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
@@ -473,6 +613,7 @@
         ])
       ]);
       attachRowDrag(tr, p.id);
+      attachSelectable(tr, p.id, p.name + ' 상세 보기');
       tbody.appendChild(tr);
     });
   }
@@ -481,13 +622,14 @@
   function renameAccount(id) {
     var acc = getAccount(id);
     if (!acc) return;
-    var name = prompt('새 계좌명을 입력하세요.', acc.name);
-    if (name === null) return; // 취소
-    name = name.trim();
-    if (!name) { alert('계좌명을 입력하세요.'); return; }
-    acc.name = name;
-    saveState();
-    render();
+    promptDialog({ title: '계좌명 변경', label: '계좌명', value: acc.name }).then(function (name) {
+      if (name === null) return; // 취소
+      if (!name) { toast('계좌명을 입력하세요.', 'warn'); return; }
+      acc.name = name;
+      saveState();
+      render();
+      toast('계좌명을 "' + name + '"(으)로 변경했습니다.', 'ok');
+    });
   }
 
   // ── 계좌 목록 드래그 순서 변경 ──
@@ -610,16 +752,25 @@
 
     var tbody = el('history-table').querySelector('tbody');
     tbody.innerHTML = '';
-    p.history.slice().reverse().forEach(function (row) {
+    var hist = tableExpanded.history ? p.history : p.history.slice(-TABLE_PAGE);
+    renderMoreToggle('history-more', 'history', hist.length, p.history.length, '건');
+    hist.slice().reverse().forEach(function (row) {
       var delBtn = h('button', {
         class: 'btn tiny danger', text: '삭제',
         onclick: function (e) {
           e.stopPropagation();
-          if (!confirm(row.date + ' ' + row.label + ' 내역을 삭제할까요? 이후 수치가 다시 계산됩니다.')) return;
-          var acc = getAccount(p.id);
-          acc.events = acc.events.filter(function (ev) { return ev.id !== row.id; });
-          saveState();
-          render();
+          confirmDialog({
+            title: '내역 삭제',
+            body: row.date + ' ' + row.label + ' 내역을 삭제합니다. 이후 수치가 다시 계산됩니다.',
+            okText: '삭제', danger: true
+          }).then(function (ok) {
+            if (!ok) return;
+            var acc = getAccount(p.id);
+            acc.events = acc.events.filter(function (ev) { return ev.id !== row.id; });
+            saveState();
+            render();
+            toast(row.date + ' ' + row.label + ' 내역을 삭제했습니다.', 'ok');
+          });
         }
       });
       tbody.appendChild(h('tr', {}, [
@@ -680,10 +831,38 @@
   }
 
   // 일별 평가·수익률: 일자 · 평가금액 · 원금대비 수익률 · 일간 수익률
+  // 평가일이 수백 건이면 상세 화면이 끝없이 길어져 아래 내용을 찾을 수 없다.
+  // 기본은 최신 PAGE건만 보여주고, 필요할 때 펼치게 한다.
+  var TABLE_PAGE = 30;
+  var tableExpanded = { daily: false, history: false };
+
+  // more 영역에 "더 보기 / 접기" 버튼을 그린다. total <= PAGE면 아무것도 그리지 않는다.
+  function renderMoreToggle(hostId, key, shown, total, noun) {
+    var host = el(hostId);
+    host.innerHTML = '';
+    if (total <= TABLE_PAGE) { host.hidden = true; return; }
+    host.hidden = false;
+    var expanded = tableExpanded[key];
+    host.appendChild(h('button', {
+      type: 'button', class: 'btn tiny',
+      text: expanded ? '최근 ' + TABLE_PAGE + '건만 보기' : '이전 ' + (total - shown) + '건 더 보기',
+      onclick: function () {
+        tableExpanded[key] = !tableExpanded[key];
+        if (lastResult) renderDetail(lastResult);
+      }
+    }));
+    host.appendChild(h('span', {
+      class: 'table-more-count',
+      text: shown + ' / ' + total + noun
+    }));
+  }
+
   function renderDailyTable(p) {
     var tbody = el('daily-table').querySelector('tbody');
     tbody.innerHTML = '';
-    var vals = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
+    var all = p.history.filter(function (r) { return VALUATION_TYPES[r.type]; });
+    var vals = tableExpanded.daily ? all : all.slice(-TABLE_PAGE);
+    renderMoreToggle('daily-more', 'daily', vals.length, all.length, '건');
     vals.slice().reverse().forEach(function (row) {
       var pr = rowRet(row);
       tbody.appendChild(h('tr', {}, [
@@ -695,7 +874,7 @@
         h('td', { text: fmtNum(row.units, 0), class: 'num' })
       ]));
     });
-    if (!vals.length) {
+    if (!all.length) {
       tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '6' })]));
     }
   }
@@ -725,8 +904,8 @@
   function readForm(form) {
     var date = form.elements.date.value;
     var amount = parseFloat(form.elements.amount.value);
-    if (!date) { alert('날짜를 입력하세요.'); return null; }
-    if (!isFinite(amount) || amount < 0) { alert('금액을 올바르게 입력하세요.'); return null; }
+    if (!date) { toast('날짜를 입력하세요.', 'warn'); return null; }
+    if (!isFinite(amount) || amount < 0) { toast('금액을 올바르게 입력하세요.', 'warn'); return null; }
     return { date: date, amount: amount };
   }
 
@@ -1061,7 +1240,7 @@
   }
 
   function downloadXlsx() {
-    if (!state.accounts.length) { alert('등록된 계좌가 없습니다.'); return; }
+    if (!state.accounts.length) { toast('등록된 계좌가 없습니다.', 'warn'); return; }
     var result = computeAll();
     var bytes = XlsxWriter.build(buildWorkbook(result));
     var blob = new Blob([bytes], {
@@ -1280,14 +1459,21 @@
       try {
         var parsed = JSON.parse(reader.result);
         if (!parsed || !Array.isArray(parsed.accounts)) throw new Error('형식 오류');
-        if (!confirm('현재 데이터를 백업 파일 내용으로 교체할까요?')) return;
-        state = parsed;
-        selectedAccountId = null;
-        saveState();
-        loadState();
-        render();
+        confirmDialog({
+          title: '백업 복원',
+          body: '현재 데이터를 백업 파일 내용(계좌 ' + parsed.accounts.length + '개)으로 교체합니다. 현재 데이터는 사라집니다.',
+          okText: '교체', danger: true
+        }).then(function (ok) {
+          if (!ok) return;
+          state = parsed;
+          selectedAccountId = null;
+          saveState();
+          loadState();
+          render();
+          toast('백업을 복원했습니다. 계좌 ' + state.accounts.length + '개', 'ok');
+        });
       } catch (e) {
-        alert('백업 파일을 읽을 수 없습니다: ' + e.message);
+        toast('백업 파일을 읽을 수 없습니다: ' + e.message, 'error');
       }
     };
     reader.readAsText(file);
@@ -1304,14 +1490,14 @@
         var workbook = XLSX.read(reader.result, { type: 'array' });
         var accounts = extractAccountsFromXlsx(workbook);
         if (accounts.length === 0) {
-          alert('계좌 데이터를 찾을 수 없습니다.');
+          toast('계좌 데이터를 찾을 수 없습니다.', 'error');
           return;
         }
         importedAccounts = accounts;
         showImportPreview(accounts);
         el('import-dialog').showModal();
       } catch (e) {
-        alert('엑셀 파일을 읽을 수 없습니다: ' + e.message);
+        toast('엑셀 파일을 읽을 수 없습니다: ' + e.message, 'error');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -1440,16 +1626,24 @@
 
   function confirmImportXlsx() {
     if (!importedAccounts) return;
-    if (!confirm('이 계좌들을 추가하시겠습니까?')) return;
+    // 확인 다이얼로그는 비동기이고 아래에서 importedAccounts를 비우므로 목록을 미리 잡아둔다
+    var pending = importedAccounts, n = pending.length;
+    confirmDialog({
+      title: '계좌 등록',
+      body: '엑셀에서 읽은 계좌 ' + n + '개를 현재 목록에 추가합니다.',
+      okText: '등록'
+    }).then(function (ok) {
+      if (!ok) return;
+      pending.forEach(function (acc) {
+        state.accounts.push(acc);
+      });
 
-    importedAccounts.forEach(function (acc) {
-      state.accounts.push(acc);
+      saveState();
+      selectedAccountId = null;
+      render();
+      el('import-dialog').close();
+      toast('계좌 ' + n + '개를 등록했습니다.', 'ok');
     });
-
-    saveState();
-    selectedAccountId = null;
-    render();
-    el('import-dialog').close();
     importedAccounts = null;
   }
 
@@ -1457,6 +1651,7 @@
 
   function init() {
     loadState();
+    wireDialogs();
 
     // 계좌 추가 다이얼로그
     var dialog = el('account-dialog');
@@ -1472,9 +1667,9 @@
       var form = e.target;
       var name = form.elements.name.value.trim();
       var v = readForm(form);
-      if (!name) { alert('계좌명을 입력하세요.'); return; }
+      if (!name) { toast('계좌명을 입력하세요.', 'warn'); return; }
       if (!v) return;
-      if (v.amount <= 0) { alert('초기 원금은 0보다 커야 합니다.'); return; }
+      if (v.amount <= 0) { toast('초기 원금은 0보다 커야 합니다.', 'warn'); return; }
       var acc = {
         id: uid(),
         name: name,
@@ -1486,6 +1681,7 @@
       saveState();
       dialog.close();
       render();
+      toast('"' + name + '" 계좌를 만들었습니다.', 'ok');
     });
 
     // 일일 평가금액
@@ -1495,6 +1691,7 @@
       if (!v) return;
       addEvent(selectedAccountId, 'valuation', v.date, v.amount);
       e.target.elements.amount.value = '';
+      toast(v.date + ' 평가금액 ' + fmtWon(v.amount) + ' 저장', 'ok');
     });
 
     // 입출금 · 전액 출금(해지)
@@ -1511,23 +1708,42 @@
       var type = e.target.elements.type.value; // deposit | withdraw | closeout
       if (type === 'closeout') {
         var date = e.target.elements.date.value;
-        if (!date) { alert('날짜를 입력하세요.'); return; }
+        if (!date) { toast('날짜를 입력하세요.', 'warn'); return; }
         var pc = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
-        if (!pc || pc.eval <= 0.005) { alert('출금할 잔액이 없습니다.'); return; }
-        if (!confirm('현재 평가금액 전액(' + fmtWon(pc.eval) + ')을 출금하고 계좌를 해지 상태로 만듭니다.\n' +
-          '해지 시점까지의 성과는 종합 성과 수익률에 그대로 보존됩니다. 진행할까요?')) return;
-        addEvent(selectedAccountId, 'closeout', date, 0);
+        if (!pc || pc.eval <= 0.005) { toast('출금할 잔액이 없습니다.', 'warn'); return; }
+        var closeId = selectedAccountId;
+        confirmDialog({
+          title: '전액 출금 · 해지',
+          body: '현재 평가금액 전액(' + fmtWon(pc.eval) + ')을 출금하고 계좌를 해지 상태로 만듭니다. ' +
+            '해지 시점까지의 성과는 종합 성과 수익률에 그대로 보존됩니다.',
+          okText: '해지', danger: true
+        }).then(function (ok) {
+          if (!ok) return;
+          addEvent(closeId, 'closeout', date, 0);
+          toast('해지 처리했습니다. 출금 ' + fmtWon(pc.eval), 'ok');
+        });
         return;
       }
       var v = readForm(e.target);
       if (!v) return;
+      var form = e.target, accId = selectedAccountId;
+      var commit = function () {
+        addEvent(accId, type, v.date, v.amount);
+        form.elements.amount.value = '';
+        toast((type === 'deposit' ? '입금' : '출금') + ' ' + fmtWon(v.amount) + ' 반영했습니다.', 'ok');
+      };
       if (type === 'withdraw') {
-        var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
-        if (p && v.amount > p.eval + 1e-6 &&
-            !confirm('출금액이 현재 평가금액(' + fmtWon(p.eval) + ')을 초과합니다. 계속할까요?')) return;
+        var p = computeAll().processed.find(function (x) { return x.id === accId; });
+        if (p && v.amount > p.eval + 1e-6) {
+          confirmDialog({
+            title: '평가금액 초과 출금',
+            body: '출금액이 현재 평가금액(' + fmtWon(p.eval) + ')을 초과합니다. 그대로 진행하면 잔여 좌수가 0으로 정리됩니다.',
+            okText: '계속', danger: true
+          }).then(function (ok) { if (ok) commit(); });
+          return;
+        }
       }
-      addEvent(selectedAccountId, type, v.date, v.amount);
-      e.target.elements.amount.value = '';
+      commit();
     });
 
     // 성과보수 수취
@@ -1537,15 +1753,23 @@
       if (!v) return;
       var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
       if (p && v.amount > p.eval + 1e-6) {
-        alert('성과보수가 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.');
+        toast('성과보수가 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.', 'error');
         return;
       }
       var after = p ? p.eval - v.amount : 0;
-      if (!confirm('성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다.\n' +
-        '보수 차감 후 평가금액(' + fmtWon(after) + ')이 새 계약의 원금으로 승계되며,\n' +
-        '원금 흐름(입금−출금)과 전체 성과 수익률은 그대로 유지됩니다. 진행할까요?')) return;
-      addEvent(selectedAccountId, 'fee', v.date, v.amount);
-      e.target.elements.amount.value = '';
+      var feeForm = e.target, feeAccId = selectedAccountId;
+      confirmDialog({
+        title: '성과보수 수취',
+        body: '성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. ' +
+          '보수 차감 후 평가금액(' + fmtWon(after) + ')이 새 계약의 원금으로 승계되며, ' +
+          '원금 흐름(입금−출금)과 전체 성과 수익률은 그대로 유지됩니다.',
+        okText: '수취'
+      }).then(function (ok) {
+        if (!ok) return;
+        addEvent(feeAccId, 'fee', v.date, v.amount);
+        feeForm.elements.amount.value = '';
+        toast('성과보수 ' + fmtWon(v.amount) + ' 수취 — 기준가 1,000으로 재설정', 'ok');
+      });
     });
 
     // 계좌 이름 변경 (상세 창 제목 옆 연필 아이콘)
@@ -1557,11 +1781,19 @@
     el('btn-delete-account').addEventListener('click', function () {
       var acc = getAccount(selectedAccountId);
       if (!acc) return;
-      if (!confirm('"' + acc.name + '" 계좌와 모든 내역을 삭제할까요? 되돌릴 수 없습니다.')) return;
-      state.accounts = state.accounts.filter(function (a) { return a.id !== selectedAccountId; });
-      selectedAccountId = null;
-      saveState();
-      render();
+      var delId = acc.id, delName = acc.name;
+      confirmDialog({
+        title: '계좌 삭제',
+        body: '"' + delName + '" 계좌와 모든 내역을 삭제합니다. 되돌릴 수 없습니다.',
+        okText: '삭제', danger: true
+      }).then(function (ok) {
+        if (!ok) return;
+        state.accounts = state.accounts.filter(function (a) { return a.id !== delId; });
+        if (selectedAccountId === delId) selectedAccountId = null;
+        saveState();
+        render();
+        toast('"' + delName + '" 계좌를 삭제했습니다.', 'ok');
+      });
     });
 
     // 수익률 추이 차트 토글
@@ -1580,6 +1812,8 @@
 
     // 상단 도구
     el('btn-rail-add').addEventListener('click', function () { el('btn-add-account').click(); });
+    el('btn-empty-add').addEventListener('click', function () { el('btn-add-account').click(); });
+    el('btn-empty-restore').addEventListener('click', function () { el('btn-restore').click(); });
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
 
@@ -1594,11 +1828,18 @@
     el('btn-cancel-benchmark').addEventListener('click', function () { el('benchmark-dialog').close(); });
     el('btn-delete-benchmark').addEventListener('click', function () {
       if (!state.benchmark) { el('benchmark-dialog').close(); return; }
-      if (!confirm('벤치마크 데이터를 삭제할까요?')) return;
-      delete state.benchmark;
-      saveState();
-      el('benchmark-dialog').close();
-      render();
+      confirmDialog({
+        title: '벤치마크 삭제',
+        body: '저장된 벤치마크 지수(' + (state.benchmark.name || '벤치마크') + ')를 삭제합니다.',
+        okText: '삭제', danger: true
+      }).then(function (ok) {
+        if (!ok) return;
+        delete state.benchmark;
+        saveState();
+        el('benchmark-dialog').close();
+        render();
+        toast('벤치마크를 삭제했습니다.', 'ok');
+      });
     });
     el('form-benchmark').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -1606,15 +1847,18 @@
       var text = f.elements.data.value;
       if (!text.trim()) {
         delete state.benchmark;
+        toast('벤치마크를 비웠습니다.', 'ok');
       } else {
         var parsed = parseBenchmarkText(text);
         if (parsed.points.length < 2) {
-          alert('일자와 지수를 인식하지 못했습니다. 「2026-01-02  2650.12」처럼 일자와 숫자 두 열을 붙여넣어 주세요.');
+          toast('일자와 지수를 인식하지 못했습니다. 「2026-01-02  2650.12」처럼 일자와 숫자 두 열을 붙여넣어 주세요.', 'error');
           return;
         }
         state.benchmark = { name: f.elements.name.value.trim() || '벤치마크', points: parsed.points };
         if (parsed.skipped) {
-          alert(parsed.points.length + '개를 저장했습니다. 인식하지 못한 ' + parsed.skipped + '줄은 건너뛰었습니다.');
+          toast(parsed.points.length + '개를 저장했습니다. 인식하지 못한 ' + parsed.skipped + '줄은 건너뛰었습니다.', 'warn');
+        } else {
+          toast(state.benchmark.name + ' ' + parsed.points.length + '개 일자를 저장했습니다.', 'ok');
         }
       }
       saveState();
