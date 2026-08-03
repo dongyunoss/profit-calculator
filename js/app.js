@@ -1333,6 +1333,10 @@
   var REPORT_ROWS = 10;         // 표에 싣는 최근 평가일 수
   var REPORT_PER_PAGE = 3;      // A4 한 장에 담는 계좌 수
   var REPORT_FIRST_PAGE = 2;    // 첫 장은 총괄 블록이 들어가 한 계좌 적게
+
+  // PDF에서 뺀 계좌의 id 집합. "선택한 계좌" 대신 "뺀 계좌"로 기억해 두면
+  // 새로 만든 계좌는 아무것도 하지 않아도 다음 리포트에 자동으로 포함된다.
+  var pdfDeselectedIds = new Set();
   var REPORT_LINE = '#0e7490';  // 인쇄용 차트 선색 — 흑백 출력에서도 뭉개지지 않는 진한 청록
 
   // 요약 스트립 한 칸
@@ -1533,15 +1537,63 @@
     return { pages: pages, blocks: blocks };
   }
 
-  function downloadReportPdf() {
+  // PDF 버튼을 누르면 바로 인쇄하지 않고 계좌 선택 창부터 연다.
+  function openPdfSelect() {
     if (!lastResult || !lastResult.processed.length) {
       toast('등록된 계좌가 없습니다.', 'warn');
       return;
     }
+    var list = el('pdf-select-list');
+    list.innerHTML = '';
+    lastResult.processed.forEach(function (p) {
+      var checked = !pdfDeselectedIds.has(p.id);
+      var status = p.isClosed ? '해지' : (p.isMatured ? '만기' : null);
+      var checkAttrs = { type: 'checkbox', value: p.id, class: 'pdf-select-check' };
+      if (checked) checkAttrs.checked = 'checked'; // h()는 falsy도 그대로 속성화하므로 참일 때만 넣는다
+      list.appendChild(h('label', { class: 'pdf-select-row' }, [
+        h('input', checkAttrs),
+        h('span', { class: 'pdf-select-name', text: p.name }),
+        status ? h('span', { class: 'pdf-select-badge', text: status }) : null,
+        h('span', { class: 'pdf-select-ret ' + pctClass(p.contractReturn), text: fmtPct(p.contractReturn) })
+      ]));
+    });
+    updatePdfSelectCount();
+    el('pdf-select-dialog').showModal();
+  }
+
+  function pdfCheckboxes() {
+    return Array.prototype.slice.call(el('pdf-select-list').querySelectorAll('input[type=checkbox]'));
+  }
+
+  function updatePdfSelectCount() {
+    var boxes = pdfCheckboxes();
+    var checked = boxes.filter(function (b) { return b.checked; }).length;
+    el('pdf-select-count').textContent = checked + ' / ' + boxes.length + ' 선택';
+  }
+
+  function setAllPdfChecks(checked) {
+    pdfCheckboxes().forEach(function (b) { b.checked = checked; });
+    updatePdfSelectCount();
+  }
+
+  // 선택된 계좌만으로 요약(총괄)·종합 성과 지수를 다시 계산한다 —
+  // PDF가 일부 계좌만 담으면 첫 장 총괄도 그 계좌들 기준이어야 앞뒤가 맞는다.
+  function buildFilteredResult(ids) {
+    var idSet = new Set(ids);
+    var processed = lastResult.processed.filter(function (p) { return idSet.has(p.id); });
+    return {
+      processed: processed,
+      summary: Engine.computeSummary(processed),
+      composite: Engine.computeComposite(processed)
+    };
+  }
+
+  function generateReportPdf(selectedIds) {
+    var result = buildFilteredResult(selectedIds);
     var host = el('print-report');
     host.innerHTML = '';
-    var asOf = latestValuationDate(lastResult.processed);
-    var built = reportPages(lastResult, asOf);
+    var asOf = latestValuationDate(result.processed);
+    var built = reportPages(result, asOf);
     built.pages.forEach(function (pg) { host.appendChild(pg); });
     built.blocks.forEach(function (bl) { bl.__drawChart(); }); // DOM에 붙은 뒤에 그린다
 
@@ -1556,8 +1608,8 @@
     };
     window.addEventListener('afterprint', restore);
 
-    toast('인쇄 창에서 대상을 "PDF로 저장"으로 선택하세요. A4 한 장에 계좌 ' +
-      REPORT_PER_PAGE + '개씩 나옵니다.', 'info');
+    toast('인쇄 창에서 대상을 "PDF로 저장"으로 선택하세요. 계좌 ' + selectedIds.length +
+      '개, A4 한 장에 ' + REPORT_PER_PAGE + '개씩 나옵니다.', 'info');
     window.print();
     // afterprint를 지원하지 않는 브라우저 대비 — 넉넉히 기다렸다가 정리
     setTimeout(restore, 60000);
@@ -2062,8 +2114,30 @@
     });
 
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
-    el('btn-pdf').addEventListener('click', downloadReportPdf);
+    el('btn-pdf').addEventListener('click', openPdfSelect);
     el('btn-theme').addEventListener('click', toggleTheme);
+
+    // PDF 리포트 — 계좌 선택
+    el('btn-pdf-select-all').addEventListener('click', function () { setAllPdfChecks(true); });
+    el('btn-pdf-select-none').addEventListener('click', function () { setAllPdfChecks(false); });
+    el('btn-pdf-select-cancel').addEventListener('click', function () { el('pdf-select-dialog').close(); });
+    el('pdf-select-list').addEventListener('change', updatePdfSelectCount);
+    el('form-pdf-select').addEventListener('submit', function (e) {
+      e.preventDefault();
+      var boxes = pdfCheckboxes();
+      var selected = boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; });
+      if (!selected.length) {
+        toast('계좌를 1개 이상 선택하세요.', 'warn');
+        return;
+      }
+      // 다음에 열었을 때도 이번 선택이 이어지도록, "뺀 계좌" 기준으로 뒤집어 저장한다
+      var selectedSet = new Set(selected);
+      pdfDeselectedIds = new Set(
+        boxes.filter(function (b) { return !selectedSet.has(b.value); }).map(function (b) { return b.value; })
+      );
+      el('pdf-select-dialog').close();
+      generateReportPdf(selected);
+    });
     el('btn-backup').addEventListener('click', backupJson);
     el('btn-restore').addEventListener('click', function () { el('restore-file').click(); });
     el('restore-file').addEventListener('change', function (e) {
