@@ -477,14 +477,12 @@
     var pnlRatio = s.totalPrincipal > 0 ? s.totalPnl / s.totalPrincipal : null;
 
     // 조밀한 스트립에 맞춰 서브 텍스트는 짧게 줄이고, 뺀 설명은 title(마우스오버)로 남긴다.
-    // 전체 자릿수 대신 억/만 축약(fmtWonShort)도 항상 쓴다 — 이 스트립은 "한눈에 보는"
-    // 자리라 축약이 맞고, 정확한 자릿수는 계좌 목록·원금 원장 같은 표에서 그대로 볼 수 있다.
-    wrap.appendChild(card('총 원금', fmtWonShort(s.totalPrincipal),
-      '입금 ' + fmtWonShort(s.totalDeposits) + ' − 출금 ' + fmtWonShort(s.totalWithdrawals), null,
+    wrap.appendChild(card('총 원금', fmtWon(s.totalPrincipal),
+      '입금 ' + fmtWon(s.totalDeposits) + ' − 출금 ' + fmtWon(s.totalWithdrawals), null,
       '원금 흐름(입금−출금) 기준 · 개별 계좌의 계약원금 재설정과 무관'));
-    wrap.appendChild(card('총 평가금액', fmtWonShort(s.totalEval),
+    wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval),
       evalMultiple === null ? '전 계좌 합계' : '원금 대비 ' + evalMultiple.toFixed(2) + '배'));
-    wrap.appendChild(card('평가손익', fmtWonShort(s.totalPnl),
+    wrap.appendChild(card('평가손익', fmtWon(s.totalPnl),
       pnlRatio === null ? '' : '원금대비 ' + fmtPct(pnlRatio), pctClass(s.totalPnl),
       '보유 잔고 기준 — 이미 지급된 성과보수·배당은 포함하지 않음'));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret),
