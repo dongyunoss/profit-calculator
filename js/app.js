@@ -1637,6 +1637,21 @@
     });
   }
 
+  // 다이얼로그 안 뷰 상태 — 두 섹션을 한 번에 쌓으면 스크롤이 2,300px까지 늘어난다.
+  // 탭으로 하나씩 보여주고, 계좌 필터·정렬로 원하는 줄만 좁혀 볼 수 있게 한다.
+  var cfView = 'ledger';      // 'ledger' | 'all'
+  var cfAccountId = '';       // '' = 전체
+  var cfNewestFirst = true;   // 전체 내역 정렬
+  var cfData = null;          // openCashflow에서 계산한 결과를 재렌더 때 재사용
+
+  function cfStat(label, value, sub, cls) {
+    return h('div', { class: 'cf-stat' }, [
+      h('span', { class: 'cf-stat-label', text: label }),
+      h('span', { class: 'cf-stat-value' + (cls ? ' ' + cls : ''), text: value }),
+      h('span', { class: 'cf-stat-sub', text: sub || '' })
+    ]);
+  }
+
   function openCashflow() {
     var processed = computeAll().processed;
 
@@ -1654,67 +1669,115 @@
     var totalDep = 0, totalWd = 0;
     perAccount.forEach(function (a) { totalDep += a.deposits; totalWd += a.withdrawals; });
 
-    // 요약 카드
-    var cards = el('cashflow-cards');
-    cards.innerHTML = '';
-    cards.appendChild(card('총 입금', fmtWonAuto(totalDep), '전 계좌 누적'));
-    cards.appendChild(card('총 출금', fmtWonAuto(totalWd), '해지 시 남은 원금 차감 포함'));
-    cards.appendChild(card('순 원금 (입금−출금)', fmtWonAuto(totalDep - totalWd), '전 계좌 원금 흐름 합계'));
-    cards.appendChild(card('계좌 수', String(processed.length) + '개',
-      processed.filter(function (p) { return p.isClosed; }).length + '개 해지'));
-
-    var body = el('cashflow-body');
-    body.innerHTML = '';
-
-    if (!processed.length) {
-      body.appendChild(h('p', { class: 'empty', text: '등록된 계좌가 없습니다.' }));
-      el('cashflow-dialog').showModal();
-      return;
-    }
-
-    // ── 계좌별 원금 원장 (원금 → 추가입금 → 원금합) ──
-    body.appendChild(h('h4', { class: 'cashflow-title', text: '계좌별 원금 원장' }));
-    var grid = h('div', { class: 'ledger-grid' });
-    perAccount.forEach(function (a) {
-      grid.appendChild(ledgerColumn(a.p, a.flows));
-    });
-    body.appendChild(grid);
-
-    // ── 전체 통합 내역 (일자순) ──
+    // 전체 통합 내역은 일자순으로 한 번만 만들어 두고, 누적 순원금도 이때 확정한다
+    // (필터·정렬을 바꿔도 각 행의 "그 시점 누적"은 변하지 않아야 한다)
     var allFlows = [];
     perAccount.forEach(function (a) { allFlows = allFlows.concat(a.flows); });
     allFlows.sort(function (x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : 0; });
+    var running = 0;
+    allFlows.forEach(function (f) { running += f.signed; f.runningNet = running; });
 
-    body.appendChild(h('h4', { class: 'cashflow-title', text: '전체 통합 내역' }));
-    if (allFlows.length) {
-      var runningNet = 0;
-      var prevDate = null;
-      var totalRows = allFlows.map(function (f) {
-        // 표시 금액과 누적을 같은 기준(원금 차감액)으로 맞춘다 — 해지는 인출 현금과 다르다
-        runningNet += f.signed;
-        var note = closeoutNote(f);
-        var sameDay = f.date === prevDate; // 같은 날 연속 행은 일자를 반복하지 않는다
-        prevDate = f.date;
-        return h('tr', { class: 'compact' }, [
-          h('td', { text: sameDay ? '' : f.date, class: 'date' }),
-          h('td', { text: f.accountName, class: 'name' }),
-          h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
-          h('td', {
-            text: (f.signed >= 0 ? '+' : '−') + fmtWon(Math.abs(f.signed)),
-            class: 'num ' + (f.signed >= 0 ? 'pos' : 'neg'),
-            title: note || undefined
-          }),
-          h('td', { text: fmtWon(runningNet), class: 'num muted-num' })
-        ]);
-      });
-      body.appendChild(flowTable(['일자', '계좌', '구분', '원금 증감', '누적 순원금'], totalRows));
-      body.appendChild(h('p', { class: 'cashflow-hint',
-        text: '해지 행의 금액은 실제 인출 현금이 아니라 원금 차감액입니다. 자세한 내역은 위의 계좌별 원장을 보세요.' }));
-    } else {
-      body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
+    cfData = { processed: processed, perAccount: perAccount, allFlows: allFlows,
+               totalDep: totalDep, totalWd: totalWd };
+
+    // 요약 — 카드 4장(모바일에서 950px)을 컴팩트 스트립으로
+    var stats = el('cashflow-stats');
+    stats.innerHTML = '';
+    stats.appendChild(cfStat('총 입금', fmtWonAuto(totalDep), '전 계좌 누적', 'pos'));
+    stats.appendChild(cfStat('총 출금', fmtWonAuto(totalWd), '해지 시 남은 원금 차감 포함', 'neg'));
+    stats.appendChild(cfStat('순 원금', fmtWonAuto(totalDep - totalWd), '입금 − 출금'));
+    stats.appendChild(cfStat('계좌', processed.length + '개',
+      processed.filter(function (p) { return p.isClosed; }).length + '개 해지'));
+
+    // 계좌 필터 옵션 (선택값은 다이얼로그를 다시 열어도 유효하면 유지)
+    var sel = el('cashflow-account');
+    var keep = cfAccountId;
+    sel.innerHTML = '';
+    sel.appendChild(h('option', { value: '', text: '전체 (' + processed.length + '개)' }));
+    processed.forEach(function (p) {
+      sel.appendChild(h('option', { value: p.id, text: p.name + (p.isClosed ? ' (해지)' : '') }));
+    });
+    cfAccountId = processed.some(function (p) { return p.id === keep; }) ? keep : '';
+    sel.value = cfAccountId;
+
+    renderCashflowBody();
+    el('cashflow-dialog').showModal();
+  }
+
+  function renderCashflowBody() {
+    var body = el('cashflow-body');
+    body.innerHTML = '';
+    if (!cfData) return;
+
+    // 탭·컨트롤 상태 반영
+    Array.prototype.forEach.call(el('cashflow-tabs').querySelectorAll('.chip'), function (b) {
+      var on = b.getAttribute('data-view') === cfView;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    var sortBtn = el('cashflow-sort');
+    sortBtn.hidden = cfView !== 'all';
+    sortBtn.textContent = cfNewestFirst ? '최신순 ↓' : '과거순 ↑';
+    sortBtn.title = cfNewestFirst ? '과거순으로 보기' : '최신순으로 보기';
+
+    if (!cfData.processed.length) {
+      el('cashflow-count').textContent = '';
+      body.appendChild(h('p', { class: 'empty', text: '등록된 계좌가 없습니다.' }));
+      return;
     }
 
-    el('cashflow-dialog').showModal();
+    if (cfView === 'ledger') renderCashflowLedger(body);
+    else renderCashflowAll(body);
+  }
+
+  function renderCashflowLedger(body) {
+    var cols = cfData.perAccount.filter(function (a) {
+      return !cfAccountId || a.p.id === cfAccountId;
+    });
+    el('cashflow-count').textContent = cols.length + '개 계좌';
+    if (!cols.length) {
+      body.appendChild(h('p', { class: 'empty', text: '해당 계좌가 없습니다.' }));
+      return;
+    }
+    var grid = h('div', { class: 'ledger-grid' });
+    cols.forEach(function (a) { grid.appendChild(ledgerColumn(a.p, a.flows)); });
+    body.appendChild(grid);
+  }
+
+  function renderCashflowAll(body) {
+    var flows = cfData.allFlows.filter(function (f) {
+      return !cfAccountId || f.accountId === cfAccountId;
+    });
+    el('cashflow-count').textContent = flows.length + '건';
+
+    if (!flows.length) {
+      body.appendChild(h('p', { class: 'empty', text: '원금 입출금 내역이 없습니다.' }));
+      return;
+    }
+
+    var view = cfNewestFirst ? flows.slice().reverse() : flows;
+    var prevDate = null;
+    var rows = view.map(function (f) {
+      var note = closeoutNote(f);
+      // 같은 날 연속 행은 일자를 반복하지 않는다 (정렬 방향과 무관하게 "직전 행과 같은가"로 판단)
+      var sameDay = f.date === prevDate;
+      prevDate = f.date;
+      return h('tr', { class: 'compact' + (sameDay ? '' : ' cf-daystart') }, [
+        h('td', { text: sameDay ? '' : f.date, class: 'date' }),
+        h('td', { text: f.accountName, class: 'name' }),
+        h('td', {}, [h('span', { class: 'tag tag-' + f.type, text: f.label })]),
+        h('td', {
+          text: (f.signed >= 0 ? '+' : '−') + fmtWon(Math.abs(f.signed)),
+          class: 'num ' + (f.signed >= 0 ? 'pos' : 'neg'),
+          title: note || undefined
+        }),
+        h('td', { text: fmtWon(f.runningNet), class: 'num muted-num' })
+      ]);
+    });
+    body.appendChild(flowTable(['일자', '계좌', '구분', '원금 증감', '누적 순원금'], rows));
+    body.appendChild(h('p', { class: 'cashflow-hint',
+      text: '해지 행의 금액은 실제 인출 현금이 아니라 원금 차감액입니다. 자세한 내역은 [계좌별 원장] 탭을 보세요.' +
+            (cfAccountId ? ' 누적 순원금은 계좌를 걸러도 전 계좌 기준 값입니다.' : '') }));
   }
 
   // 한 계좌의 원금 원장 열: 원금(최초) → [추가입금·출금, 원금합] 반복 → 현재 원금
@@ -2169,6 +2232,23 @@
     el('btn-empty-restore').addEventListener('click', function () { el('btn-restore').click(); });
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
+    el('cashflow-tabs').addEventListener('click', function (e) {
+      var btn = e.target.closest('.chip');
+      if (!btn) return;
+      cfView = btn.getAttribute('data-view');
+      renderCashflowBody();
+      el('cashflow-body').scrollTop = 0; // 탭을 바꾸면 위에서부터 보게 한다
+    });
+    el('cashflow-account').addEventListener('change', function (e) {
+      cfAccountId = e.target.value;
+      renderCashflowBody();
+      el('cashflow-body').scrollTop = 0;
+    });
+    el('cashflow-sort').addEventListener('click', function () {
+      cfNewestFirst = !cfNewestFirst;
+      renderCashflowBody();
+      el('cashflow-body').scrollTop = 0;
+    });
 
     // 계좌 목록 상단 지수 빠른 입력 — 벤치마크(코스피) 다이얼로그와 같은 저장소를 쓴다
     el('form-index').addEventListener('submit', function (e) {

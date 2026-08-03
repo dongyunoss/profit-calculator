@@ -331,11 +331,25 @@
 </dialog>
 
 <dialog id="cashflow-dialog" class="wide-dialog">
+  <!-- 머리말·요약·컨트롤은 고정하고 아래 본문만 스크롤한다 -->
   <div class="dialog-head">
     <h3>원금 입출금 내역</h3>
     <button type="button" id="btn-close-cashflow" class="btn">닫기</button>
   </div>
-  <div class="cards" id="cashflow-cards"></div>
+  <div class="cf-stats" id="cashflow-stats"></div>
+  <div class="cf-controls">
+    <div class="cf-tabs" id="cashflow-tabs" role="tablist">
+      <button type="button" class="chip active" data-view="ledger" role="tab" aria-selected="true">계좌별 원장</button>
+      <button type="button" class="chip" data-view="all" role="tab" aria-selected="false">전체 내역</button>
+    </div>
+    <div class="cf-filters">
+      <label class="cf-field">계좌
+        <select id="cashflow-account"></select>
+      </label>
+      <button type="button" id="cashflow-sort" class="btn tiny" hidden></button>
+      <span class="cf-count" id="cashflow-count"></span>
+    </div>
+  </div>
   <div id="cashflow-body"></div>
 </dialog>
 
