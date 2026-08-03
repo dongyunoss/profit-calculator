@@ -1558,7 +1558,48 @@
       ]));
     });
     updatePdfSelectCount();
-    el('pdf-select-dialog').showModal();
+    var dlg = el('pdf-select-dialog');
+    // 가로 위치는 showModal 전에도 정할 수 있다(폭이 CSS에 300px로 고정돼 있으므로).
+    // 세로는 계좌 수에 따라 실제 렌더된 높이를 봐야 하므로 showModal 이후에 잡는다 —
+    // 둘 다 같은 동기 실행 안에서 끝나 화면에는 최종 위치로만 그려진다(깜빡임 없음).
+    positionPdfSelectDialogX();
+    dlg.showModal();
+    positionPdfSelectDialogY();
+  }
+
+  // PDF 리포트 선택 창을 "PDF 리포트" 버튼 바로 아래, 작은 드롭다운처럼 붙인다.
+  function positionPdfSelectDialogX() {
+    var btn = el('btn-pdf');
+    var dlg = el('pdf-select-dialog');
+    var margin = 8;
+    var r = btn.getBoundingClientRect();
+    var panelWidth = Math.min(300, window.innerWidth - margin * 2);
+
+    var left = r.left; // 기본은 버튼 왼쪽 끝에 맞춘다
+    if (left + panelWidth > window.innerWidth - margin) {
+      left = r.right - panelWidth; // 오른쪽으로 넘치면 버튼 오른쪽 끝에 맞춰 당긴다
+    }
+    left = Math.max(margin, left);
+    dlg.style.left = left + 'px';
+  }
+
+  function positionPdfSelectDialogY() {
+    var btn = el('btn-pdf');
+    var dlg = el('pdf-select-dialog');
+    var margin = 8;
+    var r = btn.getBoundingClientRect();
+
+    var top = r.bottom + margin;
+    dlg.style.top = top + 'px';
+
+    // 계좌가 많아 목록이 길어지면 버튼 아래 공간을 넘길 수 있다 — 뷰포트 바닥에
+    // 맞춰 위로 당기고, 그래도 안 맞으면(버튼이 화면 위쪽에 있고 창이 아주 좁으면)
+    // 최소 margin은 지키며 바닥에 붙인다.
+    var dlgHeight = dlg.getBoundingClientRect().height;
+    if (top + dlgHeight > window.innerHeight - margin) {
+      top = Math.max(margin, window.innerHeight - margin - dlgHeight);
+      dlg.style.top = top + 'px';
+    }
   }
 
   function pdfCheckboxes() {
