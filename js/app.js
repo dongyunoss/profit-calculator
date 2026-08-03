@@ -55,7 +55,8 @@
   }
 
   function fmtPct(r) {
-    return (r * 100).toFixed(2) + '%';
+    // 음수 부호는 fmtWon과 같이 '−'(U+2212)로 통일
+    return (r * 100).toFixed(2).replace(/^-/, '−') + '%';
   }
 
   function pctClass(r) {
@@ -98,6 +99,7 @@
     var result = computeAll();
     lastResult = result;
     renderSummary(result);
+    renderRail(result);
     renderChart(result);
     renderAccountsTable(result);
     renderDetail(result);
@@ -106,8 +108,9 @@
   // ---------- 수익률 추이 차트 ----------
 
   // 계좌별 카테고리 색상 (dataviz 검증 팔레트, 고정 순서로 배정)
-  var SERIES_COLORS = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300', '#4a3aa7', '#e34948'];
-  var COMPOSITE_COLOR = '#2456c6';
+  // 다크 배경에서 구분되는 계좌별 라인 색
+  var SERIES_COLORS = ['#4fb3c9', '#f0885a', '#7ddba0', '#e8c06a', '#e88bb4', '#6ba8ff', '#b28cf0', '#ff8080'];
+  var COMPOSITE_COLOR = '#4fb3c9';
   var chartMode = 'composite';
   var selectedChartAccountId = null; // '계좌별 누적 수익률'에서 단일 계좌만 볼 때
   var lastResult = null;
@@ -125,7 +128,7 @@
 
   // ---------- 벤치마크 지수 (코스피 등) ----------
 
-  var BENCHMARK_COLOR = '#8a94a6';
+  var BENCHMARK_COLOR = '#5d6472';
 
   // '2026.01.02' / '2026/01/02' / '20260102' / '2026-1-2' → '2026-01-02'
   function normalizeDate(raw) {
@@ -187,10 +190,11 @@
     return { name: bm.name || '벤치마크', color: BENCHMARK_COLOR, points: pts, dashed: true };
   }
 
-  function legendItem(name, color, dashed) {
+  function legendItem(name, color, dashed, value, valueCls) {
     return h('span', { class: 'legend-item' }, [
       h('span', { class: 'legend-swatch' + (dashed ? ' dashed' : ''), style: 'background:' + color }),
-      h('span', { text: name })
+      h('span', { text: name }),
+      value ? h('b', { class: 'legend-value ' + (valueCls || ''), text: value }) : null
     ]);
   }
 
@@ -220,10 +224,14 @@
       var bm = benchmarkSeries(cats);
       if (bm) seriesList.push(bm);
       Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
-      legend.appendChild(legendItem('종합 성과 수익률', COMPOSITE_COLOR));
-      if (bm) legend.appendChild(legendItem(bm.name, bm.color, true));
-      note.textContent = '전 계좌를 자산가중으로 합산한 종합 성과 지수(1,000 시작)의 누적 수익률입니다. 입출금·성과보수의 영향을 배제한 순수 운용 성과입니다.'
-        + (bm ? ' 점선은 같은 시점을 0%로 맞춘 ' + bm.name + ' 지수입니다.' : '');
+      var lastY = pts.length ? pts[pts.length - 1].y : 0;
+      legend.appendChild(legendItem('종합 성과 지수', COMPOSITE_COLOR, false, fmtPct(lastY), pctClass(lastY)));
+      if (bm) {
+        var bmLast = bm.points[bm.points.length - 1].y;
+        legend.appendChild(legendItem(bm.name, bm.color, true, fmtPct(bmLast), pctClass(bmLast)));
+      }
+      note.textContent = '종합 성과 지수는 계좌별 일간 기준가 수익률을 직전 평가금액 가중으로 체인링크한 값입니다(1,000 시작). 입출금·성과보수의 영향을 배제한 순수 운용 성과입니다.'
+        + (bm ? ' 벤치마크는 차트 시작 시점을 0%로 맞춰 비교합니다.' : '');
     } else {
       // 평가 데이터가 있는 계좌만
       var active = processed.filter(function (p) { return p.daily.length > 0; });
@@ -291,6 +299,23 @@
     ]);
   }
 
+  function metric(label, value, sub, cls) {
+    return h('div', { class: 'metric' }, [
+      h('div', { class: 'metric-label', text: label }),
+      h('div', { class: 'metric-value' + (cls ? ' ' + cls : ''), text: value }),
+      h('div', { class: 'metric-sub', text: sub || '' })
+    ]);
+  }
+
+  // 전 계좌 중 가장 최근 평가일 — 헤더 기준일 배지
+  function latestValuationDate(processed) {
+    var d = '';
+    processed.forEach(function (p) {
+      if (p.lastValuationDate && p.lastValuationDate > d) d = p.lastValuationDate;
+    });
+    return d;
+  }
+
   function renderSummary(result) {
     var s = result.summary, comp = result.composite;
     var wrap = el('summary-cards');
@@ -301,8 +326,75 @@
     wrap.appendChild(card('총 평가금액', fmtWon(s.totalEval), '평가손익 ' + fmtWon(s.totalPnl), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
     wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
-    wrap.appendChild(card('누적 성과보수', fmtWon(s.totalFees),
-      s.totalPayouts > 0 ? '이익지급 ' + fmtWon(s.totalPayouts) : ''));
+
+    var badge = el('as-of-badge');
+    var asOf = latestValuationDate(result.processed);
+    badge.hidden = !asOf;
+    badge.textContent = asOf ? '기준일 ' + asOf : '';
+  }
+
+  // 좌측 계좌 레일 — 계좌 선택을 표에서 사이드바로 옮겨 상세 진입이 항상 한 클릭
+  function renderRail(result) {
+    var list = el('rail-list');
+    list.innerHTML = '';
+    if (!result.processed.length) {
+      list.appendChild(h('div', { class: 'rail-empty', text: '등록된 계좌가 없습니다.' }));
+      el('rail-foot').hidden = true;
+      return;
+    }
+    result.processed.forEach(function (p) {
+      var cls = 'rail-item';
+      if (p.id === selectedAccountId) cls += ' selected';
+      if (p.isClosed) cls += ' closed';
+      var showRet = p.contractPrincipal > 0;
+      list.appendChild(h('div', {
+        class: cls,
+        onclick: function () {
+          selectedAccountId = (selectedAccountId === p.id) ? null : p.id;
+          render();
+        }
+      }, [
+        h('div', { class: 'rail-row' }, [
+          h('span', { class: 'rail-name' }, [
+            h('span', { text: p.name }),
+            p.isClosed ? h('span', { class: 'rail-badge', text: '해지' }) : null,
+            (!p.isClosed && p.isMatured) ? h('span', { class: 'rail-badge', text: '만기' }) : null
+          ]),
+          h('span', {
+            class: 'rail-ret ' + (showRet ? pctClass(p.contractReturn) : ''),
+            text: showRet ? fmtPct(p.contractReturn) : '—'
+          })
+        ]),
+        h('div', { class: 'rail-row' }, [
+          h('span', { class: 'rail-eval', text: fmtWon(p.eval) }),
+          h('span', { class: 'rail-nav', text: '기준가 ' + fmtNum(p.nav, 2) })
+        ])
+      ]));
+    });
+
+    var s = result.summary;
+    var foot = el('rail-foot');
+    foot.hidden = false;
+    foot.innerHTML = '';
+    foot.appendChild(h('div', { class: 'rail-sum-label', text: '누적 성과보수' }));
+    foot.appendChild(h('div', { class: 'rail-sum-value', text: fmtWon(s.totalFees) }));
+    if (s.totalPayouts > 0) {
+      foot.appendChild(h('div', { class: 'rail-sum-sub', text: '누적 이익지급 ' + fmtWon(s.totalPayouts) }));
+    }
+  }
+
+  // 원금대비 수익률 열: 최대 절대값 대비 폭의 미니 바 + 수치
+  function returnCell(ret, maxAbs) {
+    var cls = pctClass(ret);
+    var w = maxAbs > 0 ? Math.min(100, Math.abs(ret) / maxAbs * 100) : 0;
+    return h('td', { class: 'num' }, [
+      h('div', { class: 'ret-cell' }, [
+        h('span', { class: 'ret-track' }, [
+          h('span', { class: 'ret-fill ' + cls, style: 'width:' + w.toFixed(1) + '%' })
+        ]),
+        h('span', { class: 'ret-value ' + cls, text: fmtPct(ret) })
+      ])
+    ]);
   }
 
   function renderAccountsTable(result) {
@@ -311,14 +403,26 @@
     el('accounts-empty').hidden = state.accounts.length > 0;
     el('accounts-table').hidden = state.accounts.length === 0;
 
+    var closedCount = result.processed.filter(function (p) { return p.isClosed; }).length;
+    el('accounts-count').textContent = result.processed.length
+      ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
+      : '';
+
+    var maxAbs = 0;
+    result.processed.forEach(function (p) {
+      if (Math.abs(p.contractReturn) > maxAbs) maxAbs = Math.abs(p.contractReturn);
+    });
+
     result.processed.forEach(function (p) {
       var nameCell = h('td', { class: 'name' }, [
         h('span', { text: p.name }),
         p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
         (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
       ]);
+      var rowCls = p.id === selectedAccountId ? 'selected' : '';
+      if (p.isClosed) rowCls += (rowCls ? ' ' : '') + 'closed';
       var tr = h('tr', {
-        class: p.id === selectedAccountId ? 'selected' : '',
+        class: rowCls,
         'data-id': p.id,
         draggable: 'true',
         onclick: function () {
@@ -328,12 +432,12 @@
       }, [
         nameCell,
         h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
-        h('td', { text: fmtWon(p.eval), class: 'num' }),
+        h('td', { text: fmtWon(p.eval), class: 'num eval' }),
         h('td', { text: fmtWon(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
         h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
         h('td', { text: fmtNum(p.units, 0), class: 'num' }),
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
-        h('td', { text: fmtPct(p.contractReturn), class: 'num ' + pctClass(p.contractReturn) }),
+        returnCell(p.contractReturn, maxAbs),
         h('td', { text: p.lastValuationDate || '-', class: 'date' }),
         h('td', { class: 'drag-cell', title: '끌어서 순서 변경' }, [
           h('span', { class: 'drag-handle', text: '⠿' })
@@ -432,31 +536,38 @@
     panel.hidden = false;
     el('detail-title').textContent = p.name +
       (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기 도래)' : ''));
+    el('detail-meta').textContent = (p.createdDate ? '개설 ' + p.createdDate : '') +
+      (p.lastValuationDate ? ' · 최근 평가 ' + p.lastValuationDate : '');
 
-    var cards = el('detail-cards');
-    cards.innerHTML = '';
-    cards.appendChild(card('기준가', fmtNum(p.nav, 2), '1,000좌 기준'));
-    cards.appendChild(card('좌수', fmtNum(p.units, 0), ''));
     // 개별 계좌는 계약 기준으로 본다 — 보수 수취·재계약 시 평가금액을 새 계약 원금으로 승계.
     // 전체 성과(종합 요약)는 원금 흐름 기준이므로, 둘이 갈리면 원금 흐름도 함께 보여준다.
     var carried = Math.abs(p.contractPrincipal - p.principal) > 0.5;
     var paidOutNow = (p.contractFees || 0) + (p.contractPayouts || 0);
-    cards.appendChild(card('원금', fmtWon(p.contractPrincipal),
+    var showFlowRet = carried || (p.totalFees + (p.totalPayouts || 0)) > 0.5;
+
+    // 4열 헤어라인 그리드 — 항상 8칸으로 채워 행 높이가 들쭉날쭉하지 않게 한다
+    var cards = el('detail-cards');
+    cards.innerHTML = '';
+    cards.appendChild(metric('기준가', fmtNum(p.nav, 2), '1,000좌 기준'));
+    cards.appendChild(metric('좌수', fmtNum(p.units, 0), ''));
+    cards.appendChild(metric('원금', fmtWon(p.contractPrincipal),
       carried ? '계약 기준 · 원금흐름 ' + fmtWon(p.principal) : '계약 기준'));
-    cards.appendChild(card('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.contractPnl), pctClass(p.contractPnl)));
-    cards.appendChild(card('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
-    cards.appendChild(card('원금대비 수익률', fmtPct(p.contractReturn),
+    cards.appendChild(metric('평가금액', fmtWon(p.eval), '평가손익 ' + fmtWon(p.contractPnl), pctClass(p.contractPnl)));
+    cards.appendChild(metric('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
+    cards.appendChild(metric('원금대비 수익률', fmtPct(p.contractReturn),
       paidOutNow > 0.5 ? '지급분 ' + fmtWon(paidOutNow) + ' 포함(총수익)' : resetNote(p),
       pctClass(p.contractReturn)));
-    if (carried || (p.totalFees + (p.totalPayouts || 0)) > 0.5) {
-      cards.appendChild(card('원금흐름대비 수익률', fmtPct(p.principalReturn),
-        '전체 성과와 같은 기준 · 개설 이후', pctClass(p.principalReturn)));
-    }
-    cards.appendChild(card('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
-    cards.appendChild(card('누적 성과보수', fmtWon(p.totalFees), ''));
-    if (p.totalPayouts > 0 || p.lastMaturityDate) {
-      cards.appendChild(card('누적 이익지급', fmtWon(p.totalPayouts || 0),
-        p.lastMaturityDate ? '최근 만기 ' + p.lastMaturityDate : '이자·쿠폰·배당'));
+    cards.appendChild(showFlowRet
+      ? metric('원금흐름대비 수익률', fmtPct(p.principalReturn), '전체 성과와 같은 기준 · 개설 이후', pctClass(p.principalReturn))
+      : metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
+    cards.appendChild(metric('누적 성과보수', fmtWon(p.totalFees),
+      p.totalPayouts > 0 ? '누적 이익지급 ' + fmtWon(p.totalPayouts) : ''));
+    if (showFlowRet) {
+      cards.appendChild(metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
+      if (p.totalPayouts > 0 || p.lastMaturityDate) {
+        cards.appendChild(metric('누적 이익지급', fmtWon(p.totalPayouts || 0),
+          p.lastMaturityDate ? '최근 만기 ' + p.lastMaturityDate : '이자·쿠폰·배당'));
+      }
     }
 
     var warnBox = el('detail-warnings');
@@ -1439,6 +1550,7 @@
     });
 
     // 상단 도구
+    el('btn-rail-add').addEventListener('click', function () { el('btn-add-account').click(); });
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
 
