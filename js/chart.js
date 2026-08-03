@@ -53,18 +53,23 @@
       return;
     }
 
+    // 모바일처럼 컨테이너가 좁으면 여백·높이·눈금 수를 줄여 플롯 영역을 넓게 확보한다.
+    // (데스크톱은 container.clientWidth가 항상 480을 넘으므로 이 분기의 영향을 받지 않는다)
+    var W = container.clientWidth || 720;
+    var isNarrow = W < 480;
+
     // 값 범위
     var allY = [baselineY];
     series.forEach(function (s) { s.points.forEach(function (pt) { allY.push(pt.y); }); });
     var minY = Math.min.apply(null, allY), maxY = Math.max.apply(null, allY);
     var pad = (maxY - minY) * 0.12 || 0.01;
     minY -= pad; maxY += pad;
-    var ticks = niceTicks(minY, maxY, 4);
+    var ticks = niceTicks(minY, maxY, isNarrow ? 3 : 4);
     minY = Math.min(minY, ticks[0]); maxY = Math.max(maxY, ticks[ticks.length - 1]);
 
     // 레이아웃
-    var W = container.clientWidth || 720, H = 280;
-    var mL = 54, mR = 74, mT = 18, mB = 34;
+    var H = isNarrow ? 220 : 280;
+    var mL = isNarrow ? 38 : 54, mR = isNarrow ? 56 : 74, mT = isNarrow ? 12 : 18, mB = isNarrow ? 26 : 34;
     var plotW = W - mL - mR, plotH = H - mT - mB;
     var catIndex = {};
     cats.forEach(function (c, i) { catIndex[c] = i; });
@@ -85,19 +90,22 @@
     root.appendChild(defs);
 
     // y 격자 + 라벨
+    // 좁은 화면에서는 "100.00%" 같은 긴 라벨이 y축 여백을 넘어 잘리므로 정수%로 축약한다
+    // (끝점 라벨·범례 등 다른 곳의 표시는 그대로 두 자리 소수를 유지한다)
+    var fmtYAxis = isNarrow ? function (v) { return Math.round(v * 100) + '%'; } : fmtY;
     ticks.forEach(function (t) {
       var y = yOf(t);
       var isBase = Math.abs(t - baselineY) < 1e-9;
       var gridLine = { x1: mL, y1: y, x2: mL + plotW, y2: y, stroke: isBase ? AXIS : GRID, 'stroke-width': 1 };
       if (!isBase) gridLine['stroke-dasharray'] = '2 4';
       root.appendChild(svg('line', gridLine));
-      var lbl = svg('text', { x: mL - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: MUTED });
-      lbl.textContent = fmtY(t);
+      var lbl = svg('text', { x: mL - (isNarrow ? 6 : 8), y: y + 4, 'text-anchor': 'end', 'font-size': isNarrow ? 10 : 11, fill: MUTED });
+      lbl.textContent = fmtYAxis(t);
       root.appendChild(lbl);
     });
 
     // x 라벨 (너무 많으면 솎아내기)
-    var stepEvery = Math.ceil(cats.length / 9);
+    var stepEvery = Math.ceil(cats.length / (isNarrow ? 4 : 9));
     cats.forEach(function (c, i) {
       if (i % stepEvery !== 0 && i !== cats.length - 1) return;
       var x = xOf(c);
@@ -135,7 +143,7 @@
       var last = s.points[s.points.length - 1];
       var lx = xOf(last.x), ly = yOf(last.y);
       root.appendChild(svg('circle', { cx: lx, cy: ly, r: 3.5, fill: s.color, stroke: '#1b1e24', 'stroke-width': 2 }));
-      var tl = svg('text', { x: Math.min(lx + 8, W - 4), y: ly + 4, 'text-anchor': 'start', 'font-size': 11.5, 'font-weight': 600, fill: s.color });
+      var tl = svg('text', { x: Math.min(lx + 8, W - 4), y: ly + 4, 'text-anchor': 'start', 'font-size': isNarrow ? 10.5 : 11.5, 'font-weight': 600, fill: s.color });
       tl.textContent = fmtY(last.y);
       root.appendChild(tl);
     });
