@@ -473,12 +473,14 @@
     // 이미 실현돼 계좌 밖으로 나간 보수·배당은 되살리지 않는다(그래서 두 수익률이 다를 수 있다)
     var pnlRatio = s.totalPrincipal > 0 ? s.totalPnl / s.totalPrincipal : null;
 
-    // 전체 성과는 원금 흐름(입금 − 출금) 기준 — 개별 계좌의 계약원금 재설정과 무관하다
-    wrap.appendChild(card('총 원금', fmtWonAuto(s.totalPrincipal),
-      '원금 흐름 기준 · 입금 ' + fmtWonAuto(s.totalDeposits) + ' − 출금 ' + fmtWonAuto(s.totalWithdrawals)));
-    wrap.appendChild(card('총 평가금액', fmtWonAuto(s.totalEval),
+    // 5장이 한 줄에 들어오도록, 전체 자릿수 대신 억/만 축약(fmtWonShort)을 항상 쓴다.
+    // (이 카드들은 "한눈에 보는" 자리라 축약이 맞고, 정확한 자릿수는 계좌 목록·원금
+    // 원장·원금 입출금 내역처럼 대사가 필요한 표에서 fmtWon으로 그대로 볼 수 있다)
+    wrap.appendChild(card('총 원금', fmtWonShort(s.totalPrincipal),
+      '원금 흐름 기준 · 입금 ' + fmtWonShort(s.totalDeposits) + ' − 출금 ' + fmtWonShort(s.totalWithdrawals)));
+    wrap.appendChild(card('총 평가금액', fmtWonShort(s.totalEval),
       evalMultiple === null ? '전 계좌 합계' : '원금 대비 ' + evalMultiple.toFixed(2) + '배'));
-    wrap.appendChild(card('평가손익', fmtWonAuto(s.totalPnl),
+    wrap.appendChild(card('평가손익', fmtWonShort(s.totalPnl),
       pnlRatio === null ? '' : '보유 기준 원금대비 ' + fmtPct(pnlRatio), pctClass(s.totalPnl)));
     wrap.appendChild(card('종합 성과 수익률', fmtPct(comp.ret), '기준가 방식 · 지수 ' + fmtNum(comp.index, 2), pctClass(comp.ret)));
     wrap.appendChild(card('원금대비 단순 수익률', fmtPct(s.simpleReturn), '총수익 기준 — 지급된 배당·보수를 되살려 계산', pctClass(s.simpleReturn)));
