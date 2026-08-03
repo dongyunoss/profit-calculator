@@ -64,6 +64,9 @@
     // (데스크톱은 container.clientWidth가 항상 480을 넘으므로 이 분기의 영향을 받지 않는다)
     var W = container.clientWidth || 720;
     var isNarrow = W < 480;
+    // 인쇄 리포트처럼 아주 좁은 칸(≈230px)에서는 여백·글자를 한 단계 더 줄여야
+    // 플롯이 남고 x축 라벨이 서로 붙지 않는다
+    var isTiny = W < 330;
 
     // 값 범위
     var allY = [baselineY];
@@ -76,7 +79,10 @@
 
     // 레이아웃
     var H = opts.height || (isNarrow ? 220 : 280);
-    var mL = isNarrow ? 38 : 54, mR = isNarrow ? 56 : 74, mT = isNarrow ? 12 : 18, mB = isNarrow ? 26 : 34;
+    var mL = isTiny ? 28 : (isNarrow ? 38 : 54),
+        mR = isTiny ? 48 : (isNarrow ? 56 : 74),
+        mT = isNarrow ? 12 : 18,
+        mB = isTiny ? 20 : (isNarrow ? 26 : 34);
     var plotW = W - mL - mR, plotH = H - mT - mB;
     var catIndex = {};
     cats.forEach(function (c, i) { catIndex[c] = i; });
@@ -106,17 +112,25 @@
       var gridLine = { x1: mL, y1: y, x2: mL + plotW, y2: y, stroke: isBase ? T.axis : T.grid, 'stroke-width': 1 };
       if (!isBase) gridLine['stroke-dasharray'] = '2 4';
       root.appendChild(svg('line', gridLine));
-      var lbl = svg('text', { x: mL - (isNarrow ? 6 : 8), y: y + 4, 'text-anchor': 'end', 'font-size': isNarrow ? 10 : 11, fill: T.muted });
+      var lbl = svg('text', { x: mL - (isNarrow ? 6 : 8), y: y + 4, 'text-anchor': 'end', 'font-size': isTiny ? 8.5 : (isNarrow ? 10 : 11), fill: T.muted });
       lbl.textContent = fmtYAxis(t);
       root.appendChild(lbl);
     });
 
-    // x 라벨 (너무 많으면 솎아내기)
-    var stepEvery = Math.ceil(cats.length / (isNarrow ? 4 : 9));
+    // x 라벨 — 라벨 하나가 차지하는 폭(labelW)으로 개수를 정하고,
+    // 마지막 라벨과 겹치는 것은 버린다. 넓은 화면에서는 기존 개수(9/4단계)를 상한으로 둬
+    // 데스크톱·모바일 차트의 눈금 수가 바뀌지 않게 한다.
+    var xFont = isTiny ? 9 : 11;
+    var labelW = isTiny ? 36 : 48;
+    var maxLabels = Math.min(isNarrow ? 5 : 10, Math.max(2, Math.floor(plotW / labelW)));
+    var stepEvery = Math.max(1, Math.ceil((cats.length - 1) / (maxLabels - 1)));
+    var lastX = xOf(cats[cats.length - 1]);
     cats.forEach(function (c, i) {
-      if (i % stepEvery !== 0 && i !== cats.length - 1) return;
+      var isLast = i === cats.length - 1;
+      if (!isLast && i % stepEvery !== 0) return;
       var x = xOf(c);
-      var lbl = svg('text', { x: x, y: mT + plotH + 20, 'text-anchor': 'middle', 'font-size': 11, fill: T.muted });
+      if (!isLast && lastX - x < labelW) return; // 끝 라벨과 겹치면 생략
+      var lbl = svg('text', { x: x, y: mT + plotH + (isTiny ? 15 : 20), 'text-anchor': 'middle', 'font-size': xFont, fill: T.muted });
       lbl.textContent = c.slice(5).replace('-', '/'); // MM/DD
       root.appendChild(lbl);
     });
@@ -150,7 +164,7 @@
       var last = s.points[s.points.length - 1];
       var lx = xOf(last.x), ly = yOf(last.y);
       root.appendChild(svg('circle', { cx: lx, cy: ly, r: 3.5, fill: s.color, stroke: T.marker, 'stroke-width': 2 }));
-      var tl = svg('text', { x: Math.min(lx + 8, W - 4), y: ly + 4, 'text-anchor': 'start', 'font-size': isNarrow ? 10.5 : 11.5, 'font-weight': 600, fill: s.color });
+      var tl = svg('text', { x: Math.min(lx + 6, W - 4), y: ly + 4, 'text-anchor': 'start', 'font-size': isTiny ? 9.5 : (isNarrow ? 10.5 : 11.5), 'font-weight': 600, fill: s.color });
       tl.textContent = fmtY(last.y);
       root.appendChild(tl);
     });
