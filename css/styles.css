@@ -47,14 +47,16 @@
   --radius-sm:     5px;
   --radius-pill:   11px;
 
-  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* 숫자용. 한글(원·억·만)은 JetBrains Mono에 없으므로 본문 한글 폰트로 흘려보낸다 */
+  --mono: 'JetBrains Mono', 'Noto Sans KR', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font-family: 'Pretendard Variable', Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--sans);
   background: var(--bg);
   color: var(--text);
   font-size: 14px;
@@ -71,6 +73,18 @@ input[type="date"] { color-scheme: dark; }
 .legend-value, .chart-tooltip, .index-current-value, .index-change-value {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
+}
+
+/* 금액·수익률은 한 값이 곧 한 덩어리다. 어디서든 두 줄로 쪼개지지 않는다.
+   (한글이 붙은 "…129원"·"381억 2,984만원"은 기본 규칙상 숫자와 원/억 사이에
+   줄바꿈이 허용되므로 명시적으로 막아야 한다) */
+.card-value, .metric-value, .rail-eval, .rail-ret, .rail-nav, .rail-sum-value,
+.rail-sum-sub, .ret-value, .legend-value, .ledger-ret, .index-current-value,
+.index-change-value, .table-more-count,
+table.grid td.num, table.grid td.date,
+.ledger-table .lg-v, .ledger-table .lg-d,
+.rp-stat-value, .rp-stat-sub, .rp-table td, .rp-table th {
+  white-space: nowrap;
 }
 
 /* ---------- 헤더 ---------- */
@@ -310,7 +324,9 @@ main {
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  /* 값(최대 "55,967,232,129원" 폭 ≈224px) + 좌우 여백이 들어갈 만큼.
+     좁아지면 글자를 줄이는 대신 열 수를 먼저 줄인다 */
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
   gap: 14px;
 }
 
@@ -336,7 +352,7 @@ main {
   letter-spacing: -0.8px;
   line-height: 1.05;
   color: var(--text);
-  word-break: break-all;
+  white-space: nowrap;
 }
 .card-sub {
   color: var(--muted-2);
@@ -344,6 +360,13 @@ main {
   margin-top: 9px;
   line-height: 1.5;
   text-wrap: pretty;
+}
+
+/* 설명문은 한글 단어 중간("출/금")이 아니라 어절 경계에서 접는다 */
+.card-sub, .metric-sub, .chart-note, .footnote, .hint, .rail-sum-sub,
+.empty-desc, .confirm-body, .rp-page-foot {
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 /* ---------- 패널 ---------- */
@@ -505,8 +528,11 @@ table.grid td.date { color: var(--muted); font-family: var(--mono); font-size: 1
 .ret-fill.neg { background: var(--neg); }
 .ret-value { font-size: 13px; font-weight: 600; font-family: var(--mono); }
 
-.pos { color: var(--pos); }
-.neg { color: var(--neg); }
+/* 손익 색은 컴포넌트의 기본 글자색을 항상 이겨야 한다.
+   클래스 하나짜리(.pos)로 두면 뒤에 정의된 .metric-value의 color가 이겨서
+   상세 패널 8칸의 손익 색이 통째로 죽는다 — 같은 클래스를 겹쳐 특정도를 올린다. */
+.pos.pos { color: var(--pos); }
+.neg.neg { color: var(--neg); }
 table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 
 /* ---------- 계좌 상세 ---------- */
@@ -540,7 +566,7 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 /* 상세 지표 8칸 — 1px 헤어라인 그리드 */
 .metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(232px, 1fr));
   gap: 1px;
   background: var(--border);
   border-radius: var(--radius);
@@ -561,7 +587,7 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
   letter-spacing: -0.5px;
   line-height: 1.1;
   color: var(--text);
-  word-break: break-all;
+  white-space: nowrap;
 }
 .metric-sub { font-size: 11px; color: var(--muted-2); margin-top: 7px; min-height: 16px; line-height: 1.45; }
 
@@ -1148,7 +1174,9 @@ tr.lg-note td {
   .cards { grid-template-columns: minmax(0, 1fr); gap: 10px; }
   .card { padding: 14px 16px; }
   .card-value { font-size: 21px; }
-  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* 값을 줄이는 대신 열 수를 줄인다 — 최장값("▲ 381억 2,984만원" ≈157px)이
+     들어갈 폭이 안 나오면 자동으로 1열이 된다 (작은 폰은 1열, 큰 폰은 2열) */
+  .metrics { grid-template-columns: repeat(auto-fit, minmax(186px, 1fr)); }
   .metric { padding: 12px 14px; }
   .metric-value { font-size: 17px; }
 
@@ -1255,7 +1283,7 @@ tr.lg-note td {
 .rp-page {
   display: flex;
   flex-direction: column;
-  font-family: 'Pretendard Variable', Pretendard, "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  font-family: var(--sans);
   font-size: 9pt;
   line-height: 1.45;
   color: #111827;
@@ -1342,13 +1370,12 @@ tr.lg-note td {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   margin-top: .4mm;
-  word-break: keep-all;
 }
 .rp-stat-sub { display: block; font-family: var(--mono); font-size: 6.2pt; color: #6b7280; }
 
 /* 인쇄에서는 손익 색을 종이용 채도로 (한국 관례: 이익 적색 / 손실 청색) */
-.rp-page .pos { color: #c0392b; }
-.rp-page .neg { color: #1d4ed8; }
+.rp-page .pos.pos { color: #c0392b; }
+.rp-page .neg.neg { color: #1d4ed8; }
 
 /* 차트 | 표를 좌우로 — 세로로 쌓으면 계좌 하나가 페이지를 다 먹는다 */
 .rp-cols { display: grid; grid-template-columns: 61mm minmax(0, 1fr); gap: 4mm; margin-top: 2mm; }
