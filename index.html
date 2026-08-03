@@ -36,7 +36,6 @@
     <button id="btn-backup" class="btn">백업</button>
     <button id="btn-restore" class="btn">복원</button>
     <button id="btn-pdf" class="btn">PDF 리포트</button>
-    <button id="btn-theme" class="btn icon-toggle" type="button" title="화면 모드 전환" aria-pressed="false"></button>
     <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
     <input type="file" id="restore-file" accept=".json,application/json" hidden>
     <input type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
@@ -269,6 +268,19 @@
     <button type="button" id="btn-import-confirm" class="btn primary">계좌 등록</button>
   </div>
 </dialog>
+
+<!-- 화면 모드 전환 — 좌측 하단 고정. 다크일 때 해(=데이로 전환), 라이트일 때 달을 보여준다 -->
+<button id="btn-theme" class="theme-fab" type="button" aria-pressed="false">
+  <svg class="icon-sun" viewBox="0 0 24 24" width="19" height="19" fill="none"
+       stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="4.2"/>
+    <path d="M12 2.4v2.2M12 19.4v2.2M4.2 12H2M22 12h-2.2M6.5 6.5 4.9 4.9M19.1 19.1l-1.6-1.6M17.5 6.5l1.6-1.6M4.9 19.1l1.6-1.6"/>
+  </svg>
+  <svg class="icon-moon" viewBox="0 0 24 24" width="19" height="19" fill="none"
+       stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20.5 14.3A8.5 8.5 0 0 1 9.7 3.5a8.5 8.5 0 1 0 10.8 10.8z"/>
+  </svg>
+</button>
 
 <!-- 토스트: 저장·삭제 등 결과 피드백 (네이티브 alert 대체) -->
 <div id="toast-host" class="toast-host" role="status" aria-live="polite"></div>
