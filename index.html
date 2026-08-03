@@ -10,6 +10,18 @@
      숫자: JetBrains Mono — 화면 판독용으로 설계돼 x-높이가 IBM Plex Mono보다 크고 0/O·1/l 구분이 명확 -->
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="css/styles.css">
+<script>
+// 스타일시트가 적용되기 전에 테마를 확정한다 — 저장값이 라이트인데 다크로 한 프레임
+// 그려졌다가 바뀌면 화면이 번쩍인다. 저장값이 없으면 OS 설정을 따른다.
+(function () {
+  try {
+    var saved = localStorage.getItem('profit-calculator-theme');
+    var theme = saved || (window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'dark'); }
+})();
+</script>
 </head>
 <body>
 <header class="topbar">
@@ -24,6 +36,7 @@
     <button id="btn-backup" class="btn">백업</button>
     <button id="btn-restore" class="btn">복원</button>
     <button id="btn-pdf" class="btn">PDF 리포트</button>
+    <button id="btn-theme" class="btn icon-toggle" type="button" title="화면 모드 전환" aria-pressed="false"></button>
     <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
     <input type="file" id="restore-file" accept=".json,application/json" hidden>
     <input type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>

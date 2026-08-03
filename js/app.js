@@ -112,6 +112,54 @@
     return state.accounts.find(function (a) { return a.id === id; }) || null;
   }
 
+  // ---------- 화면 모드(다크/데이) ----------
+  //
+  // 색은 전부 CSS 토큰이라 html[data-theme] 하나만 바꾸면 화면은 끝난다.
+  // 차트는 SVG를 직접 그리므로 아래 chartPalette()로 같은 토큰을 읽어 넘긴다.
+
+  var THEME_KEY = 'profit-calculator-theme';
+
+  function currentTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    var btn = el('btn-theme');
+    if (btn) {
+      var toLight = theme === 'dark';
+      btn.textContent = toLight ? '☀ 데이' : '☾ 다크';
+      btn.title = toLight ? '데이 모드로 전환' : '다크 모드로 전환';
+      btn.setAttribute('aria-label', btn.title);
+      btn.setAttribute('aria-pressed', theme === 'light' ? 'true' : 'false');
+    }
+  }
+
+  function toggleTheme() {
+    var next = currentTheme() === 'dark' ? 'light' : 'dark';
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch (e) { /* 저장 실패는 무시 */ }
+    if (lastResult) renderChart(lastResult); // 차트는 SVG라 다시 그려야 색이 바뀐다
+  }
+
+  // CSS 토큰에서 차트 색을 읽는다 — 팔레트를 CSS 한 곳에서만 관리하기 위해
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  }
+
+  // 격자·축·마커 색은 chart.js가 theme 이름으로 자체 관리한다 — 여기선 선 색만 넘긴다
+  function chartPalette() {
+    var s = [];
+    for (var i = 1; i <= 8; i++) s.push(cssVar('--s' + i, '#4fb3c9'));
+    return {
+      theme: currentTheme(),
+      series: s,
+      composite: s[0],
+      benchmark: cssVar('--benchmark', '#5d6472')
+    };
+  }
+
   // ---------- 알림·확인·입력 (네이티브 alert/confirm/prompt 대체) ----------
 
   // 결과 피드백은 흐름을 끊지 않는 토스트로. type: 'info' | 'ok' | 'warn' | 'error'
@@ -236,8 +284,8 @@
 
   // 계좌별 카테고리 색상 (dataviz 검증 팔레트, 고정 순서로 배정)
   // 다크 배경에서 구분되는 계좌별 라인 색
-  var SERIES_COLORS = ['#4fb3c9', '#f0885a', '#7ddba0', '#e8c06a', '#e88bb4', '#6ba8ff', '#b28cf0', '#ff8080'];
-  var COMPOSITE_COLOR = '#4fb3c9';
+  // 색 값 자체는 CSS의 --s1..--s8 / --benchmark가 갖고 있다(테마별로 다름).
+  // 여기서는 chartPalette()로 그때그때 읽어 쓴다.
   var chartMode = 'composite';
   var selectedChartAccountId = null; // '계좌별 누적 수익률'에서 단일 계좌만 볼 때
   var lastResult = null;
@@ -255,7 +303,6 @@
 
   // ---------- 벤치마크 지수 (코스피 등) ----------
 
-  var BENCHMARK_COLOR = '#5d6472';
 
   // '2026.01.02' / '2026/01/02' / '20260102' / '2026-1-2' → '2026-01-02'
   function normalizeDate(raw) {
@@ -314,7 +361,7 @@
       pts.push({ x: c, y: v / base - 1 });
     });
     if (pts.length < 2) return null;
-    return { name: bm.name || '벤치마크', color: BENCHMARK_COLOR, points: pts, dashed: true };
+    return { name: bm.name || '벤치마크', color: chartPalette().benchmark, points: pts, dashed: true };
   }
 
   function legendItem(name, color, dashed, value, valueCls) {
@@ -347,12 +394,13 @@
       var pts = [{ x: comp.series.length ? firstDate(processed) : '', y: 0 }].filter(function (p) { return p.x; });
       comp.series.forEach(function (s) { pts.push({ x: s.date, y: s.index / Engine.NAV_BASE - 1 }); });
       var cats = pts.map(function (p) { return p.x; });
-      var seriesList = [{ name: '종합 성과 수익률', color: COMPOSITE_COLOR, points: pts, emphasis: true }];
+      var pal = chartPalette();
+      var seriesList = [{ name: '종합 성과 수익률', color: pal.composite, points: pts, emphasis: true }];
       var bm = benchmarkSeries(cats);
       if (bm) seriesList.push(bm);
-      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
+      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats, theme: pal.theme });
       var lastY = pts.length ? pts[pts.length - 1].y : 0;
-      legend.appendChild(legendItem('종합 성과 지수', COMPOSITE_COLOR, false, fmtPct(lastY), pctClass(lastY)));
+      legend.appendChild(legendItem('종합 성과 지수', pal.composite, false, fmtPct(lastY), pctClass(lastY)));
       if (bm) {
         var bmLast = bm.points[bm.points.length - 1].y;
         legend.appendChild(legendItem(bm.name, bm.color, true, fmtPct(bmLast), pctClass(bmLast)));
@@ -363,8 +411,8 @@
       // 평가 데이터가 있는 계좌만
       var active = processed.filter(function (p) { return p.daily.length > 0; });
       // 색상은 전체 기준 고정 배정 → 단일 계좌만 봐도 색이 바뀌지 않음
-      var colorOf = {};
-      active.forEach(function (p, i) { colorOf[p.id] = SERIES_COLORS[i % SERIES_COLORS.length]; });
+      var colorOf = {}, palA = chartPalette();
+      active.forEach(function (p, i) { colorOf[p.id] = palA.series[i % palA.series.length]; });
       // 선택했던 계좌가 사라졌으면 선택 해제
       if (selectedChartAccountId && !active.some(function (p) { return p.id === selectedChartAccountId; })) {
         selectedChartAccountId = null;
@@ -402,7 +450,7 @@
         seriesList.push(bmA);
         legend.appendChild(legendItem(bmA.name, bmA.color, true));
       }
-      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats });
+      Chart.renderLineChart(el('chart-area'), { series: seriesList, categories: cats, theme: palA.theme });
       note.textContent = selectedChartAccountId
         ? '선택한 계좌의 개설 이후 누적 수익률입니다. 범례에서 계좌명을 다시 누르면 전체 계좌를 함께 봅니다.'
         : '계좌별 개설 이후 누적 수익률(기준가 방식)입니다. 범례에서 계좌명을 누르면 해당 계좌만 볼 수 있습니다. 성과보수 수취로 인한 리셋과 무관하게 순수 성과가 이어집니다.';
@@ -1941,6 +1989,21 @@
   function init() {
     loadState();
     wireDialogs();
+    // <head>의 인라인 스크립트가 이미 data-theme를 세팅했다 — 버튼 라벨만 맞춘다
+    applyTheme(currentTheme());
+    // 저장된 선택이 없을 때만 OS 설정 변화를 따라간다
+    if (window.matchMedia) {
+      var osLight = window.matchMedia('(prefers-color-scheme: light)');
+      var onOsChange = function (e) {
+        var saved = null;
+        try { saved = localStorage.getItem(THEME_KEY); } catch (_) { /* 무시 */ }
+        if (saved) return;
+        applyTheme(e.matches ? 'light' : 'dark');
+        if (lastResult) renderChart(lastResult);
+      };
+      if (osLight.addEventListener) osLight.addEventListener('change', onOsChange);
+      else if (osLight.addListener) osLight.addListener(onOsChange);
+    }
 
     // 계좌 추가 다이얼로그
     var dialog = el('account-dialog');
@@ -2170,6 +2233,7 @@
     });
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
     el('btn-pdf').addEventListener('click', downloadReportPdf);
+    el('btn-theme').addEventListener('click', toggleTheme);
     el('btn-import-xlsx').addEventListener('click', function () { el('import-file').click(); });
     el('import-file').addEventListener('change', function (e) {
       if (e.target.files[0]) parseImportXlsx(e.target.files[0]);

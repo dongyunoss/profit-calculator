@@ -1,8 +1,12 @@
 /*
- * 다크 데스크 UI — 자산운용 수익률 관리
+ * 자산운용 수익률 관리 — 다크/라이트 두 테마
+ *
+ * 색은 전부 :root 토큰으로만 쓴다. 라이트 테마는 아래 [data-theme="light"]에서
+ * 같은 토큰을 덮어쓰는 것으로 끝나고, 컴포넌트 규칙은 하나도 건드리지 않는다.
  * 손익 색은 한국 관례: 이익 = 적색(--pos), 손실 = 청색(--neg)
  */
 :root {
+  color-scheme: dark;
   --bg:            #14161a;  /* 페이지 배경 */
   --panel:         #1b1e24;  /* 카드·패널 */
   --panel-2:       #1e222a;  /* thead, 폼, 서브헤더 */
@@ -12,12 +16,11 @@
   --border:        #262b33;
   --border-soft:   #21252c;  /* 표 행 구분선 */
   --border-strong: #2f353f;  /* 버튼·입력 보더 */
-  --axis:          #39404b;  /* 차트 0% 기준선 */
 
   --text:          #e8eaed;
   --text-soft:     #c8ccd4;
-  --muted:         #8b929e;
-  --muted-2:       #6f7683;
+  --muted:         #99a1ad;  /* 보조 텍스트 — 11px에서도 AA(4.5:1) 확보 */
+  --muted-2:       #838b98;  /* 3차 텍스트 */
 
   --primary:       #4fb3c9;
   --primary-text:  #6fc4d9;
@@ -43,6 +46,32 @@
   --danger-bd:     #4a2b30;
   --danger-hv:     #332326;
 
+  --hover:         #282d36;  /* 버튼·칩 hover 배경 */
+  --text-strong:   #ffffff;  /* 선택된 행·강조 텍스트 */
+  --on-accent:     #ffffff;  /* primary 버튼 위 글자 */
+  --row-selected:  #1f232b;
+  --row-sum:       #1c2027;
+  --row-final:     #1c2b30;
+  --warn-btn-hv:   #4a3a17;
+  --fee-label:     #9c9280;
+  --fee-hint:      #8d8677;
+  --fee-hint-b:    #c9bfa6;
+  --benchmark:     #5d6472;  /* 벤치마크(코스피) 선 */
+
+  --tag-dep-bg: #16301f; --tag-dep-fg: #7ddba0; --tag-dep-bd: #22462e;
+  --tag-wd-bg:  #301a1a; --tag-wd-fg:  #ff9a9a; --tag-wd-bd:  #4a2b30;
+  --tag-val-bg: #1a2436; --tag-val-fg: #8fb8f0; --tag-val-bd: #263750;
+  --tag-fee-bg: #332a16; --tag-fee-fg: #f0cc7d; --tag-fee-bd: #4d3f1e;
+  --tag-pay-bg: #16302e; --tag-pay-fg: #7dd6ce; --tag-pay-bd: #22453f;
+
+  --shadow-dialog: 0 24px 60px rgba(0, 0, 0, .5);
+  --shadow-toast:  0 12px 28px rgba(0, 0, 0, .45);
+  --backdrop:      rgba(10, 12, 15, .6);
+
+  /* 차트 계좌별 라인 색 (js가 읽어 간다) */
+  --s1: #4fb3c9; --s2: #f0885a; --s3: #7ddba0; --s4: #e8c06a;
+  --s5: #e88bb4; --s6: #6ba8ff; --s7: #b28cf0; --s8: #ff8080;
+
   --radius:        6px;
   --radius-sm:     5px;
   --radius-pill:   11px;
@@ -52,6 +81,76 @@
   --sans: 'Noto Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 
+/* ---------- 라이트(데이) 테마 ----------
+   흰 배경에서는 다크용 밝은 적/청이 뜨므로 손익 색을 채도 높은 쪽으로 내린다. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:            #f2f4f7;
+  --panel:         #ffffff;
+  --panel-2:       #f7f8fa;
+  --panel-3:       #eef1f5;
+  --control:       #ffffff;
+  --input-bg:      #ffffff;
+  --border:        #dde2e8;
+  --border-soft:   #ebeef2;
+  --border-strong: #c8d0d9;
+
+  --text:          #14181d;
+  --text-soft:     #333b45;
+  --muted:         #545d69;
+  --muted-2:       #656e7a;
+
+  --primary:       #0e7490;
+  --primary-text:  #0b6076;
+  --primary-bg:    #e2f2f7;
+  --primary-bd:    #a5d4e1;
+  --primary-btn:   #0e7490;
+  --primary-btn-bd:#0b6076;
+  --primary-btn-hv:#0b6076;
+  --primary-tint:  #e2f2f7;
+
+  --pos:           #d32020;  /* 이익 — 적색 */
+  --neg:           #1560c4;  /* 손실 — 청색 */
+
+  --warn:          #8a6100;
+  --warn-bg:       #fdf8ea;
+  --warn-bd:       #e9dcb4;
+  --warn-btn-bg:   #fbeecb;
+  --warn-btn-fg:   #7a5500;
+  --warn-btn-bd:   #ddc78c;
+  --warn-btn-hv:   #f5e3b4;
+
+  --danger:        #c0271f;
+  --danger-bg:     #fdeceb;
+  --danger-bd:     #f0c3c0;
+  --danger-hv:     #fadedb;
+
+  --hover:         #e8ecf1;
+  --text-strong:   #000000;
+  --on-accent:     #ffffff;
+  --row-selected:  #eaf4f8;
+  --row-sum:       #f0f2f5;
+  --row-final:     #e2f2f7;
+  --fee-label:     #7a6f57;
+  --fee-hint:      #857a63;
+  --fee-hint-b:    #5c5340;
+  --benchmark:     #6b7280;
+
+  --tag-dep-bg: #e6f4ec; --tag-dep-fg: #1c7a4a; --tag-dep-bd: #bce0cd;
+  --tag-wd-bg:  #fdecea; --tag-wd-fg:  #b3261e; --tag-wd-bd:  #f2c4c0;
+  --tag-val-bg: #e9eff9; --tag-val-fg: #2a5aa8; --tag-val-bd: #c3d3ec;
+  --tag-fee-bg: #fbf0d8; --tag-fee-fg: #8a6100; --tag-fee-bd: #e6d3a3;
+  --tag-pay-bg: #e2f3f1; --tag-pay-fg: #10706a; --tag-pay-bd: #b7ded9;
+
+  --shadow-dialog: 0 20px 48px rgba(20, 24, 29, .18);
+  --shadow-toast:  0 10px 24px rgba(20, 24, 29, .16);
+  --backdrop:      rgba(20, 24, 29, .38);
+
+  --s1: #0e7490; --s2: #c2410c; --s3: #15803d; --s4: #a16207;
+  --s5: #be185d; --s6: #1d4ed8; --s7: #6d28d9; --s8: #b91c1c;
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -59,13 +158,14 @@ body {
   font-family: var(--sans);
   background: var(--bg);
   color: var(--text);
+  transition: background-color .15s ease, color .15s ease;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
 input, select, textarea, button { font-family: inherit; }
-input[type="date"] { color-scheme: dark; }
+input[type="date"] { color-scheme: inherit; }
 
 /* 수치는 전부 등폭 + 자릿수 고정 */
 .card-value, .metric-value, table.grid td.num, .ledger-table .lg-v, .ledger-table .lg-d,
@@ -173,7 +273,7 @@ main {
   cursor: pointer;
   transition: background .12s, color .12s;
 }
-.rail-add:hover { background: #282d36; color: #fff; }
+.rail-add:hover { background: var(--hover); color: var(--text-strong); }
 
 .rail-item {
   padding: 13px 18px;
@@ -204,7 +304,7 @@ main {
   align-items: center;
   gap: 6px;
 }
-.rail-item.selected .rail-name { color: #fff; }
+.rail-item.selected .rail-name { color: var(--text-strong); }
 
 .rail-ret { font-size: 13px; font-weight: 600; white-space: nowrap; }
 .rail-eval { font-size: 11.5px; color: var(--muted); }
@@ -254,14 +354,14 @@ main {
   transition: background .12s, color .12s, border-color .12s;
 }
 
-.btn:hover { background: #282d36; color: #fff; }
+.btn:hover { background: var(--hover); color: var(--text-strong); }
 
 .btn.primary {
   background: var(--primary-btn);
   border-color: var(--primary-btn-bd);
-  color: #fff;
+  color: var(--on-accent);
 }
-.btn.primary:hover { background: var(--primary-btn-hv); color: #fff; }
+.btn.primary:hover { background: var(--primary-btn-hv); color: var(--on-accent); }
 
 .btn.danger {
   background: var(--danger-bg);
@@ -275,9 +375,16 @@ main {
   border-color: var(--warn-btn-bd);
   color: var(--warn-btn-fg);
 }
-.btn.warn:hover { background: #4a3a17; color: var(--warn-btn-fg); }
+.btn.warn:hover { background: var(--warn-btn-hv); color: var(--warn-btn-fg); }
 
 .btn.tiny { padding: 3px 8px; font-size: 11.5px; font-weight: 600; }
+
+/* 화면 모드 전환 — 글자 수가 바뀌어도 툴바가 흔들리지 않게 폭을 고정 */
+.icon-toggle {
+  min-width: 74px;
+  text-align: center;
+  white-space: nowrap;
+}
 
 /* 상세 창 제목 옆 연필(이름 변경) 아이콘 */
 .detail-title-wrap {
@@ -504,10 +611,10 @@ table.grid td.date { color: var(--muted); font-family: var(--mono); font-size: 1
 #accounts-table tbody tr { cursor: pointer; transition: background .12s; }
 #accounts-table tbody tr:hover { background: var(--panel-3); }
 #accounts-table tbody tr.selected {
-  background: #1f232b;
+  background: var(--row-selected);
   box-shadow: inset 2px 0 0 var(--primary);
 }
-#accounts-table tbody tr.selected td.name { color: #fff; }
+#accounts-table tbody tr.selected td.name { color: var(--text-strong); }
 #accounts-table tbody tr.closed { opacity: .5; }
 #accounts-table td.num { color: var(--muted); }
 #accounts-table td.eval { color: var(--text); font-weight: 500; }
@@ -614,13 +721,13 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 #ledger-table td:nth-child(2) { font-family: var(--mono); font-size: 11.5px; color: var(--muted-2); text-align: center; }
 #ledger-table td.num { text-align: right; font-family: var(--mono); }
 #ledger-table tr.lg-principal td { background: var(--panel-2); font-weight: 700; color: var(--text); }
-#ledger-table tr.lg-sum td { background: #1c2027; font-weight: 600; }
+#ledger-table tr.lg-sum td { background: var(--row-sum); font-weight: 600; }
 #ledger-table tr.lg-final td {
-  background: #1c2b30;
+  background: var(--row-final);
   border-top: 1px solid var(--border);
   border-bottom: none;
   font-weight: 700;
-  color: #fff;
+  color: var(--text-strong);
 }
 #ledger-table tr.lg-final td:first-child { color: var(--primary-text); }
 
@@ -639,11 +746,11 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
   white-space: nowrap;
 }
 
-.tag-deposit    { background: #16301f; color: #7ddba0; border-color: #22462e; }
-.tag-withdraw   { background: #301a1a; color: #ff9a9a; border-color: #4a2b30; }
-.tag-valuation  { background: #1a2436; color: #8fb8f0; border-color: #263750; }
-.tag-fee        { background: #332a16; color: #f0cc7d; border-color: #4d3f1e; }
-.tag-payout     { background: #16302e; color: #7dd6ce; border-color: #22453f; }
+.tag-deposit    { background: var(--tag-dep-bg);  color: var(--tag-dep-fg);  border-color: var(--tag-dep-bd); }
+.tag-withdraw   { background: var(--tag-wd-bg);   color: var(--tag-wd-fg);   border-color: var(--tag-wd-bd); }
+.tag-valuation  { background: var(--tag-val-bg);  color: var(--tag-val-fg);  border-color: var(--tag-val-bd); }
+.tag-fee        { background: var(--tag-fee-bg);  color: var(--tag-fee-fg);  border-color: var(--tag-fee-bd); }
+.tag-payout     { background: var(--tag-pay-bg);  color: var(--tag-pay-fg);  border-color: var(--tag-pay-bd); }
 .tag-closeout,
 .tag-closed,
 .tag-maturity,
@@ -700,9 +807,9 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 /* 성과보수 폼은 앰버 톤으로 구분 */
 #form-fee { background: var(--warn-bg); border-color: var(--warn-bd); }
 #form-fee h3 { color: var(--warn); }
-#form-fee label { color: #9c9280; }
-#form-fee .hint { color: #8d8677; }
-#form-fee .hint b { color: #c9bfa6; }
+#form-fee label { color: var(--fee-label); }
+#form-fee .hint { color: var(--fee-hint); }
+#form-fee .hint b { color: var(--fee-hint-b); }
 
 .hint { margin: 0; font-size: 11.5px; color: var(--muted-2); line-height: 1.55; text-wrap: pretty; }
 .hint b { color: var(--text-soft); }
@@ -725,10 +832,10 @@ dialog {
   background: var(--panel);
   color: var(--text);
   padding: 22px;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, .5);
+  box-shadow: var(--shadow-dialog);
   max-width: 94vw;
 }
-dialog::backdrop { background: rgba(10, 12, 15, .6); }
+dialog::backdrop { background: var(--backdrop); }
 
 /* min()으로 감싸 좁은 화면에서 340px가 뷰포트보다 커지지 않게 한다 (데스크톱은 항상 340px 그대로) */
 dialog form { display: flex; flex-direction: column; gap: 12px; min-width: min(340px, 78vw); }
@@ -782,7 +889,7 @@ dialog label {
   color: var(--text-soft);
   font-size: 12.5px;
   line-height: 1.55;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, .45);
+  box-shadow: var(--shadow-toast);
   word-break: keep-all;
   overflow-wrap: break-word;
   /* 등장 전 상태 — .show가 붙으면 제자리로 */
@@ -798,6 +905,7 @@ dialog label {
 
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
+  body { transition: none; }
 }
 
 /* ---------- 빈 상태 ---------- */
@@ -862,7 +970,7 @@ dialog label {
   cursor: pointer;
   transition: background .12s, color .12s, border-color .12s;
 }
-.chip:hover { background: #282d36; color: var(--text-soft); }
+.chip:hover { background: var(--hover); color: var(--text-soft); }
 .chip.active {
   background: var(--primary-bg);
   border-color: var(--primary-bd);
@@ -888,7 +996,7 @@ dialog label {
 }
 .legend-swatch.dashed {
   width: 16px;
-  background-image: repeating-linear-gradient(90deg, #5d6472 0 5px, transparent 5px 9px) !important;
+  background-image: repeating-linear-gradient(90deg, var(--benchmark) 0 5px, transparent 5px 9px) !important;
   background-color: transparent !important;
 }
 .legend-value { font-size: 12px; font-weight: 600; }
@@ -1007,14 +1115,14 @@ dialog.wide-dialog {
 .ledger-table tr.lg-principal { background: var(--panel-2); }
 .ledger-table tr.lg-principal .lg-k,
 .ledger-table tr.lg-principal .lg-v { font-weight: 700; color: var(--text); }
-.ledger-table tr.lg-sum { background: #1c2027; }
+.ledger-table tr.lg-sum { background: var(--row-sum); }
 .ledger-table tr.lg-sum .lg-v { font-weight: 600; }
 .ledger-table tr.lg-final td {
   border-top: 1px solid var(--border);
   border-bottom: none;
   font-weight: 700;
-  background: #1c2b30;
-  color: #fff;
+  background: var(--row-final);
+  color: var(--text-strong);
 }
 .ledger-table tr.lg-final .lg-k { color: var(--primary-text); }
 
@@ -1135,7 +1243,16 @@ tr.lg-note td {
   }
 
   /* 헤더: 제목/툴바를 위아래로, 툴바 버튼은 한 줄로 눕혀 가로 스와이프 */
-  .topbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+  /* flex-wrap:wrap을 그대로 두면 세로 방향에서 "다음 열"로 넘쳐 헤더가 화면보다 넓어진다
+     (툴바 버튼이 한 개만 늘어도 페이지에 가로 스크롤이 생겼다) */
+  .topbar {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .topbar > * { min-width: 0; }
   .topbar h1 { font-size: 15px; }
   .date-badge { font-size: 10.5px; padding: 2px 6px; }
   .toolbar {
