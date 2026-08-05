@@ -445,11 +445,13 @@
     ]);
   }
 
-  function metric(label, value, sub, cls) {
+  // subCls는 "값 자체는 손익이 아니지만 보조 줄이 손익인" 칸(예: 평가금액 → 평가손익)에 쓴다.
+  // 잔고에 손익 색을 칠하면 그 금액만큼 벌었다는 뜻으로 읽히므로 색은 손익 줄에만 준다.
+  function metric(label, value, sub, cls, subCls) {
     return h('div', { class: 'metric' }, [
       h('div', { class: 'metric-label', text: label }),
       h('div', { class: 'metric-value' + (cls ? ' ' + cls : ''), text: value }),
-      h('div', { class: 'metric-sub', text: sub || '' })
+      h('div', { class: 'metric-sub' + (subCls ? ' ' + subCls : ''), text: sub || '' })
     ]);
   }
 
@@ -687,7 +689,6 @@
         h('td', { text: fmtWonAuto(p.eval), class: 'num eval' }),
         h('td', { text: fmtWonAuto(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
         h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
-        h('td', { text: fmtNum(p.units, 0), class: 'num' }),
         h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
         returnCell(p.contractReturn, maxAbs),
         h('td', { text: p.lastValuationDate || '-', class: 'date' }),
@@ -806,7 +807,8 @@
     cards.appendChild(metric('좌수', fmtNum(p.units, 0), ''));
     cards.appendChild(metric('원금', fmtWonAuto(p.contractPrincipal),
       carried ? '계약 기준 · 원금흐름 ' + fmtWonAuto(p.principal) : '계약 기준'));
-    cards.appendChild(metric('평가금액', fmtWonAuto(p.eval), '평가손익 ' + fmtWonAuto(p.contractPnl), pctClass(p.contractPnl)));
+    cards.appendChild(metric('평가금액', fmtWonAuto(p.eval),
+      '평가손익 ' + fmtWonAuto(p.contractPnl), null, pctClass(p.contractPnl)));
     cards.appendChild(metric('기준가 수익률', fmtPct(p.navReturn), resetNote(p), pctClass(p.navReturn)));
     cards.appendChild(metric('원금대비 수익률', fmtPct(p.contractReturn),
       paidOutNow > 0.5 ? '지급분 ' + fmtWonAuto(paidOutNow) + ' 포함(총수익)' : resetNote(p),
@@ -861,10 +863,8 @@
         h('td', {}, [h('span', { class: 'tag tag-' + row.type, text: row.label })]),
         h('td', { text: VALUATION_TYPES[row.type] ? '-' : fmtWon(row.amount), class: 'num' }),
         h('td', { text: row.deltaUnits ? fmtNum(row.deltaUnits, 0) : '-', class: 'num' }),
-        h('td', { text: fmtNum(row.units, 0), class: 'num' }),
         h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
         h('td', { text: fmtWon(row.eval), class: 'num' }),
-        h('td', { text: fmtWon(row.contractPrincipal), class: 'num' }),
         h('td', { text: rowRet(row) === null ? '-' : fmtPct(rowRet(row)),
           class: 'num ' + (rowRet(row) === null ? '' : pctClass(rowRet(row))) }),
         h('td', { text: row.dailyReturn === null ? '-' : fmtPct(row.dailyReturn), class: 'num ' + (row.dailyReturn === null ? '' : pctClass(row.dailyReturn)) }),
@@ -953,12 +953,11 @@
         h('td', { text: fmtWon(row.eval), class: 'num' }),
         h('td', { text: pr === null ? '-' : fmtPct(pr), class: 'num ' + (pr === null ? '' : pctClass(pr)) }),
         h('td', { text: fmtPct(row.nav / Engine.NAV_BASE - 1), class: 'num ' + pctClass(row.nav / Engine.NAV_BASE - 1) }),
-        h('td', { text: fmtNum(row.nav, 2), class: 'num' }),
-        h('td', { text: fmtNum(row.units, 0), class: 'num' })
+        h('td', { text: fmtNum(row.nav, 2), class: 'num' })
       ]));
     });
     if (!all.length) {
-      tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '6' })]));
+      tbody.appendChild(h('tr', {}, [h('td', { text: '평가 내역 없음 — 일일 평가금액을 입력하세요.', class: 'empty small', colspan: '5' })]));
     }
   }
 

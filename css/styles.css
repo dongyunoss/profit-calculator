@@ -756,6 +756,19 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
   max-height: 300px;
   overflow-y: auto;
 }
+
+/* 상세 거래·평가 이력은 계좌 하나에 수백 건이 쌓인다.
+   페이지와 함께 끝없이 늘어나면 열 개수만큼 숫자가 흐르는데 머리행은 화면 밖으로
+   밀려나 어느 열이 무엇인지 알 수 없다 — 래퍼가 세로로 스크롤하지 않으면 sticky
+   머리행은 아예 발동하지 않기 때문이다(overflow-x:auto만으로는 스크롤이 일어나지 않는다).
+   높이를 잘라 표 안에서 스크롤시키면 머리행이 그 안에 고정된다.
+   바로 위 원금 원장·일별 평가 표와 같은 방식이라 조작감도 같다. */
+.table-wrap.detail-history {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-height: 62vh;
+  overflow-y: auto;
+}
 #ledger-table { border-collapse: collapse; width: 100%; }
 #ledger-table td {
   padding: 9px 14px;
@@ -1414,6 +1427,15 @@ tr.lg-note td {
   line-height: 1.7;
 }
 
+/* 13~14인치 노트북(1366px 안팎)에서는 표가 몇십 px 모자라 가로 스크롤이 생긴다.
+   열을 더 빼면 정보가 사라지므로 셀 좌우 여백만 줄여 넘침을 없앤다 —
+   행 높이·글자 크기는 그대로라 조밀해 보이지 않는다. */
+@media (max-width: 1400px) {
+  table.grid th, table.grid td { padding-left: 12px; padding-right: 12px; }
+  table.grid th:first-child, table.grid td:first-child { padding-left: 16px; }
+  table.grid th:last-child, table.grid td:last-child { padding-right: 16px; }
+}
+
 /* 좁은 화면에서는 상세 2단·입력 폼 3단·KPI 4단을 접어 좌우 스크롤 없이 세로로 쌓는다.
    표(계좌 목록·거래 이력 등)는 열이 많아 내부적으로만(.table-wrap) 가로 스크롤될 수 있다 —
    페이지 전체가 옆으로 밀리지는 않는다. */
@@ -1484,13 +1506,18 @@ tr.lg-note td {
   }
   .rail-item {
     flex: 0 0 auto;
-    width: 172px;
+    /* 172px에서는 "토러스 기중현 ▲ 23.74%"가 안 들어가 계좌명이 잘렸다.
+       가로 스와이프라 칩이 넓어져도 화면을 밀지 않는다. */
+    width: 196px;
     border-top: none;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--panel);
     padding: 10px 12px;
   }
+  /* 칩은 "어느 계좌를 볼지" 고르는 자리다 — 기준가로 계좌를 고르지는 않으므로
+     평가금액에 폭을 몰아준다(기준가는 상세 화면 첫 칸에 크게 있다). */
+  .rail-nav { display: none; }
   .rail-item.selected { box-shadow: inset 0 -2px 0 var(--primary); }
   .rail-foot { margin-top: 10px; padding: 12px 14px 0; }
 
@@ -1536,17 +1563,16 @@ tr.lg-note td {
   #accounts-table td.name { flex: 1 1 100%; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
   #accounts-table td.eval { font-size: 12.5px; }
   #accounts-table td:nth-child(4) { margin-left: auto; font-size: 12.5px; } /* 평가손익 */
-  #accounts-table td:nth-child(8) { flex: 1 1 100%; margin-top: 5px; }      /* 원금대비 수익률 */
-  #accounts-table td:nth-child(8) .ret-cell { justify-content: flex-end; }
-  #accounts-table td:nth-child(8) .ret-value { font-size: 19px; }
+  #accounts-table td:nth-child(7) { flex: 1 1 100%; margin-top: 5px; }      /* 원금대비 수익률 */
+  #accounts-table td:nth-child(7) .ret-cell { justify-content: flex-end; }
+  #accounts-table td:nth-child(7) .ret-value { font-size: 19px; }
 
-  /* 원금·기준가·좌수·기준가 수익률·최근 평가일은 상세 화면에서 확인 가능하므로 목록에서는 생략.
+  /* 원금·기준가·기준가 수익률·최근 평가일은 상세 화면에서 확인 가능하므로 목록에서는 생략.
      순서(드래그)는 터치 드래그를 지원하지 않으므로 숨긴다. */
   #accounts-table th:nth-child(2), #accounts-table td:nth-child(2),  /* 원금 */
   #accounts-table th:nth-child(5), #accounts-table td:nth-child(5),  /* 기준가 */
-  #accounts-table th:nth-child(6), #accounts-table td:nth-child(6),  /* 좌수 */
-  #accounts-table th:nth-child(7), #accounts-table td:nth-child(7),  /* 기준가 수익률 */
-  #accounts-table th:nth-child(9), #accounts-table td:nth-child(9),  /* 최근 평가일 */
+  #accounts-table th:nth-child(6), #accounts-table td:nth-child(6),  /* 기준가 수익률 */
+  #accounts-table th:nth-child(8), #accounts-table td:nth-child(8),  /* 최근 평가일 */
   #accounts-table .drag-col, #accounts-table .drag-cell {
     display: none;
   }
