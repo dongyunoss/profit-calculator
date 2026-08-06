@@ -238,7 +238,14 @@ table.grid td.num, table.grid td.date,
   border-color: var(--warn-btn-bd);
 }
 
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* 값을 바꾸는 버튼(입력·계좌 추가)과 내보내기 버튼을 시각적으로 가른다 */
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 4px;
+  background: var(--border-strong);
+}
 
 /* ---------- 레이아웃 ---------- */
 
@@ -599,25 +606,12 @@ main {
   border-bottom: 1px solid var(--border-soft);
   border-top: 1px solid var(--border-soft);
 }
-.index-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .index-form-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-soft);
   white-space: nowrap;
 }
-.index-form input {
-  background: var(--input-bg);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 12.5px;
-  padding: 5px 8px;
-}
-.index-date { width: 132px; }
-.index-value-input { width: 110px; }
-.index-form input:focus { outline: none; border-color: var(--primary-bd); }
 
 .index-stats { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-family: var(--mono); }
 .index-hint { font-size: 12px; color: var(--muted-2); }
@@ -833,38 +827,45 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 .tag-rollover,
 .tag-matured    { background: var(--control); color: var(--muted); border-color: var(--border-strong); }
 
-/* ---------- 입력 폼 ---------- */
+/* ---------- 데이터 입력 창 ----------
+   조회 화면에서 값을 바꾸는 유일한 통로. 탭으로 종류를 고르고 계좌를 하나 정한 뒤
+   연달아 기입한다 — 저장해도 창을 닫지 않으므로 탭·계좌만 바꿔 계속 넣을 수 있다. */
 
-.forms-row {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  align-items: start;
-}
+.entry-dialog { width: min(520px, 94vw); }
 
-.mini-form {
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
+.entry-controls {
   display: flex;
-  flex-direction: column;
-  gap: 11px;
-  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
 }
+.entry-controls .cf-tabs { flex-wrap: wrap; }
+.entry-controls .cf-field select { min-width: 150px; }
 
-.mini-form h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--text); }
-
-.mini-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+/* 어느 계좌에 넣는지 확인하고 기입하도록, 고른 계좌의 현재 상태를 한 줄로 */
+.entry-status {
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
   font-size: 11.5px;
-  font-weight: 600;
   color: var(--muted);
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
-.mini-form input, .mini-form select,
+.entry-body { margin-top: 14px; }
+.entry-form { gap: 11px; }
+.entry-form[hidden] { display: none; }
+
+/* 성과보수는 되돌리기 번거로운 작업이라 앰버 톤으로 구분한다 */
+#form-fee .hint { color: var(--fee-hint); }
+#form-fee .hint b { color: var(--fee-hint-b); }
+
+/* ---------- 입력 요소 공통 ---------- */
+
 #account-dialog input, dialog input, dialog select {
   background: var(--input-bg);
   border: 1px solid var(--border-strong);
@@ -873,19 +874,11 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
   font-size: 13px;
   color: var(--text);
 }
-.mini-form input[type="number"], dialog input[type="number"] { font-family: var(--mono); }
-.mini-form input:focus, .mini-form select:focus,
+dialog input[type="number"] { font-family: var(--mono); }
 #account-dialog input:focus, dialog input:focus, dialog select:focus {
   outline: none;
   border-color: var(--primary-bd);
 }
-
-/* 성과보수 폼은 앰버 톤으로 구분 */
-#form-fee { background: var(--warn-bg); border-color: var(--warn-bd); }
-#form-fee h3 { color: var(--warn); }
-#form-fee label { color: var(--fee-label); }
-#form-fee .hint { color: var(--fee-hint); }
-#form-fee .hint b { color: var(--fee-hint-b); }
 
 .hint { margin: 0; font-size: 11.5px; color: var(--muted-2); line-height: 1.55; text-wrap: pretty; }
 .hint b { color: var(--text-soft); }
@@ -1473,9 +1466,6 @@ tr.lg-note td {
 /* 좁은 화면에서는 상세 2단·입력 폼 3단·KPI 4단을 접어 좌우 스크롤 없이 세로로 쌓는다.
    표(계좌 목록·거래 이력 등)는 열이 많아 내부적으로만(.table-wrap) 가로 스크롤될 수 있다 —
    페이지 전체가 옆으로 밀리지는 않는다. */
-@media (max-width: 1180px) {
-  .forms-row { grid-template-columns: minmax(0, 1fr); }
-}
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail {
@@ -1621,16 +1611,15 @@ tr.lg-note td {
   .rail-ret.neg::before, .ret-value.neg::before, .legend-value.neg::before,
   .index-change-value.neg::before { content: '▼ '; }
 
-  .index-bar { flex-direction: column; align-items: stretch; }
-  .index-form { flex-wrap: wrap; }
-  .index-form-label { width: 100%; }
-  /* 날짜 입력은 네이티브 위젯 최소 폭(달력 아이콘 포함) 아래로 줄이면 글자가 잘린다 */
-  .index-date { flex: 1 1 130px; min-width: 130px; }
-  .index-value-input { flex: 1 1 90px; min-width: 0; }
-  .index-form button { flex: 0 0 auto; }
+  .index-bar { flex-direction: column; align-items: stretch; gap: 4px; }
 
-  .forms-row { gap: 10px; }
-  .mini-form { padding: 13px 14px; }
+  /* 입력 창: 탭을 폭에 맞춰 늘리고 계좌 선택은 한 줄 전체로 */
+  .entry-dialog { padding: 16px; }
+  .entry-controls { align-items: stretch; }
+  .entry-controls .cf-tabs { flex: 1 1 100%; }
+  .entry-controls .cf-tabs .chip { flex: 1; text-align: center; padding: 7px 6px; }
+  .entry-controls .cf-field { flex: 1 1 100%; }
+  .entry-controls .cf-field select { flex: 1; min-width: 0; }
 
   /* 원금 입출금 내역 다이얼로그: 원장 카드 최소폭을 좁혀 1열로 자연스럽게 */
   .ledger-grid { grid-template-columns: minmax(0, 1fr); }
