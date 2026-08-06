@@ -31,12 +31,16 @@
     <!-- 서버 동기화 상태. 서버 없이 로컬로만 쓸 때는 숨는다 -->
     <span class="sync-badge" id="sync-badge" hidden></span>
   </div>
+  <!-- 이 화면은 '보는' 자리다. 값을 바꾸는 일은 전부 이 입력 버튼 하나로 들어간다. -->
   <div class="toolbar">
+    <button id="btn-entry" class="btn primary">＋ 입력</button>
+    <button id="btn-add-account" class="btn">계좌 추가</button>
+    <span class="toolbar-sep" aria-hidden="true"></span>
     <button id="btn-cashflow" class="btn">원금 입출금 내역</button>
+    <button id="btn-pdf" class="btn">PDF 리포트</button>
+    <button id="btn-export-xlsx" class="btn">엑셀 다운로드</button>
     <button id="btn-backup" class="btn">백업</button>
     <button id="btn-restore" class="btn">복원</button>
-    <button id="btn-pdf" class="btn">PDF 리포트</button>
-    <button id="btn-export-xlsx" class="btn primary">엑셀 다운로드</button>
     <input type="file" id="restore-file" accept=".json,application/json" hidden>
   </div>
 </header>
@@ -73,15 +77,10 @@
         <h2>계좌 목록</h2>
         <span class="panel-count" id="accounts-count"></span>
       </div>
-      <button id="btn-add-account" class="btn">+ 계좌 추가</button>
     </div>
+    <!-- 지수는 '보는' 값만 남기고 입력은 입력 창으로 옮겼다 -->
     <div class="index-bar" id="index-bar">
-      <form id="form-index" class="index-form">
-        <span class="index-form-label">코스피 지수</span>
-        <input type="date" name="date" class="index-date" required>
-        <input type="number" name="value" class="index-value-input" step="any" min="0" placeholder="예: 2830.39" required>
-        <button type="submit" class="btn tiny primary">저장</button>
-      </form>
+      <span class="index-form-label">코스피 지수</span>
       <div class="index-stats" id="index-stats"></div>
     </div>
     <div class="table-wrap">
@@ -126,47 +125,6 @@
 
     <div class="detail-body">
     <div class="metrics" id="detail-cards"></div>
-
-    <div class="forms-row">
-      <form id="form-valuation" class="mini-form">
-        <h3>일일 평가금액 입력</h3>
-        <label>일자 <input type="date" name="date" required></label>
-        <label>평가금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 105000000" required></label>
-        <button class="btn primary">저장</button>
-        <p class="hint">영업일 장 마감 후 계좌 평가금액을 입력하세요. 같은 날짜에 다시 입력하면 덮어씁니다.</p>
-      </form>
-
-      <form id="form-flow" class="mini-form">
-        <h3>입출금</h3>
-        <label>구분
-          <select name="type">
-            <option value="deposit">입금</option>
-            <option value="withdraw">출금</option>
-            <option value="closeout">전액 출금(해지)</option>
-          </select>
-        </label>
-        <label>일자 <input type="date" name="date" required></label>
-        <label>금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 10000000" required></label>
-        <button class="btn primary">저장</button>
-        <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 왜곡하지 않습니다.
-        같은 날짜의 내역은 <b>입력한 순서대로</b> 처리됩니다 — 입금액이 당일 평가금액에 포함된
-        잔고라면 입금을 먼저 기입하세요.
-        전액 출금(해지)은 평가금액 전액을 출금하고 계좌를 해지 상태로 바꾸며, 그때까지의 성과는
-        종합 성과 수익률에 보존됩니다.</p>
-      </form>
-
-      <form id="form-fee" class="mini-form">
-        <h3>성과보수 수취</h3>
-        <label>일자 <input type="date" name="date" required></label>
-        <label>보수액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 1500000" required></label>
-        <button class="btn warn">수취 및 초기화</button>
-        <p class="hint">펀드가 <b>배당(분배금)을 지급하는 것과 같은 회계</b>입니다 — 보수는
-        <b>원금에서 차감되지 않고</b>, 나간 금액은 수익률 계산 시 되살려져 <b>수익률도 깎이지 않습니다</b>.
-        수취 시점에 <b>기준가 1,000 / 기준가·원금대비 수익률 0%</b>로 초기화되고, 보수 차감 후
-        평가금액이 새 계약의 원금으로 승계됩니다(개별 계좌 기준 — 전체 성과는 원금 흐름 기준이라 불변).
-        당일 평가금액은 <b>보수 차감 전</b> 금액으로 입력하세요.</p>
-      </form>
-    </div>
 
     <div id="detail-warnings"></div>
 
@@ -239,6 +197,75 @@
   종합 성과 수익률은 계좌별 일간 기준가 수익률을 직전 평가금액 가중으로 체인링크한 값입니다. ·
   데이터는 이 브라우저(localStorage)에만 저장됩니다. 주기적으로 백업(JSON)을 받아 두세요.
 </footer>
+
+<!-- 데이터 입력 — 조회 화면에서 값을 바꾸는 유일한 통로.
+     계좌를 하나 고른 뒤 탭을 옮겨 가며 연달아 기입할 수 있게 창을 닫지 않는다. -->
+<dialog id="entry-dialog" class="entry-dialog">
+  <div class="dialog-head">
+    <h3>데이터 입력</h3>
+    <button type="button" id="btn-close-entry" class="btn">닫기</button>
+  </div>
+
+  <div class="entry-controls">
+    <div class="cf-tabs" id="entry-tabs" role="tablist">
+      <button type="button" class="chip active" data-tab="valuation" role="tab" aria-selected="true">평가금액</button>
+      <button type="button" class="chip" data-tab="flow" role="tab" aria-selected="false">입출금</button>
+      <button type="button" class="chip" data-tab="fee" role="tab" aria-selected="false">성과보수</button>
+      <button type="button" class="chip" data-tab="index" role="tab" aria-selected="false">코스피 지수</button>
+    </div>
+    <label class="cf-field" id="entry-account-field">계좌
+      <select id="entry-account"></select>
+    </label>
+  </div>
+
+  <p class="entry-status" id="entry-status"></p>
+
+  <div class="entry-body">
+    <form id="form-valuation" class="entry-form" data-tab="valuation">
+      <label>일자 <input type="date" name="date" required></label>
+      <label>평가금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 105000000" required></label>
+      <button type="submit" class="btn primary">저장</button>
+      <p class="hint">영업일 장 마감 후 계좌 평가금액을 입력하세요. 같은 날짜에 다시 입력하면 덮어씁니다.</p>
+    </form>
+
+    <form id="form-flow" class="entry-form" data-tab="flow" hidden>
+      <label>구분
+        <select name="type">
+          <option value="deposit">입금</option>
+          <option value="withdraw">출금</option>
+          <option value="closeout">전액 출금(해지)</option>
+        </select>
+      </label>
+      <label>일자 <input type="date" name="date" required></label>
+      <label>금액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 10000000" required></label>
+      <button type="submit" class="btn primary">저장</button>
+      <p class="hint">현재 기준가로 좌수를 발행/환매하므로 입출금이 수익률을 왜곡하지 않습니다.
+      같은 날짜의 내역은 <b>입력한 순서대로</b> 처리됩니다 — 입금액이 당일 평가금액에 포함된
+      잔고라면 입금을 먼저 기입하세요.
+      전액 출금(해지)은 평가금액 전액을 출금하고 계좌를 해지 상태로 바꾸며, 그때까지의 성과는
+      종합 성과 수익률에 보존됩니다.</p>
+    </form>
+
+    <form id="form-fee" class="entry-form" data-tab="fee" hidden>
+      <label>일자 <input type="date" name="date" required></label>
+      <label>보수액(원) <input type="number" name="amount" min="0" step="any" placeholder="예: 1500000" required></label>
+      <button type="submit" class="btn warn">수취 및 초기화</button>
+      <p class="hint">펀드가 <b>배당(분배금)을 지급하는 것과 같은 회계</b>입니다 — 보수는
+      <b>원금에서 차감되지 않고</b>, 나간 금액은 수익률 계산 시 되살려져 <b>수익률도 깎이지 않습니다</b>.
+      수취 시점에 <b>기준가 1,000 / 기준가·원금대비 수익률 0%</b>로 초기화되고, 보수 차감 후
+      평가금액이 새 계약의 원금으로 승계됩니다(개별 계좌 기준 — 전체 성과는 원금 흐름 기준이라 불변).
+      당일 평가금액은 <b>보수 차감 전</b> 금액으로 입력하세요.</p>
+    </form>
+
+    <form id="form-index" class="entry-form" data-tab="index" hidden>
+      <label>일자 <input type="date" name="date" required></label>
+      <label>지수 <input type="number" name="value" step="any" min="0" placeholder="예: 2830.39" required></label>
+      <button type="submit" class="btn primary">저장</button>
+      <p class="hint">계좌가 아니라 시장 지수입니다. 입력하면 계좌 설정일 대비 변동률이
+      계좌 목록 위에 표시되고, 수익률 추이 차트에 비교선으로 함께 그려집니다.</p>
+    </form>
+  </div>
+</dialog>
 
 <dialog id="account-dialog">
   <form id="form-account">
