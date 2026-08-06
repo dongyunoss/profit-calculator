@@ -2022,100 +2022,6 @@
     reader.readAsText(file);
   }
 
-  // ---------- 데이터 입력 창 ----------
-
-  // 입력 대상 계좌는 조회 화면의 선택(selectedAccountId)과 별개로 둔다.
-  // 창에서 계좌를 바꿔 가며 연달아 기입하는 동안 뒤 화면의 상세가 따라 열리면 산만하다.
-  var entryAccountId = null;
-  var entryTab = 'valuation';
-
-  function entryAccounts() {
-    // 해지된 계좌도 지난 내역을 고칠 수 있어야 하므로 전부 넣되, 운용 중인 것을 앞에 둔다
-    var procd = (lastResult && lastResult.processed) || [];
-    var live = procd.filter(function (p) { return !p.isClosed; });
-    var closed = procd.filter(function (p) { return p.isClosed; });
-    return live.concat(closed);
-  }
-
-  function renderEntryAccountSelect() {
-    var sel = el('entry-account');
-    var list = entryAccounts();
-    sel.innerHTML = '';
-    list.forEach(function (p) {
-      sel.appendChild(h('option', {
-        value: p.id, text: p.name + (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기)' : ''))
-      }));
-    });
-    if (!list.some(function (p) { return p.id === entryAccountId; })) {
-      entryAccountId = list.length ? list[0].id : null;
-    }
-    if (entryAccountId) sel.value = entryAccountId;
-    sel.disabled = !list.length;
-  }
-
-  // 고른 계좌의 현재 상태를 한 줄로 — 어느 계좌에 넣는지 확인하고 기입하게 한다
-  function renderEntryStatus() {
-    var box = el('entry-status');
-    if (entryTab === 'index') {
-      var bm = state.benchmark;
-      var last = bm && bm.points.length ? bm.points[bm.points.length - 1] : null;
-      box.textContent = last
-        ? '최근 입력 ' + last.date + ' · ' + fmtNum(last.value, 2)
-        : '아직 입력된 지수가 없습니다.';
-      return;
-    }
-    var p = (lastResult && lastResult.processed || []).find(function (x) { return x.id === entryAccountId; });
-    if (!p) { box.textContent = '계좌를 먼저 만들어 주세요.'; return; }
-    box.textContent = '평가금액 ' + fmtWon(p.eval) +
-      ' · 기준가 ' + fmtNum(p.nav, 2) +
-      (p.lastValuationDate ? ' · 최근 평가 ' + p.lastValuationDate : ' · 평가 내역 없음');
-  }
-
-  function setEntryTab(tab) {
-    entryTab = tab;
-    Array.prototype.forEach.call(el('entry-tabs').querySelectorAll('.chip'), function (b) {
-      var on = b.getAttribute('data-tab') === tab;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    Array.prototype.forEach.call(el('entry-dialog').querySelectorAll('.entry-form'), function (f) {
-      f.hidden = f.getAttribute('data-tab') !== tab;
-    });
-    // 지수는 계좌와 무관하다 — 계좌 선택을 숨겨 "이 계좌에 들어가나?" 하는 혼동을 없앤다
-    el('entry-account-field').hidden = (tab === 'index');
-    renderEntryStatus();
-    var form = el('entry-dialog').querySelector('.entry-form[data-tab="' + tab + '"]');
-    var first = form && form.querySelector('input:not([type=hidden]), select');
-    if (first) first.focus();
-  }
-
-  function openEntry() {
-    if (!state.accounts.length) {
-      toast('먼저 계좌를 만들어 주세요.', 'warn');
-      el('btn-add-account').click();
-      return;
-    }
-    entryAccountId = selectedAccountId || entryAccountId;
-    renderEntryAccountSelect();
-    // 날짜는 늘 오늘로 다시 맞춘다 — 어제 열어 둔 창을 그대로 쓰다 날짜가 틀리는 것을 막는다
-    ['form-valuation', 'form-flow', 'form-fee', 'form-index'].forEach(function (id) {
-      el(id).elements.date.value = todayStr();
-    });
-    if (state.benchmark && state.benchmark.points.length) {
-      el('form-index').elements.value.value =
-        state.benchmark.points[state.benchmark.points.length - 1].value;
-    }
-    setEntryTab(entryTab);
-    var dlg = el('entry-dialog');
-    if (dialogSupported(dlg)) dlg.showModal();
-  }
-
-  // 저장 후에도 창은 열어 둔다(연달아 기입) — 대신 뒤 화면과 상태 줄을 즉시 갱신한다
-  function afterEntrySaved() {
-    renderEntryAccountSelect();
-    renderEntryStatus();
-  }
-
   // ---------- 서버 동기화 ----------
 
   var SYNC_TEXT = {
@@ -2290,10 +2196,8 @@
       e.preventDefault();
       var v = readForm(e.target);
       if (!v) return;
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
-      addEvent(entryAccountId, 'valuation', v.date, v.amount);
+      addEvent(selectedAccountId, 'valuation', v.date, v.amount);
       e.target.elements.amount.value = '';
-      afterEntrySaved();
       toast(v.date + ' 평가금액 ' + fmtWon(v.amount) + ' 저장', 'ok');
     });
 
@@ -2309,13 +2213,12 @@
     el('form-flow').addEventListener('submit', function (e) {
       e.preventDefault();
       var type = e.target.elements.type.value; // deposit | withdraw | closeout
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
       if (type === 'closeout') {
         var date = e.target.elements.date.value;
         if (!date) { toast('날짜를 입력하세요.', 'warn'); return; }
-        var pc = computeAll().processed.find(function (x) { return x.id === entryAccountId; });
+        var pc = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
         if (!pc || pc.eval <= 0.005) { toast('출금할 잔액이 없습니다.', 'warn'); return; }
-        var closeId = entryAccountId;
+        var closeId = selectedAccountId;
         confirmDialog({
           title: '전액 출금 · 해지',
           body: '현재 평가금액 전액(' + fmtWon(pc.eval) + ')을 출금하고 계좌를 해지 상태로 만듭니다. ' +
@@ -2324,18 +2227,16 @@
         }).then(function (ok) {
           if (!ok) return;
           addEvent(closeId, 'closeout', date, 0);
-          afterEntrySaved();
           toast('해지 처리했습니다. 출금 ' + fmtWon(pc.eval), 'ok');
         });
         return;
       }
       var v = readForm(e.target);
       if (!v) return;
-      var form = e.target, accId = entryAccountId;
+      var form = e.target, accId = selectedAccountId;
       var commit = function () {
         addEvent(accId, type, v.date, v.amount);
         form.elements.amount.value = '';
-        afterEntrySaved();
         toast((type === 'deposit' ? '입금' : '출금') + ' ' + fmtWon(v.amount) + ' 반영했습니다.', 'ok');
       };
       if (type === 'withdraw') {
@@ -2357,14 +2258,13 @@
       e.preventDefault();
       var v = readForm(e.target);
       if (!v) return;
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
-      var p = computeAll().processed.find(function (x) { return x.id === entryAccountId; });
+      var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
       if (p && v.amount > p.eval + 1e-6) {
         toast('성과보수가 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.', 'error');
         return;
       }
       var after = p ? p.eval - v.amount : 0;
-      var feeForm = e.target, feeAccId = entryAccountId;
+      var feeForm = e.target, feeAccId = selectedAccountId;
       confirmDialog({
         title: '성과보수 수취',
         body: '성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. ' +
@@ -2375,7 +2275,6 @@
         if (!ok) return;
         addEvent(feeAccId, 'fee', v.date, v.amount);
         feeForm.elements.amount.value = '';
-        afterEntrySaved();
         toast('성과보수 ' + fmtWon(v.amount) + ' 수취 — 기준가 1,000으로 재설정', 'ok');
       });
     });
@@ -2453,20 +2352,7 @@
       upsertBenchmarkPoint(date, value);
       saveState();
       render();
-      afterEntrySaved();
       toast(date + ' 코스피 지수 ' + fmtNum(value, 2) + ' 저장', 'ok');
-    });
-
-    // ── 데이터 입력 창 ──
-    el('btn-entry').addEventListener('click', openEntry);
-    el('btn-close-entry').addEventListener('click', function () { el('entry-dialog').close(); });
-    el('entry-tabs').addEventListener('click', function (e) {
-      var btn = e.target.closest('.chip');
-      if (btn) setEntryTab(btn.getAttribute('data-tab'));
-    });
-    el('entry-account').addEventListener('change', function (e) {
-      entryAccountId = e.target.value;
-      renderEntryStatus();
     });
 
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
