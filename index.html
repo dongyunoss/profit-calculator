@@ -28,6 +28,8 @@
   <div class="topbar-title">
     <h1>자산운용 수익률 관리</h1>
     <span class="date-badge" id="as-of-badge" hidden></span>
+    <!-- 서버 동기화 상태. 서버 없이 로컬로만 쓸 때는 숨는다 -->
+    <span class="sync-badge" id="sync-badge" hidden></span>
   </div>
   <div class="toolbar">
     <button id="btn-cashflow" class="btn">원금 입출금 내역</button>
@@ -334,6 +336,7 @@
 <!-- PDF 리포트: 화면에서는 숨어 있고 인쇄 시에만 나오는 A4 레이아웃 (계좌당 1페이지) -->
 <div id="print-report" class="print-report" aria-hidden="true"></div>
 
+<script src="js/sync.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/xlsx-writer.js"></script>
 <script src="js/chart.js"></script>

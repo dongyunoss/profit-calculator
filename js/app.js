@@ -5,11 +5,23 @@
   'use strict';
 
   var STORAGE_KEY = 'profit-calculator-data-v1';
+  // 서버에 아직 올리지 못한 변경이 있는지 표시. 오프라인에서 입력하고 창을 닫았다가
+  // 다른 컴퓨터에서 먼저 저장한 경우, 이 표시가 없으면 그 변경이 조용히 사라진다.
+  var DIRTY_KEY = 'profit-calculator-dirty';
   var state = { accounts: [] };
   var selectedAccountId = null;
   var seqCounter = 1;
 
   // ---------- 저장/불러오기 ----------
+
+  // 이벤트 seq는 같은 날짜 안의 처리 순서를 정한다 — 데이터를 갈아끼우면 다시 계산해야 한다.
+  function refreshSeq() {
+    var maxSeq = 0;
+    state.accounts.forEach(function (a) {
+      (a.events || []).forEach(function (ev) { if (ev.seq > maxSeq) maxSeq = ev.seq; });
+    });
+    seqCounter = maxSeq + 1;
+  }
 
   function loadState() {
     try {
@@ -19,15 +31,33 @@
         if (parsed && Array.isArray(parsed.accounts)) state = parsed;
       }
     } catch (e) { /* 손상된 데이터는 무시하고 새로 시작 */ }
-    var maxSeq = 0;
-    state.accounts.forEach(function (a) {
-      (a.events || []).forEach(function (ev) { if (ev.seq > maxSeq) maxSeq = ev.seq; });
-    });
-    seqCounter = maxSeq + 1;
+    refreshSeq();
   }
 
+  function writeLocal() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    catch (e) { toast('이 브라우저에 저장하지 못했습니다: ' + e.message, 'error'); }
+  }
+
+  function markDirty(on) {
+    try {
+      if (on) localStorage.setItem(DIRTY_KEY, '1');
+      else localStorage.removeItem(DIRTY_KEY);
+    } catch (e) { /* 저장 실패는 무시 */ }
+  }
+
+  function isDirty() {
+    try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  // 로컬은 캐시, 서버가 원본이다. 로컬에 즉시 쓰고 서버에는 묶어서 올린다
+  // (연속 입력마다 요청을 보내지 않기 위해 sync.js가 디바운스한다).
   function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    writeLocal();
+    if (window.Sync && !Sync.isLocalOnly()) {
+      markDirty(true);
+      Sync.save(state);
+    }
   }
 
   // ---------- 유틸 ----------
@@ -1956,6 +1986,109 @@
     reader.readAsText(file);
   }
 
+  // ---------- 서버 동기화 ----------
+
+  var SYNC_TEXT = {
+    loading: { t: '동기화 중…', c: '' },
+    saving:  { t: '저장 중…',   c: '' },
+    saved:   { t: '저장됨',     c: 'ok' },
+    offline: { t: '연결 안 됨 — 이 컴퓨터에만 저장', c: 'warn' },
+    conflict:{ t: '다른 곳에서 먼저 저장됨',        c: 'warn' }
+  };
+
+  function renderSyncBadge(status) {
+    var badge = el('sync-badge');
+    if (!badge) return;
+    // 로컬 전용(서버 미배포·파일로 열기)에서는 배지를 아예 숨겨 기존 화면 그대로 둔다
+    if (status === 'local' || status === 'idle') { badge.hidden = true; return; }
+    var s = SYNC_TEXT[status];
+    if (!s) { badge.hidden = true; return; }
+    badge.hidden = false;
+    badge.className = 'sync-badge' + (s.c ? ' ' + s.c : '');
+    badge.textContent = s.t;
+    var who = Sync.state.updatedBy, when = Sync.state.updatedAt;
+    badge.title = status === 'offline'
+      ? '서버에 저장하지 못했습니다. 연결되면 자동으로 다시 시도합니다.' +
+        (Sync.state.lastError ? '\n' + Sync.state.lastError : '')
+      : (who ? '마지막 저장 ' + who + (when ? ' · ' + when.replace('T', ' ').slice(0, 16) : '') : '');
+  }
+
+  // 서버 데이터를 화면에 적용
+  function adoptRemote(data) {
+    state = data;
+    refreshSeq();
+    writeLocal();
+    markDirty(false);
+    if (selectedAccountId && !state.accounts.some(function (a) { return a.id === selectedAccountId; })) {
+      selectedAccountId = null;
+    }
+    render();
+  }
+
+  // 저장하려는 순간 서버가 더 최신인 경우. 조용히 덮어쓰지 않고 사람이 정하게 한다.
+  function onSyncConflict(info) {
+    var who = info.updatedBy ? info.updatedBy + '님이 ' : '다른 곳에서 ';
+    var when = info.updatedAt ? info.updatedAt.replace('T', ' ').slice(0, 16) + '에 ' : '';
+    confirmDialog({
+      title: '다른 곳에서 먼저 저장했습니다',
+      body: who + when + '이 데이터를 저장했습니다. ' +
+            '서버 내용을 가져오면 이 컴퓨터에서 방금 입력한 내용은 사라집니다. ' +
+            '가져오시겠습니까? (취소하면 이 컴퓨터 내용이 유지되지만 서버에는 저장되지 않습니다)',
+      okText: '서버 내용 가져오기'
+    }).then(function (ok) {
+      if (!ok) { toast('이 컴퓨터 내용을 유지합니다. 서버에는 저장되지 않은 상태입니다.', 'warn'); return; }
+      if (info.data) adoptRemote(info.data);
+      Sync.adoptVersion(info.serverVersion);
+      toast('서버 내용을 가져왔습니다.', 'ok');
+    });
+  }
+
+  function bootstrapSync() {
+    if (!window.Sync) return;
+    Sync.on('status', function (s) {
+      renderSyncBadge(s);
+      if (s === 'saved') markDirty(false);
+    });
+    Sync.on('conflict', onSyncConflict);
+
+    Sync.load().then(function (r) {
+      if (r.mode === 'local') return;               // 서버 없음 — 기존처럼 로컬만 사용
+      if (r.mode === 'offline') {
+        toast('서버에 연결하지 못했습니다. 이 컴퓨터에 저장되며 연결되면 자동으로 올라갑니다.', 'warn');
+        return;
+      }
+      if (!r.exists) {
+        // 서버가 비어 있다 — 이 컴퓨터 데이터를 옮긴다(최초 1회 이관)
+        if (state.accounts.length) {
+          Sync.save(state);
+          Sync.flush().then(function () { toast('이 컴퓨터의 데이터를 서버로 옮겼습니다.', 'ok'); });
+        }
+        return;
+      }
+      // 서버에도 있고, 이 컴퓨터에도 못 올린 변경이 남아 있으면 사람이 고르게 한다
+      if (isDirty() && state.accounts.length) {
+        confirmDialog({
+          title: '올리지 못한 변경이 있습니다',
+          body: '이 컴퓨터에 서버로 저장되지 않은 변경이 남아 있습니다. ' +
+                '이 내용을 서버에 올릴까요? (취소하면 서버 내용을 가져오고 이 변경은 버립니다)',
+          okText: '이 컴퓨터 내용 올리기'
+        }).then(function (ok) {
+          if (ok) { Sync.adoptVersion(r.version); Sync.save(state); Sync.flush(); }
+          else { adoptRemote(r.data); Sync.adoptVersion(r.version); }
+        });
+        return;
+      }
+      adoptRemote(r.data);
+    });
+
+    // 저장이 예약된 채로 창을 닫으면 그 변경이 서버에 안 올라간다
+    window.addEventListener('beforeunload', function (e) {
+      if (Sync.isLocalOnly()) return;
+      Sync.flush();
+      if (isDirty()) { e.preventDefault(); e.returnValue = ''; }
+    });
+  }
+
   // ---------- 초기화 ----------
 
   function init() {
@@ -2215,6 +2348,7 @@
     }
 
     render();
+    bootstrapSync();
 
     // 모바일 브레이크포인트를 넘나들 때(창 크기 조절·화면 회전) 축약 표기(fmtWonAuto)가
     // 바로 반영되도록 다시 그린다. matchMedia는 기준을 실제로 넘을 때만 이벤트를 준다.

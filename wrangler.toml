@@ -1,0 +1,22 @@
+# Cloudflare Pages 설정
+#
+# 빌드 도구가 없는 정적 사이트라 저장소 루트를 그대로 배포한다.
+# functions/ 아래 파일은 Pages Functions로 자동 인식된다.
+#
+# database_id 는 아래 명령으로 D1을 만들면 출력된다. 그 값을 여기에 붙여 넣는다.
+#   wrangler d1 create profit-calculator
+
+name = "profit-calculator"
+compatibility_date = "2026-08-01"
+pages_build_output_dir = "."
+
+[[d1_databases]]
+binding = "DB"                    # functions에서 env.DB 로 접근
+database_name = "profit-calculator"
+database_id = "여기에-d1-database-id를-넣으세요"
+
+# ACCESS_TEAM_DOMAIN / ACCESS_AUD 는 비밀값은 아니지만 계정마다 다르므로
+# 저장소에 넣지 않고 Pages 대시보드의 환경 변수로 설정한다.
+#   Workers & Pages → 프로젝트 → Settings → Variables and Secrets
+#     ACCESS_TEAM_DOMAIN = <팀이름>.cloudflareaccess.com
+#     ACCESS_AUD         = Access 애플리케이션의 Audience(AUD) 태그
