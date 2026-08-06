@@ -8,6 +8,12 @@
   // 서버에 아직 올리지 못한 변경이 있는지 표시. 오프라인에서 입력하고 창을 닫았다가
   // 다른 컴퓨터에서 먼저 저장한 경우, 이 표시가 없으면 그 변경이 조용히 사라진다.
   var DIRTY_KEY = 'profit-calculator-dirty';
+  // 이 브라우저가 마지막으로 맞춘 서버 버전. 새로고침 뒤에도 "내가 읽은 시점"을 알아야
+  // 서버가 그 뒤에 바뀌었는지(= 다른 곳에서 저장했는지) 판단할 수 있다.
+  var VERSION_KEY = 'profit-calculator-synced-version';
+  // 서버 최신본으로 갈아끼우면서 버려지는 로컬 내용을 담아 두는 자리.
+  // 자동 최신화가 입력분을 지우기만 하면 무엇을 잃었는지조차 알 수 없다.
+  var STASH_KEY = 'profit-calculator-stash';
   var state = { accounts: [] };
   var selectedAccountId = null;
   var seqCounter = 1;
@@ -48,6 +54,29 @@
 
   function isDirty() {
     try { return localStorage.getItem(DIRTY_KEY) === '1'; } catch (e) { return false; }
+  }
+
+  function readSyncedVersion() {
+    try { return Number(localStorage.getItem(VERSION_KEY)) || 0; } catch (e) { return 0; }
+  }
+
+  function writeSyncedVersion(v) {
+    try { localStorage.setItem(VERSION_KEY, String(v)); } catch (e) { /* 무시 */ }
+  }
+
+  function stashLocal() {
+    try {
+      localStorage.setItem(STASH_KEY, JSON.stringify({ at: new Date().toISOString(), data: state }));
+    } catch (e) { /* 용량 초과 등은 무시 — 최신화 자체를 막지는 않는다 */ }
+  }
+
+  function downloadStash() {
+    var raw = null;
+    try { raw = localStorage.getItem(STASH_KEY); } catch (e) { /* 무시 */ }
+    if (!raw) { toast('보관된 내용이 없습니다.', 'warn'); return; }
+    var stash = JSON.parse(raw);
+    var blob = new Blob([JSON.stringify(stash.data, null, 2)], { type: 'application/json' });
+    triggerDownload(blob, '자산운용_최신화전_' + todayStr() + '.json');
   }
 
   // 로컬은 캐시, 서버가 원본이다. 로컬에 즉시 쓰고 서버에는 묶어서 올린다
@@ -194,10 +223,17 @@
   // ---------- 알림·확인·입력 (네이티브 alert/confirm/prompt 대체) ----------
 
   // 결과 피드백은 흐름을 끊지 않는 토스트로. type: 'info' | 'ok' | 'warn' | 'error'
-  function toast(message, type) {
+  // action = { label, onClick } — 토스트 안에 버튼을 하나 붙인다(예: 보관본 내려받기)
+  function toast(message, type, action) {
     var host = el('toast-host');
     if (!host) return;
-    var node = h('div', { class: 'toast ' + (type || 'info'), text: message });
+    var node = h('div', { class: 'toast ' + (type || 'info') }, [
+      h('span', { text: message }),
+      action ? h('button', {
+        type: 'button', class: 'toast-action', text: action.label,
+        onclick: function (e) { e.stopPropagation(); action.onClick(); }
+      }) : null
+    ]);
     host.appendChild(node);
     // 트랜지션이 걸리도록 다음 프레임에 표시 클래스를 준다
     requestAnimationFrame(function () { node.classList.add('show'); });
@@ -2025,30 +2061,43 @@
     render();
   }
 
-  // 저장하려는 순간 서버가 더 최신인 경우. 조용히 덮어쓰지 않고 사람이 정하게 한다.
+  // 내가 읽은 뒤 다른 곳에서 저장한 경우 — 묻지 않고 그 최신 내용으로 맞춘다.
+  // 다만 이 컴퓨터에서 입력하던 내용이 그냥 사라지지는 않게 따로 보관하고,
+  // 토스트에서 바로 내려받을 수 있게 한다.
+  function refreshToRemote(remoteData, remoteVersion, meta) {
+    var mine = JSON.stringify(state);
+    var theirs = JSON.stringify(remoteData);
+    var lost = mine !== theirs;
+    if (lost) stashLocal();
+
+    adoptRemote(remoteData);
+    Sync.adoptVersion(remoteVersion);
+    writeSyncedVersion(remoteVersion);
+
+    var who = (meta && meta.updatedBy) ? meta.updatedBy + '님이 ' : '다른 곳에서 ';
+    toast(
+      who + '먼저 저장해 최신 내용으로 맞췄습니다.' +
+      (lost ? ' 이 컴퓨터에서 입력하던 내용은 따로 보관했습니다.' : ''),
+      'warn',
+      lost ? { label: '보관본 내려받기', onClick: downloadStash } : null
+    );
+  }
+
   function onSyncConflict(info) {
-    var who = info.updatedBy ? info.updatedBy + '님이 ' : '다른 곳에서 ';
-    var when = info.updatedAt ? info.updatedAt.replace('T', ' ').slice(0, 16) + '에 ' : '';
-    confirmDialog({
-      title: '다른 곳에서 먼저 저장했습니다',
-      body: who + when + '이 데이터를 저장했습니다. ' +
-            '서버 내용을 가져오면 이 컴퓨터에서 방금 입력한 내용은 사라집니다. ' +
-            '가져오시겠습니까? (취소하면 이 컴퓨터 내용이 유지되지만 서버에는 저장되지 않습니다)',
-      okText: '서버 내용 가져오기'
-    }).then(function (ok) {
-      if (!ok) { toast('이 컴퓨터 내용을 유지합니다. 서버에는 저장되지 않은 상태입니다.', 'warn'); return; }
-      if (info.data) adoptRemote(info.data);
-      Sync.adoptVersion(info.serverVersion);
-      toast('서버 내용을 가져왔습니다.', 'ok');
-    });
+    if (!info.data) {
+      // 서버 쪽 내용을 못 받았으면 맞출 대상이 없다 — 덮어쓰지 않고 알리기만 한다.
+      toast('저장하지 못했습니다. 새로고침 후 다시 시도하세요.', 'error');
+      return;
+    }
+    refreshToRemote(info.data, info.serverVersion, info);
   }
 
   function bootstrapSync() {
     if (!window.Sync) return;
-    Sync.on('status', function (s) {
-      renderSyncBadge(s);
-      if (s === 'saved') markDirty(false);
-    });
+    Sync.on('status', renderSyncBadge);
+    // 서버에 실제로 올라간 순간에만 '못 올린 변경' 표시를 지운다.
+    // (불러오기 성공도 status는 'saved'가 되므로 거기서 지우면 안 된다)
+    Sync.on('pushed', function (v) { markDirty(false); writeSyncedVersion(v); });
     Sync.on('conflict', onSyncConflict);
 
     Sync.load().then(function (r) {
@@ -2065,20 +2114,21 @@
         }
         return;
       }
-      // 서버에도 있고, 이 컴퓨터에도 못 올린 변경이 남아 있으면 사람이 고르게 한다
+      // 이 컴퓨터에 못 올린 변경이 남아 있을 때, 그 사이 서버가 움직였는지로 갈린다.
       if (isDirty() && state.accounts.length) {
-        confirmDialog({
-          title: '올리지 못한 변경이 있습니다',
-          body: '이 컴퓨터에 서버로 저장되지 않은 변경이 남아 있습니다. ' +
-                '이 내용을 서버에 올릴까요? (취소하면 서버 내용을 가져오고 이 변경은 버립니다)',
-          okText: '이 컴퓨터 내용 올리기'
-        }).then(function (ok) {
-          if (ok) { Sync.adoptVersion(r.version); Sync.save(state); Sync.flush(); }
-          else { adoptRemote(r.data); Sync.adoptVersion(r.version); }
-        });
+        if (r.version === readSyncedVersion()) {
+          // 내가 읽은 그대로다 — 아무도 안 건드렸으니 못 올린 변경을 올린다
+          Sync.adoptVersion(r.version);
+          Sync.save(state);
+          Sync.flush().then(function () { toast('올리지 못했던 변경을 서버에 저장했습니다.', 'ok'); });
+        } else {
+          // 내가 읽은 뒤 다른 곳에서 저장했다 — 그 최신 내용으로 맞춘다
+          refreshToRemote(r.data, r.version, r);
+        }
         return;
       }
       adoptRemote(r.data);
+      writeSyncedVersion(r.version);
     });
 
     // 저장이 예약된 채로 창을 닫으면 그 변경이 서버에 안 올라간다

@@ -30,7 +30,10 @@
   var retryIndex = 0;
   var inFlight = false;
 
-  var handlers = { status: null, conflict: null };
+  // status는 배지 표시용이라 읽기 성공에도 'saved'가 된다.
+  // "서버에 실제로 올라갔다"는 신호는 pushed로만 알린다 — 이 둘을 섞으면
+  // 불러오기만 해도 '못 올린 변경' 표시가 지워져, 올리지 못한 입력이 조용히 사라진다.
+  var handlers = { status: null, conflict: null, pushed: null };
 
   function setStatus(s, err) {
     state.status = s;
@@ -138,6 +141,9 @@
         state.updatedBy = r.body.updatedBy;
         retryIndex = 0;
         setStatus('saved');
+        if (handlers.pushed) {
+          try { handlers.pushed(state.version); } catch (e) { /* UI 오류가 저장을 막지 않게 */ }
+        }
         if (pending !== null) push(); // 저장하는 동안 또 바뀌었으면 이어서
       })
       .catch(function (e) {
