@@ -343,7 +343,7 @@
     renderRail(result);
     renderChart(result);
     renderIndexBar(result);
-    renderAccountsTable(result);
+    renderAccountsCards(result);
     renderDetail(result);
   }
 
@@ -658,18 +658,39 @@
     }
   }
 
-  // 원금대비 수익률 열: 최대 절대값 대비 폭의 미니 바 + 수치
-  function returnCell(ret, maxAbs) {
-    var cls = pctClass(ret);
-    var w = maxAbs > 0 ? Math.min(100, Math.abs(ret) / maxAbs * 100) : 0;
-    return h('td', { class: 'num' }, [
-      h('div', { class: 'ret-cell' }, [
-        h('span', { class: 'ret-track' }, [
-          h('span', { class: 'ret-fill ' + cls, style: 'width:' + w.toFixed(1) + '%' })
-        ]),
-        h('span', { class: 'ret-value ' + cls, text: fmtPct(ret) })
-      ])
-    ]);
+  // 계좌 카드의 미니 차트 — 카드 머리의 큰 숫자(원금대비 수익률)가 걸어온 길을 그린다.
+  // 누적 성과 지수로 그리면 선의 방향과 큰 숫자의 부호가 어긋나 보일 수 있어(보수 수취·
+  // 재계약으로 계약 수익률만 초기화되므로) 같은 계열을 쓴다.
+  // 값 축은 카드마다 자체 정규화한다: 카드끼리 크기를 견주는 그림이 아니다.
+  function sparklineEl(p) {
+    var pts = [];
+    p.history.forEach(function (row) {
+      if (VALUATION_TYPES[row.type] && row.contractReturn !== undefined && row.contractReturn !== null) {
+        pts.push({ y: row.contractReturn });
+      }
+    });
+    if (pts.length < 2) return null;
+    var W = 100, H = 30, PAD = 2.5;
+    var min = 0, max = 0;
+    pts.forEach(function (pt) {
+      if (pt.y < min) min = pt.y;
+      if (pt.y > max) max = pt.y;
+    });
+    if (max - min < 1e-9) max = min + 0.01; // 값이 전부 같아도 0으로 나누지 않게
+    var sx = W / (pts.length - 1);
+    var sy = (H - PAD * 2) / (max - min);
+    var coords = pts.map(function (pt, i) {
+      return (i * sx).toFixed(1) + ',' + (H - PAD - (pt.y - min) * sy).toFixed(1);
+    });
+    var zeroY = H - PAD - (0 - min) * sy;
+    var wrap = document.createElement('div');
+    wrap.className = 'acct-spark-wrap';
+    // 숫자만 들어가는 마크업이라 innerHTML이 안전하다 (SVG는 h()로 못 만든다)
+    wrap.innerHTML =
+      '<svg class="acct-spark ' + (pctClass(pts[pts.length - 1].y) || '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<line class="acct-spark-zero" x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '"/>' +
+      '<polyline class="acct-spark-line" points="' + coords.join(' ') + '"/></svg>';
+    return wrap;
   }
 
   // 벤치마크 시리즈에 한 점을 추가/갱신한다 (계좌 목록 상단 지수 입력용).
@@ -720,51 +741,70 @@
     }
   }
 
-  function renderAccountsTable(result) {
-    var tbody = el('accounts-table').querySelector('tbody');
-    tbody.innerHTML = '';
+  // 계좌 한 장 = 카드 한 장. PDF 리포트의 계좌 블록(요약 수치 + 수익률 추이)을
+  // 화면으로 옮긴 것으로, 첫 화면에서 클릭 없이 전 계좌를 훑을 수 있다.
+  function acctStat(label, value, cls) {
+    return h('div', { class: 'acct-stat' }, [
+      h('span', { class: 'acct-stat-label', text: label }),
+      h('span', { class: 'acct-stat-value' + (cls ? ' ' + cls : ''), text: value })
+    ]);
+  }
+
+  function renderAccountsCards(result) {
+    var host = el('accounts-cards');
+    host.innerHTML = '';
     el('accounts-empty').hidden = state.accounts.length > 0;
-    el('accounts-table').hidden = state.accounts.length === 0;
+    host.hidden = state.accounts.length === 0;
 
     var closedCount = result.processed.filter(function (p) { return p.isClosed; }).length;
     el('accounts-count').textContent = result.processed.length
       ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
       : '';
 
-    var maxAbs = 0;
     result.processed.forEach(function (p) {
-      if (Math.abs(p.contractReturn) > maxAbs) maxAbs = Math.abs(p.contractReturn);
-    });
-
-    result.processed.forEach(function (p) {
-      var nameCell = h('td', { class: 'name' }, [
-        h('span', { text: p.name }),
-        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
-        (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
-      ]);
-      var rowCls = p.id === selectedAccountId ? 'selected' : '';
-      if (p.isClosed) rowCls += (rowCls ? ' ' : '') + 'closed';
-      var tr = h('tr', {
-        class: rowCls,
+      var cls = 'acct-card';
+      if (p.id === selectedAccountId) cls += ' selected';
+      if (p.isClosed) cls += ' closed';
+      var showRet = p.contractPrincipal > 0;
+      var card = h('div', {
+        class: cls,
         'data-id': p.id,
         draggable: 'true',
+        title: '클릭: 상세 보기 · 끌어서 순서 변경',
         onclick: function () { toggleAccount(p.id); }
       }, [
-        nameCell,
-        h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
-        h('td', { text: fmtWonAuto(p.eval), class: 'num eval' }),
-        h('td', { text: fmtWonAuto(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
-        h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
-        h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
-        returnCell(p.contractReturn, maxAbs),
-        h('td', { text: p.lastValuationDate || '-', class: 'date' }),
-        h('td', { class: 'drag-cell', title: '끌어서 순서 변경' }, [
-          h('span', { class: 'drag-handle', text: '⠿' })
+        h('div', { class: 'acct-head' }, [
+          h('span', { class: 'acct-name' }, [
+            h('span', { text: p.name }),
+            p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
+            (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
+          ]),
+          h('span', { class: 'acct-date', text: p.lastValuationDate ? '평가 ' + p.lastValuationDate : '평가 없음' })
+        ]),
+        h('div', { class: 'acct-main' }, [
+          h('div', { class: 'acct-eval-wrap' }, [
+            h('div', { class: 'acct-stat-label', text: '평가금액' }),
+            h('div', { class: 'acct-eval', text: fmtWonAuto(p.eval) })
+          ]),
+          h('div', { class: 'acct-ret-wrap' }, [
+            h('div', { class: 'acct-stat-label', text: '원금대비 수익률' }),
+            h('div', {
+              class: 'acct-ret ' + (showRet ? pctClass(p.contractReturn) : ''),
+              text: showRet ? fmtPct(p.contractReturn) : '—'
+            })
+          ])
+        ]),
+        sparklineEl(p),
+        h('div', { class: 'acct-stats' }, [
+          acctStat('원금', fmtWonAuto(p.contractPrincipal)),
+          acctStat('평가손익', fmtWonAuto(p.contractPnl), pctClass(p.contractPnl)),
+          acctStat('기준가', fmtNum(p.nav, 2)),
+          acctStat('기준가 수익률', fmtPct(p.navReturn), pctClass(p.navReturn))
         ])
       ]);
-      attachRowDrag(tr, p.id);
-      attachSelectable(tr, p.id, p.name + ' 상세 보기');
-      tbody.appendChild(tr);
+      attachCardDrag(card, p.id);
+      attachSelectable(card, p.id, p.name + ' 상세 보기');
+      host.appendChild(card);
     });
   }
 
@@ -786,42 +826,43 @@
   var dragSrcId = null;
 
   function clearDragMarks(tbody) {
-    if (!tbody) return; // drop 후 재렌더로 행이 분리된 경우
+    if (!tbody) return; // drop 후 재렌더로 카드가 분리된 경우
     Array.prototype.forEach.call(
-      tbody.querySelectorAll('.drag-over-top, .drag-over-bottom'),
-      function (r) { r.classList.remove('drag-over-top', 'drag-over-bottom'); }
+      tbody.querySelectorAll('.drag-over-before, .drag-over-after'),
+      function (r) { r.classList.remove('drag-over-before', 'drag-over-after'); }
     );
   }
 
-  function attachRowDrag(tr, id) {
-    tr.addEventListener('dragstart', function (e) {
+  function attachCardDrag(card, id) {
+    card.addEventListener('dragstart', function (e) {
       dragSrcId = id;
-      tr.classList.add('dragging');
+      card.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       try { e.dataTransfer.setData('text/plain', id); } catch (_) { /* IE 등 */ }
     });
-    tr.addEventListener('dragend', function () {
+    card.addEventListener('dragend', function () {
       dragSrcId = null;
-      tr.classList.remove('dragging');
-      clearDragMarks(tr.parentNode);
+      card.classList.remove('dragging');
+      clearDragMarks(card.parentNode);
     });
-    tr.addEventListener('dragover', function (e) {
+    card.addEventListener('dragover', function (e) {
       if (dragSrcId === null || dragSrcId === id) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      var rect = tr.getBoundingClientRect();
-      var after = (e.clientY - rect.top) > rect.height / 2;
-      tr.classList.toggle('drag-over-bottom', after);
-      tr.classList.toggle('drag-over-top', !after);
+      // 카드는 그리드에서 가로로 흐르므로 앞/뒤를 좌우 절반으로 가른다
+      var rect = card.getBoundingClientRect();
+      var after = (e.clientX - rect.left) > rect.width / 2;
+      card.classList.toggle('drag-over-after', after);
+      card.classList.toggle('drag-over-before', !after);
     });
-    tr.addEventListener('dragleave', function () {
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+    card.addEventListener('dragleave', function () {
+      card.classList.remove('drag-over-before', 'drag-over-after');
     });
-    tr.addEventListener('drop', function (e) {
+    card.addEventListener('drop', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      var after = tr.classList.contains('drag-over-bottom');
-      tr.classList.remove('drag-over-top', 'drag-over-bottom');
+      var after = card.classList.contains('drag-over-after');
+      card.classList.remove('drag-over-before', 'drag-over-after');
       if (dragSrcId === null || dragSrcId === id) return;
       reorderAccounts(dragSrcId, id, after);
     });

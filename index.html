@@ -71,10 +71,13 @@
     <p class="chart-note" id="chart-note"></p>
   </section>
 
+  <!-- 계좌 현황 — PDF 리포트의 계좌 블록을 화면으로 옮긴 것.
+       계좌마다 핵심 수치 여섯 개와 수익률 추이를 카드 하나에 담아, 클릭 없이
+       전 계좌를 한눈에 훑는다. 카드를 누르면 아래에 상세가 열린다. -->
   <section class="panel flush">
     <div class="panel-head">
       <div class="panel-head-left">
-        <h2>계좌 목록</h2>
+        <h2>계좌 현황</h2>
         <span class="panel-count" id="accounts-count"></span>
       </div>
     </div>
@@ -83,24 +86,7 @@
       <span class="index-form-label">코스피 지수</span>
       <div class="index-stats" id="index-stats"></div>
     </div>
-    <div class="table-wrap">
-      <table class="grid" id="accounts-table">
-        <thead>
-          <tr>
-            <th>계좌명</th>
-            <th class="num">원금</th>
-            <th class="num">평가금액</th>
-            <th class="num">평가손익</th>
-            <th class="num">기준가</th>
-            <th class="num">기준가 수익률</th>
-            <th class="num">원금대비 수익률</th>
-            <th>최근 평가일</th>
-            <th class="drag-col" aria-label="순서 변경">순서</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
+    <div class="acct-grid" id="accounts-cards"></div>
     <div id="accounts-empty" class="empty-state">
       <div class="empty-icon" aria-hidden="true">◫</div>
       <p class="empty-title">아직 등록된 계좌가 없습니다</p>
