@@ -584,6 +584,16 @@ main {
   color: var(--muted);
 }
 
+/* section-title 옆에 토글 버튼을 붙일 때(예: 상세 거래·평가 이력) */
+.section-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.section-title-row .section-title { margin-bottom: 0; }
+
 .empty { color: var(--muted-2); text-align: center; padding: 24px 0; margin: 0; font-size: 13px; }
 
 /* ---------- 지수(코스피) 빠른 입력 바 ---------- */

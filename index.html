@@ -208,26 +208,31 @@
     </div>
 
     <div>
-    <h3 class="section-title">상세 거래·평가 이력</h3>
-    <div class="table-wrap detail-history">
-      <table class="grid" id="history-table">
-        <thead>
-          <tr>
-            <th>일자</th>
-            <th>구분</th>
-            <th class="num">금액</th>
-            <th class="num">좌수 증감</th>
-            <th class="num">기준가</th>
-            <th class="num">평가금액</th>
-            <th class="num">원금대비</th>
-            <th class="num">일간 수익률</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+    <div class="section-title-row">
+      <h3 class="section-title">상세 거래·평가 이력</h3>
+      <button type="button" id="btn-toggle-history" class="btn tiny">로그 보기</button>
     </div>
-    <div class="table-more" id="history-more" hidden></div>
+    <div id="history-log" hidden>
+      <div class="table-wrap detail-history">
+        <table class="grid" id="history-table">
+          <thead>
+            <tr>
+              <th>일자</th>
+              <th>구분</th>
+              <th class="num">금액</th>
+              <th class="num">좌수 증감</th>
+              <th class="num">기준가</th>
+              <th class="num">평가금액</th>
+              <th class="num">원금대비</th>
+              <th class="num">일간 수익률</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="table-more" id="history-more" hidden></div>
+    </div>
     </div>
     </div>
   </section>

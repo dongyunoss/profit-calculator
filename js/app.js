@@ -571,6 +571,7 @@
     var opening = selectedAccountId !== id;
     selectedAccountId = opening ? id : null;
     tableExpanded = { daily: false, history: false }; // 계좌를 바꾸면 다시 최근 건만
+    historyLogVisible = false; // 계좌를 바꾸면 로그도 다시 접어 둔다
     render();
     if (!opening) return;
     var panel = el('detail-panel');
@@ -901,6 +902,11 @@
     renderLedgerTable(p);
     renderDailyTable(p);
 
+    // 기본은 접어 둔다 — 항목이 수백 건이라 자주 볼 일이 없는 로그를 매번 그릴 필요는 없다
+    el('history-log').hidden = !historyLogVisible;
+    el('btn-toggle-history').textContent = historyLogVisible ? '로그 숨기기' : '로그 보기';
+    if (!historyLogVisible) return;
+
     var tbody = el('history-table').querySelector('tbody');
     tbody.innerHTML = '';
     var hist = tableExpanded.history ? p.history : p.history.slice(-TABLE_PAGE);
@@ -984,6 +990,8 @@
   // 기본은 최신 PAGE건만 보여주고, 필요할 때 펼치게 한다.
   var TABLE_PAGE = 30;
   var tableExpanded = { daily: false, history: false };
+  // 상세 거래·평가 이력은 항목이 많고 자주 볼 일이 없어 기본은 접어 둔다 — 버튼으로 펼친다
+  var historyLogVisible = false;
 
   // more 영역에 "더 보기 / 접기" 버튼을 그린다. total <= PAGE면 아무것도 그리지 않는다.
   function renderMoreToggle(hostId, key, shown, total, noun) {
@@ -2282,6 +2290,12 @@
     // 계좌 이름 변경 (상세 창 제목 옆 연필 아이콘)
     el('btn-rename-account').addEventListener('click', function () {
       renameAccount(selectedAccountId);
+    });
+
+    // 상세 거래·평가 이력 — 기본은 접어 두고 버튼으로 펼친다
+    el('btn-toggle-history').addEventListener('click', function () {
+      historyLogVisible = !historyLogVisible;
+      if (lastResult) renderDetail(lastResult);
     });
 
     // 계좌 삭제
