@@ -184,7 +184,7 @@ input[type="date"] { color-scheme: inherit; }
    (한글이 붙은 "…129원"·"381억 2,984만원"은 기본 규칙상 숫자와 원/억 사이에
    줄바꿈이 허용되므로 명시적으로 막아야 한다) */
 .card-value, .metric-value, .rail-eval, .rail-ret, .rail-nav, .rail-sum-value,
-.rail-sum-sub, .legend-value, .ledger-ret, .index-current-value,
+.rail-sum-sub, .ret-value, .legend-value, .ledger-ret, .index-current-value,
 .index-change-value, .table-more-count,
 table.grid td.num, table.grid td.date,
 .ledger-table .lg-v, .ledger-table .lg-d,
@@ -239,7 +239,7 @@ table.grid td.num, table.grid td.date,
 }
 
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-/* 값을 바꾸는 버튼(입력·계좌 추가)과 내보내기 버튼을 시각적으로 가른다 */
+/* 화면 전환 버튼과 내보내기 버튼들을 시각적으로 가른다 */
 .toolbar-sep {
   width: 1px;
   align-self: stretch;
@@ -460,10 +460,23 @@ main {
 
 .detail-meta { font-family: var(--mono); font-size: 11.5px; color: var(--muted-2); }
 
-/* 계좌 카드 드래그 순서 변경 — 그리드에서 가로로 흐르므로 앞/뒤 표시선을 좌우에 긋는다 */
-.acct-card.dragging { opacity: 0.45; }
-.acct-card.drag-over-before { box-shadow: inset 3px 0 0 var(--primary); }
-.acct-card.drag-over-after  { box-shadow: inset -3px 0 0 var(--primary); }
+/* 드래그 순서 변경 */
+.drag-col { width: 56px; text-align: center; }
+.drag-cell { text-align: center; }
+.drag-handle {
+  display: inline-block;
+  color: var(--muted-2);
+  cursor: grab;
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 1px;
+  user-select: none;
+}
+#accounts-table tbody tr:hover .drag-handle { color: var(--text-soft); }
+#accounts-table tbody tr.dragging { opacity: 0.45; }
+#accounts-table tbody tr.dragging .drag-handle { cursor: grabbing; }
+#accounts-table tbody tr.drag-over-top td { box-shadow: inset 0 2px 0 var(--primary); }
+#accounts-table tbody tr.drag-over-bottom td { box-shadow: inset 0 -2px 0 var(--primary); }
 
 /* ---------- KPI 카드 ---------- */
 
@@ -568,6 +581,129 @@ main {
 
 .panel-head-left { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .panel-count { font-size: 11.5px; color: var(--muted); }
+.panel-hint { font-size: 11.5px; color: var(--muted-2); word-break: keep-all; }
+
+/* ---------- 계좌 현황 카드 (첫 화면) ----------
+   PDF 리포트의 계좌 블록을 화면으로 옮긴 것. 카드 하나에 핵심 수치 여섯 개와
+   수익률 추이가 들어가, 클릭 없이 전 계좌를 훑는다. */
+.acct-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 14px;
+  padding: 16px 22px 20px;
+}
+.acct-grid[hidden] { display: none; }
+
+.acct-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 13px 16px 14px;
+  min-width: 0;
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+}
+.acct-card:hover { background: var(--panel-2); border-color: var(--border-strong); }
+.acct-card:focus-visible { outline-offset: -2px; }
+.acct-card.closed { opacity: .55; }
+.acct-card.dragging { opacity: .45; }
+.acct-card.drag-over-before { box-shadow: inset 3px 0 0 var(--primary); }
+.acct-card.drag-over-after  { box-shadow: inset -3px 0 0 var(--primary); }
+
+.acct-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.acct-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.acct-date {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--muted-2);
+  white-space: nowrap;
+}
+
+/* 평가금액과 원금대비 수익률 — 한눈에 보는 자리의 두 주인공 */
+.acct-main {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+}
+.acct-eval-wrap, .acct-ret-wrap { min-width: 0; }
+.acct-ret-wrap { text-align: right; }
+.acct-eval, .acct-ret {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 16.5px;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.acct-eval { font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
+.acct-ret { font-weight: 700; }
+/* 요약 스트립과 같은 규칙 — 방향 화살표를 항상 붙인다 */
+.acct-ret.pos::before { content: '▲ '; }
+.acct-ret.neg::before { content: '▼ '; }
+
+.acct-spark-wrap { margin-top: 10px; }
+.acct-spark { display: block; width: 100%; height: 34px; }
+.acct-spark-zero {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+.acct-spark-line {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+.acct-spark.pos .acct-spark-line { stroke: var(--pos); }
+.acct-spark.neg .acct-spark-line { stroke: var(--neg); }
+
+.acct-stats {
+  display: grid;
+  gap: 3px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-soft);
+}
+.acct-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+.acct-stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.acct-stat-value {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
 
 .section-title {
   margin: 0 0 10px;
@@ -593,12 +729,25 @@ main {
   border-bottom: 1px solid var(--border-soft);
   border-top: 1px solid var(--border-soft);
 }
+.index-form { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .index-form-label {
   font-size: 12px;
   font-weight: 600;
   color: var(--text-soft);
   white-space: nowrap;
 }
+.index-form input {
+  background: var(--input-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12.5px;
+  padding: 5px 8px;
+}
+.index-date { width: 132px; }
+.index-value-input { width: 110px; }
+.index-form input:focus { outline: none; border-color: var(--primary-bd); }
 
 .index-stats { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; font-family: var(--mono); }
 .index-hint { font-size: 12px; color: var(--muted-2); }
@@ -649,135 +798,32 @@ table.grid th.num, table.grid td.num { text-align: right; font-family: var(--mon
 table.grid td.name { font-weight: 600; color: var(--text); font-size: 13px; }
 table.grid td.date { color: var(--muted); font-family: var(--mono); font-size: 12px; }
 
-/* ---------- 계좌 현황 카드 ----------
-   PDF 리포트의 계좌 블록을 화면으로 옮긴 것. 카드 하나에 핵심 수치 여섯 개와
-   수익률 추이가 들어가, 첫 화면에서 클릭 없이 전 계좌를 훑는다. */
-.acct-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
-  padding: 16px 22px 20px;
+#accounts-table tbody tr { cursor: pointer; transition: background .12s; }
+#accounts-table tbody tr:hover { background: var(--panel-3); }
+#accounts-table tbody tr.selected {
+  background: var(--row-selected);
+  box-shadow: inset 2px 0 0 var(--primary);
 }
-.acct-grid[hidden] { display: none; }
+#accounts-table tbody tr.selected td.name { color: var(--text-strong); }
+#accounts-table tbody tr.closed { opacity: .5; }
+#accounts-table td.num { color: var(--muted); }
+#accounts-table td.eval { color: var(--text); font-weight: 500; }
 
-.acct-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 13px 16px 14px;
-  min-width: 0;
-  cursor: pointer;
-  transition: background .12s, border-color .12s;
-}
-.acct-card:hover { background: var(--panel-2); border-color: var(--border-strong); }
-.acct-card.selected { border-color: var(--primary-bd); box-shadow: inset 3px 0 0 var(--primary); }
-.acct-card.closed { opacity: .55; }
-
-.acct-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.acct-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text);
-  min-width: 0;
+/* 원금대비 수익률 열: 미니 바 + 수치 */
+.ret-cell { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.ret-track {
+  display: block;
+  width: 52px;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  flex: none;
 }
-.acct-card.selected .acct-name { color: var(--text-strong); }
-.acct-date {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--muted-2);
-  white-space: nowrap;
-}
-
-/* 평가금액과 원금대비 수익률 — 한눈에 보는 자리의 두 주인공 */
-.acct-main {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-}
-.acct-eval-wrap, .acct-ret-wrap { min-width: 0; }
-.acct-ret-wrap { text-align: right; }
-.acct-eval {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 16.5px;
-  font-weight: 600;
-  letter-spacing: -0.2px;
-  color: var(--text);
-  white-space: nowrap;
-  margin-top: 2px;
-}
-.acct-ret {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 16.5px;
-  font-weight: 700;
-  white-space: nowrap;
-  margin-top: 2px;
-}
-/* 요약 스트립과 같은 규칙 — 방향 화살표를 항상 붙인다 */
-.acct-ret.pos::before { content: '▲ '; }
-.acct-ret.neg::before { content: '▼ '; }
-
-.acct-spark-wrap { margin-top: 10px; }
-.acct-spark { display: block; width: 100%; height: 34px; }
-.acct-spark-zero {
-  stroke: var(--border-strong);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-  vector-effect: non-scaling-stroke;
-}
-.acct-spark-line {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-.acct-spark.pos .acct-spark-line { stroke: var(--pos); }
-.acct-spark.neg .acct-spark-line { stroke: var(--neg); }
-
-.acct-stats {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 3px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-soft);
-}
-.acct-stat {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 11.5px;
-  min-width: 0;
-}
-.acct-stat-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.acct-stat-value {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--text-soft);
-  white-space: nowrap;
-}
+.ret-fill { display: block; height: 100%; border-radius: 2px; }
+.ret-fill.pos { background: var(--pos); }
+.ret-fill.neg { background: var(--neg); }
+.ret-value { font-size: 13px; font-weight: 600; font-family: var(--mono); }
 
 /* 손익 색은 컴포넌트의 기본 글자색을 항상 이겨야 한다.
    클래스 하나짜리(.pos)로 두면 뒤에 정의된 .metric-value의 color가 이겨서
@@ -917,45 +963,38 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
 .tag-rollover,
 .tag-matured    { background: var(--control); color: var(--muted); border-color: var(--border-strong); }
 
-/* ---------- 데이터 입력 창 ----------
-   조회 화면에서 값을 바꾸는 유일한 통로. 탭으로 종류를 고르고 계좌를 하나 정한 뒤
-   연달아 기입한다 — 저장해도 창을 닫지 않으므로 탭·계좌만 바꿔 계속 넣을 수 있다. */
+/* ---------- 입력 폼 ---------- */
 
-.entry-dialog { width: min(520px, 94vw); }
+.forms-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
 
-.entry-controls {
+.mini-form {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
 }
-.entry-controls .cf-tabs { flex-wrap: wrap; }
-.entry-controls .cf-field select { min-width: 150px; }
 
-/* 어느 계좌에 넣는지 확인하고 기입하도록, 고른 계좌의 현재 상태를 한 줄로 */
-.entry-status {
-  margin: 12px 0 0;
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
+.mini-form h3 { margin: 0; font-size: 13px; font-weight: 700; color: var(--text); }
+
+.mini-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
   font-size: 11.5px;
+  font-weight: 600;
   color: var(--muted);
-  word-break: keep-all;
-  overflow-wrap: break-word;
 }
 
-.entry-body { margin-top: 14px; }
-.entry-form { gap: 11px; }
-.entry-form[hidden] { display: none; }
-
-/* 성과보수는 되돌리기 번거로운 작업이라 앰버 톤으로 구분한다 */
-#form-fee .hint { color: var(--fee-hint); }
-#form-fee .hint b { color: var(--fee-hint-b); }
-
-/* ---------- 입력 요소 공통 ---------- */
-
+.mini-form input, .mini-form select,
 #account-dialog input, dialog input, dialog select {
   background: var(--input-bg);
   border: 1px solid var(--border-strong);
@@ -964,11 +1003,19 @@ table.grid td.num.pos, table.grid td.num.neg { font-weight: 600; }
   font-size: 13px;
   color: var(--text);
 }
-dialog input[type="number"] { font-family: var(--mono); }
+.mini-form input[type="number"], dialog input[type="number"] { font-family: var(--mono); }
+.mini-form input:focus, .mini-form select:focus,
 #account-dialog input:focus, dialog input:focus, dialog select:focus {
   outline: none;
   border-color: var(--primary-bd);
 }
+
+/* 성과보수 폼은 앰버 톤으로 구분 */
+#form-fee { background: var(--warn-bg); border-color: var(--warn-bd); }
+#form-fee h3 { color: var(--warn); }
+#form-fee label { color: var(--fee-label); }
+#form-fee .hint { color: var(--fee-hint); }
+#form-fee .hint b { color: var(--fee-hint-b); }
 
 .hint { margin: 0; font-size: 11.5px; color: var(--muted-2); line-height: 1.55; text-wrap: pretty; }
 .hint b { color: var(--text-soft); }
@@ -1210,7 +1257,7 @@ dialog label {
   border-radius: 3px;
 }
 .rail-item:focus-visible { outline-offset: -2px; }
-.acct-card:focus-visible { outline-offset: -2px; }
+#accounts-table tbody tr:focus-visible { outline-offset: -2px; }
 
 /* ---------- 차트 ---------- */
 
@@ -1556,6 +1603,9 @@ tr.lg-note td {
 /* 좁은 화면에서는 상세 2단·입력 폼 3단·KPI 4단을 접어 좌우 스크롤 없이 세로로 쌓는다.
    표(계좌 목록·거래 이력 등)는 열이 많아 내부적으로만(.table-wrap) 가로 스크롤될 수 있다 —
    페이지 전체가 옆으로 밀리지는 않는다. */
+@media (max-width: 1180px) {
+  .forms-row { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 900px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .rail {
@@ -1580,7 +1630,8 @@ tr.lg-note td {
      overflow-wrap으로 강제 줄바꿈해 카드 밖으로 넘치는 것만은 막는다. */
   .card-value, .card-sub, .metric-value, .metric-sub,
   .rail-eval, .rail-ret, .rail-sum-value, .rail-sum-sub,
-  .acct-eval, .acct-ret, .acct-stat-value {
+  .acct-eval, .acct-ret, .acct-stat-value,
+  #accounts-table td {
     word-break: keep-all;
     overflow-wrap: break-word;
   }
@@ -1666,24 +1717,56 @@ tr.lg-note td {
   .acct-card { padding: 12px 14px; }
   .acct-eval, .acct-ret { font-size: 15.5px; }
 
+  /* 계좌 목록: 표 대신 증권사 MTS 보유종목 리스트처럼 2줄짜리 카드 행으로.
+     헤더는 숨기고(위치로 의미 전달), 조회 핵심 정보만 — 계좌명(위 1줄) →
+     평가금액·평가손익(가운데 줄) → 원금대비 수익률(아래, 크게·강조). */
+  #accounts-table thead { display: none; }
+  #accounts-table, #accounts-table tbody { display: block; width: 100%; }
+  #accounts-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  #accounts-table td { display: block; border: none; padding: 0; }
+  #accounts-table td.name { flex: 1 1 100%; font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  #accounts-table td.eval { font-size: 12.5px; }
+  #accounts-table td:nth-child(4) { margin-left: auto; font-size: 12.5px; } /* 평가손익 */
+  #accounts-table td:nth-child(7) { flex: 1 1 100%; margin-top: 5px; }      /* 원금대비 수익률 */
+  #accounts-table td:nth-child(7) .ret-cell { justify-content: flex-end; }
+  #accounts-table td:nth-child(7) .ret-value { font-size: 19px; }
+
+  /* 원금·기준가·기준가 수익률·최근 평가일은 상세 화면에서 확인 가능하므로 목록에서는 생략.
+     순서(드래그)는 터치 드래그를 지원하지 않으므로 숨긴다. */
+  #accounts-table th:nth-child(2), #accounts-table td:nth-child(2),  /* 원금 */
+  #accounts-table th:nth-child(5), #accounts-table td:nth-child(5),  /* 기준가 */
+  #accounts-table th:nth-child(6), #accounts-table td:nth-child(6),  /* 기준가 수익률 */
+  #accounts-table th:nth-child(8), #accounts-table td:nth-child(8),  /* 최근 평가일 */
+  #accounts-table .drag-col, #accounts-table .drag-cell {
+    display: none;
+  }
+  .ret-track { display: none; }
+
   /* 손익 방향을 색뿐 아니라 화살표로도 — 국내 MTS 관례. 색약 사용자·흑백 캡처에서도 구분된다.
      (요약 카드의 화살표는 항상 켜져 있다 — 아래 .card-value 규칙 참고) */
   .metric-value.pos::before,
-  .rail-ret.pos::before, .legend-value.pos::before,
+  .rail-ret.pos::before, .ret-value.pos::before, .legend-value.pos::before,
   .index-change-value.pos::before { content: '▲ '; }
   .metric-value.neg::before,
-  .rail-ret.neg::before, .legend-value.neg::before,
+  .rail-ret.neg::before, .ret-value.neg::before, .legend-value.neg::before,
   .index-change-value.neg::before { content: '▼ '; }
 
-  .index-bar { flex-direction: column; align-items: stretch; gap: 4px; }
+  .index-bar { flex-direction: column; align-items: stretch; }
+  .index-form { flex-wrap: wrap; }
+  .index-form-label { width: 100%; }
+  /* 날짜 입력은 네이티브 위젯 최소 폭(달력 아이콘 포함) 아래로 줄이면 글자가 잘린다 */
+  .index-date { flex: 1 1 130px; min-width: 130px; }
+  .index-value-input { flex: 1 1 90px; min-width: 0; }
+  .index-form button { flex: 0 0 auto; }
 
-  /* 입력 창: 탭을 폭에 맞춰 늘리고 계좌 선택은 한 줄 전체로 */
-  .entry-dialog { padding: 16px; }
-  .entry-controls { align-items: stretch; }
-  .entry-controls .cf-tabs { flex: 1 1 100%; }
-  .entry-controls .cf-tabs .chip { flex: 1; text-align: center; padding: 7px 6px; }
-  .entry-controls .cf-field { flex: 1 1 100%; }
-  .entry-controls .cf-field select { flex: 1; min-width: 0; }
+  .forms-row { gap: 10px; }
+  .mini-form { padding: 13px 14px; }
 
   /* 원금 입출금 내역 다이얼로그: 원장 카드 최소폭을 좁혀 1열로 자연스럽게 */
   .ledger-grid { grid-template-columns: minmax(0, 1fr); }

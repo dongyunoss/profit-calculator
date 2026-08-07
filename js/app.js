@@ -344,6 +344,7 @@
     renderChart(result);
     renderIndexBar(result);
     renderAccountsCards(result);
+    renderAccountsTable(result);
     renderDetail(result);
   }
 
@@ -573,6 +574,8 @@
     tableExpanded = { daily: false, history: false }; // 계좌를 바꾸면 다시 최근 건만
     render();
     if (!opening) return;
+    // 상세는 관리 화면에만 있다 — 현황을 보다가 계좌를 고르면 관리로 넘어간다
+    if (currentView !== 'manage') { openManage(null); return; }
     var panel = el('detail-panel');
     if (!panel || panel.hidden) return;
     var top = panel.getBoundingClientRect().top;
@@ -658,39 +661,18 @@
     }
   }
 
-  // 계좌 카드의 미니 차트 — 카드 머리의 큰 숫자(원금대비 수익률)가 걸어온 길을 그린다.
-  // 누적 성과 지수로 그리면 선의 방향과 큰 숫자의 부호가 어긋나 보일 수 있어(보수 수취·
-  // 재계약으로 계약 수익률만 초기화되므로) 같은 계열을 쓴다.
-  // 값 축은 카드마다 자체 정규화한다: 카드끼리 크기를 견주는 그림이 아니다.
-  function sparklineEl(p) {
-    var pts = [];
-    p.history.forEach(function (row) {
-      if (VALUATION_TYPES[row.type] && row.contractReturn !== undefined && row.contractReturn !== null) {
-        pts.push({ y: row.contractReturn });
-      }
-    });
-    if (pts.length < 2) return null;
-    var W = 100, H = 30, PAD = 2.5;
-    var min = 0, max = 0;
-    pts.forEach(function (pt) {
-      if (pt.y < min) min = pt.y;
-      if (pt.y > max) max = pt.y;
-    });
-    if (max - min < 1e-9) max = min + 0.01; // 값이 전부 같아도 0으로 나누지 않게
-    var sx = W / (pts.length - 1);
-    var sy = (H - PAD * 2) / (max - min);
-    var coords = pts.map(function (pt, i) {
-      return (i * sx).toFixed(1) + ',' + (H - PAD - (pt.y - min) * sy).toFixed(1);
-    });
-    var zeroY = H - PAD - (0 - min) * sy;
-    var wrap = document.createElement('div');
-    wrap.className = 'acct-spark-wrap';
-    // 숫자만 들어가는 마크업이라 innerHTML이 안전하다 (SVG는 h()로 못 만든다)
-    wrap.innerHTML =
-      '<svg class="acct-spark ' + (pctClass(pts[pts.length - 1].y) || '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
-      '<line class="acct-spark-zero" x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '"/>' +
-      '<polyline class="acct-spark-line" points="' + coords.join(' ') + '"/></svg>';
-    return wrap;
+  // 원금대비 수익률 열: 최대 절대값 대비 폭의 미니 바 + 수치
+  function returnCell(ret, maxAbs) {
+    var cls = pctClass(ret);
+    var w = maxAbs > 0 ? Math.min(100, Math.abs(ret) / maxAbs * 100) : 0;
+    return h('td', { class: 'num' }, [
+      h('div', { class: 'ret-cell' }, [
+        h('span', { class: 'ret-track' }, [
+          h('span', { class: 'ret-fill ' + cls, style: 'width:' + w.toFixed(1) + '%' })
+        ]),
+        h('span', { class: 'ret-value ' + cls, text: fmtPct(ret) })
+      ])
+    ]);
   }
 
   // 벤치마크 시리즈에 한 점을 추가/갱신한다 (계좌 목록 상단 지수 입력용).
@@ -708,7 +690,13 @@
   // 계좌 목록 상단 지수 바 — 입력 폼은 static(HTML)이라 다시 그리지 않는다
   // (매 render마다 새로 만들면 타이핑 중인 값이 날아간다). 우측 통계만 갱신한다.
   function renderIndexBar(result) {
-    var host = el('index-stats');
+    // 같은 내용을 두 화면(현황·관리)에 그린다 — 현황 쪽은 입력칸 없이 값만 보여 준다
+    renderIndexStats(el('index-stats'), result);
+    renderIndexStats(el('overview-index-stats'), result);
+  }
+
+  function renderIndexStats(host, result) {
+    if (!host) return;
     host.innerHTML = '';
     var bm = state.benchmark;
     if (!bm || !bm.points.length) {
@@ -741,8 +729,46 @@
     }
   }
 
-  // 계좌 한 장 = 카드 한 장. PDF 리포트의 계좌 블록(요약 수치 + 수익률 추이)을
-  // 화면으로 옮긴 것으로, 첫 화면에서 클릭 없이 전 계좌를 훑을 수 있다.
+  // ---------- 계좌 현황 카드 (첫 화면) ----------
+
+  // 카드의 미니 차트 — 카드 머리의 큰 숫자(원금대비 수익률)가 걸어온 길을 그린다.
+  // 누적 성과 지수로 그리면 보수 수취·재계약으로 계약 수익률만 초기화되므로
+  // 선의 방향과 큰 숫자의 부호가 어긋나 보인다. 값 축은 카드마다 자체 정규화한다 —
+  // 카드끼리 크기를 견주는 그림이 아니라 "이 계좌가 걸어온 길"을 보여주는 그림이다.
+  function sparklineEl(p) {
+    var pts = [];
+    p.history.forEach(function (row) {
+      if (VALUATION_TYPES[row.type] && row.contractReturn !== undefined && row.contractReturn !== null) {
+        pts.push(row.contractReturn);
+      }
+    });
+    if (pts.length < 2) return null;
+
+    var W = 100, H = 30, PAD = 2.5;
+    var min = 0, max = 0;
+    pts.forEach(function (y) {
+      if (y < min) min = y;
+      if (y > max) max = y;
+    });
+    if (max - min < 1e-9) max = min + 0.01; // 값이 전부 같아도 0으로 나누지 않게
+    var sx = W / (pts.length - 1);
+    var sy = (H - PAD * 2) / (max - min);
+    var coords = pts.map(function (y, i) {
+      return (i * sx).toFixed(1) + ',' + (H - PAD - (y - min) * sy).toFixed(1);
+    });
+    var zeroY = H - PAD - (0 - min) * sy;
+
+    var wrap = document.createElement('div');
+    wrap.className = 'acct-spark-wrap';
+    // 숫자만 들어가는 마크업이라 innerHTML이 안전하다 (SVG는 h()로 만들 수 없다)
+    wrap.innerHTML =
+      '<svg class="acct-spark ' + (pctClass(pts[pts.length - 1]) || '') + '" viewBox="0 0 ' + W + ' ' + H +
+      '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<line class="acct-spark-zero" x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '"/>' +
+      '<polyline class="acct-spark-line" points="' + coords.join(' ') + '"/></svg>';
+    return wrap;
+  }
+
   function acctStat(label, value, cls) {
     return h('div', { class: 'acct-stat' }, [
       h('span', { class: 'acct-stat-label', text: label }),
@@ -753,25 +779,23 @@
   function renderAccountsCards(result) {
     var host = el('accounts-cards');
     host.innerHTML = '';
-    el('accounts-empty').hidden = state.accounts.length > 0;
+    el('overview-empty').hidden = state.accounts.length > 0;
     host.hidden = state.accounts.length === 0;
+    el('overview-index-bar').hidden = state.accounts.length === 0;
 
     var closedCount = result.processed.filter(function (p) { return p.isClosed; }).length;
-    el('accounts-count').textContent = result.processed.length
+    el('overview-count').textContent = result.processed.length
       ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
       : '';
 
     result.processed.forEach(function (p) {
-      var cls = 'acct-card';
-      if (p.id === selectedAccountId) cls += ' selected';
-      if (p.isClosed) cls += ' closed';
       var showRet = p.contractPrincipal > 0;
       var card = h('div', {
-        class: cls,
+        class: 'acct-card' + (p.isClosed ? ' closed' : ''),
         'data-id': p.id,
         draggable: 'true',
-        title: '클릭: 상세 보기 · 끌어서 순서 변경',
-        onclick: function () { toggleAccount(p.id); }
+        title: '클릭: 이 계좌의 관리 화면으로 · 끌어서 순서 변경',
+        onclick: function () { openManage(p.id); }
       }, [
         h('div', { class: 'acct-head' }, [
           h('span', { class: 'acct-name' }, [
@@ -803,8 +827,135 @@
         ])
       ]);
       attachCardDrag(card, p.id);
-      attachSelectable(card, p.id, p.name + ' 상세 보기');
+      card.setAttribute('tabindex', '0');
+      card.setAttribute('role', 'button');
+      card.setAttribute('aria-label', p.name + ' 관리 화면 열기');
+      card.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+        e.preventDefault();
+        openManage(p.id);
+      });
       host.appendChild(card);
+    });
+  }
+
+  // 카드는 그리드에서 가로로 흐르므로 앞/뒤를 좌우 절반으로 가른다
+  function attachCardDrag(card, id) {
+    card.addEventListener('dragstart', function (e) {
+      dragSrcId = id;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', id); } catch (_) { /* IE 등 */ }
+    });
+    card.addEventListener('dragend', function () {
+      dragSrcId = null;
+      card.classList.remove('dragging');
+      clearCardDragMarks(card.parentNode);
+    });
+    card.addEventListener('dragover', function (e) {
+      if (dragSrcId === null || dragSrcId === id) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var rect = card.getBoundingClientRect();
+      var after = (e.clientX - rect.left) > rect.width / 2;
+      card.classList.toggle('drag-over-after', after);
+      card.classList.toggle('drag-over-before', !after);
+    });
+    card.addEventListener('dragleave', function () {
+      card.classList.remove('drag-over-before', 'drag-over-after');
+    });
+    card.addEventListener('drop', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var after = card.classList.contains('drag-over-after');
+      card.classList.remove('drag-over-before', 'drag-over-after');
+      if (dragSrcId === null || dragSrcId === id) return;
+      reorderAccounts(dragSrcId, id, after);
+    });
+  }
+
+  function clearCardDragMarks(host) {
+    if (!host) return; // drop 후 재렌더로 카드가 분리된 경우
+    Array.prototype.forEach.call(
+      host.querySelectorAll('.drag-over-before, .drag-over-after'),
+      function (c) { c.classList.remove('drag-over-before', 'drag-over-after'); }
+    );
+  }
+
+  // ---------- 화면 전환 ----------
+
+  // 'overview' = 계좌 현황(보기, 첫 화면) / 'manage' = 이전 화면(입력·수정)
+  var currentView = 'overview';
+
+  function setView(view) {
+    currentView = view;
+    var manage = view === 'manage';
+    el('overview-view').hidden = manage;
+    el('manage-list').hidden = !manage;
+    // 상세는 관리 화면의 일부다 — 현황으로 돌아가면 함께 감춘다
+    if (!manage) el('detail-panel').hidden = true;
+    else if (lastResult) renderDetail(lastResult);
+    el('btn-view').textContent = manage ? '← 계좌 현황' : '데이터 관리 →';
+    el('btn-view').classList.toggle('primary', !manage);
+  }
+
+  function openManage(accountId) {
+    if (accountId && selectedAccountId !== accountId) {
+      selectedAccountId = accountId;
+      tableExpanded = { daily: false, history: false };
+      render();
+    }
+    setView('manage');
+    // 계좌를 지정해 들어왔으면 그 계좌 상세가 바로 보이게 스크롤한다
+    var target = accountId ? el('detail-panel') : el('manage-list');
+    if (target && !target.hidden) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function renderAccountsTable(result) {
+    var tbody = el('accounts-table').querySelector('tbody');
+    tbody.innerHTML = '';
+    el('accounts-empty').hidden = state.accounts.length > 0;
+    el('accounts-table').hidden = state.accounts.length === 0;
+
+    var closedCount = result.processed.filter(function (p) { return p.isClosed; }).length;
+    el('accounts-count').textContent = result.processed.length
+      ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
+      : '';
+
+    var maxAbs = 0;
+    result.processed.forEach(function (p) {
+      if (Math.abs(p.contractReturn) > maxAbs) maxAbs = Math.abs(p.contractReturn);
+    });
+
+    result.processed.forEach(function (p) {
+      var nameCell = h('td', { class: 'name' }, [
+        h('span', { text: p.name }),
+        p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
+        (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
+      ]);
+      var rowCls = p.id === selectedAccountId ? 'selected' : '';
+      if (p.isClosed) rowCls += (rowCls ? ' ' : '') + 'closed';
+      var tr = h('tr', {
+        class: rowCls,
+        'data-id': p.id,
+        draggable: 'true',
+        onclick: function () { toggleAccount(p.id); }
+      }, [
+        nameCell,
+        h('td', { text: fmtWon(p.contractPrincipal), class: 'num' }),
+        h('td', { text: fmtWonAuto(p.eval), class: 'num eval' }),
+        h('td', { text: fmtWonAuto(p.contractPnl), class: 'num ' + pctClass(p.contractPnl) }),
+        h('td', { text: fmtNum(p.nav, 2), class: 'num' }),
+        h('td', { text: fmtPct(p.navReturn), class: 'num ' + pctClass(p.navReturn) }),
+        returnCell(p.contractReturn, maxAbs),
+        h('td', { text: p.lastValuationDate || '-', class: 'date' }),
+        h('td', { class: 'drag-cell', title: '끌어서 순서 변경' }, [
+          h('span', { class: 'drag-handle', text: '⠿' })
+        ])
+      ]);
+      attachRowDrag(tr, p.id);
+      attachSelectable(tr, p.id, p.name + ' 상세 보기');
+      tbody.appendChild(tr);
     });
   }
 
@@ -826,43 +977,42 @@
   var dragSrcId = null;
 
   function clearDragMarks(tbody) {
-    if (!tbody) return; // drop 후 재렌더로 카드가 분리된 경우
+    if (!tbody) return; // drop 후 재렌더로 행이 분리된 경우
     Array.prototype.forEach.call(
-      tbody.querySelectorAll('.drag-over-before, .drag-over-after'),
-      function (r) { r.classList.remove('drag-over-before', 'drag-over-after'); }
+      tbody.querySelectorAll('.drag-over-top, .drag-over-bottom'),
+      function (r) { r.classList.remove('drag-over-top', 'drag-over-bottom'); }
     );
   }
 
-  function attachCardDrag(card, id) {
-    card.addEventListener('dragstart', function (e) {
+  function attachRowDrag(tr, id) {
+    tr.addEventListener('dragstart', function (e) {
       dragSrcId = id;
-      card.classList.add('dragging');
+      tr.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
       try { e.dataTransfer.setData('text/plain', id); } catch (_) { /* IE 등 */ }
     });
-    card.addEventListener('dragend', function () {
+    tr.addEventListener('dragend', function () {
       dragSrcId = null;
-      card.classList.remove('dragging');
-      clearDragMarks(card.parentNode);
+      tr.classList.remove('dragging');
+      clearDragMarks(tr.parentNode);
     });
-    card.addEventListener('dragover', function (e) {
+    tr.addEventListener('dragover', function (e) {
       if (dragSrcId === null || dragSrcId === id) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = 'move';
-      // 카드는 그리드에서 가로로 흐르므로 앞/뒤를 좌우 절반으로 가른다
-      var rect = card.getBoundingClientRect();
-      var after = (e.clientX - rect.left) > rect.width / 2;
-      card.classList.toggle('drag-over-after', after);
-      card.classList.toggle('drag-over-before', !after);
+      var rect = tr.getBoundingClientRect();
+      var after = (e.clientY - rect.top) > rect.height / 2;
+      tr.classList.toggle('drag-over-bottom', after);
+      tr.classList.toggle('drag-over-top', !after);
     });
-    card.addEventListener('dragleave', function () {
-      card.classList.remove('drag-over-before', 'drag-over-after');
+    tr.addEventListener('dragleave', function () {
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
     });
-    card.addEventListener('drop', function (e) {
+    tr.addEventListener('drop', function (e) {
       e.preventDefault();
       e.stopPropagation();
-      var after = card.classList.contains('drag-over-after');
-      card.classList.remove('drag-over-before', 'drag-over-after');
+      var after = tr.classList.contains('drag-over-bottom');
+      tr.classList.remove('drag-over-top', 'drag-over-bottom');
       if (dragSrcId === null || dragSrcId === id) return;
       reorderAccounts(dragSrcId, id, after);
     });
@@ -891,11 +1041,12 @@
   function renderDetail(result) {
     var panel = el('detail-panel');
     var p = result.processed.find(function (x) { return x.id === selectedAccountId; });
-    if (!p) {
+    // 상세는 관리 화면의 일부다 — 현황 화면에서는 계좌가 선택돼 있어도 띄우지 않는다
+    if (!p || currentView !== 'manage') {
       panel.hidden = true;
-      return;
+      if (!p) return;
     }
-    panel.hidden = false;
+    panel.hidden = currentView !== 'manage';
     el('detail-title').textContent = p.name +
       (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기 도래)' : ''));
     el('detail-meta').textContent = (p.createdDate ? '개설 ' + p.createdDate : '') +
@@ -2063,100 +2214,6 @@
     reader.readAsText(file);
   }
 
-  // ---------- 데이터 입력 창 ----------
-
-  // 입력 대상 계좌는 조회 화면의 선택(selectedAccountId)과 별개로 둔다.
-  // 창에서 계좌를 바꿔 가며 연달아 기입하는 동안 뒤 화면의 상세가 따라 열리면 산만하다.
-  var entryAccountId = null;
-  var entryTab = 'valuation';
-
-  function entryAccounts() {
-    // 해지된 계좌도 지난 내역을 고칠 수 있어야 하므로 전부 넣되, 운용 중인 것을 앞에 둔다
-    var procd = (lastResult && lastResult.processed) || [];
-    var live = procd.filter(function (p) { return !p.isClosed; });
-    var closed = procd.filter(function (p) { return p.isClosed; });
-    return live.concat(closed);
-  }
-
-  function renderEntryAccountSelect() {
-    var sel = el('entry-account');
-    var list = entryAccounts();
-    sel.innerHTML = '';
-    list.forEach(function (p) {
-      sel.appendChild(h('option', {
-        value: p.id, text: p.name + (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기)' : ''))
-      }));
-    });
-    if (!list.some(function (p) { return p.id === entryAccountId; })) {
-      entryAccountId = list.length ? list[0].id : null;
-    }
-    if (entryAccountId) sel.value = entryAccountId;
-    sel.disabled = !list.length;
-  }
-
-  // 고른 계좌의 현재 상태를 한 줄로 — 어느 계좌에 넣는지 확인하고 기입하게 한다
-  function renderEntryStatus() {
-    var box = el('entry-status');
-    if (entryTab === 'index') {
-      var bm = state.benchmark;
-      var last = bm && bm.points.length ? bm.points[bm.points.length - 1] : null;
-      box.textContent = last
-        ? '최근 입력 ' + last.date + ' · ' + fmtNum(last.value, 2)
-        : '아직 입력된 지수가 없습니다.';
-      return;
-    }
-    var p = (lastResult && lastResult.processed || []).find(function (x) { return x.id === entryAccountId; });
-    if (!p) { box.textContent = '계좌를 먼저 만들어 주세요.'; return; }
-    box.textContent = '평가금액 ' + fmtWon(p.eval) +
-      ' · 기준가 ' + fmtNum(p.nav, 2) +
-      (p.lastValuationDate ? ' · 최근 평가 ' + p.lastValuationDate : ' · 평가 내역 없음');
-  }
-
-  function setEntryTab(tab) {
-    entryTab = tab;
-    Array.prototype.forEach.call(el('entry-tabs').querySelectorAll('.chip'), function (b) {
-      var on = b.getAttribute('data-tab') === tab;
-      b.classList.toggle('active', on);
-      b.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    Array.prototype.forEach.call(el('entry-dialog').querySelectorAll('.entry-form'), function (f) {
-      f.hidden = f.getAttribute('data-tab') !== tab;
-    });
-    // 지수는 계좌와 무관하다 — 계좌 선택을 숨겨 "이 계좌에 들어가나?" 하는 혼동을 없앤다
-    el('entry-account-field').hidden = (tab === 'index');
-    renderEntryStatus();
-    var form = el('entry-dialog').querySelector('.entry-form[data-tab="' + tab + '"]');
-    var first = form && form.querySelector('input:not([type=hidden]), select');
-    if (first) first.focus();
-  }
-
-  function openEntry() {
-    if (!state.accounts.length) {
-      toast('먼저 계좌를 만들어 주세요.', 'warn');
-      el('btn-add-account').click();
-      return;
-    }
-    entryAccountId = selectedAccountId || entryAccountId;
-    renderEntryAccountSelect();
-    // 날짜는 늘 오늘로 다시 맞춘다 — 어제 열어 둔 창을 그대로 쓰다 날짜가 틀리는 것을 막는다
-    ['form-valuation', 'form-flow', 'form-fee', 'form-index'].forEach(function (id) {
-      el(id).elements.date.value = todayStr();
-    });
-    if (state.benchmark && state.benchmark.points.length) {
-      el('form-index').elements.value.value =
-        state.benchmark.points[state.benchmark.points.length - 1].value;
-    }
-    setEntryTab(entryTab);
-    var dlg = el('entry-dialog');
-    if (dialogSupported(dlg)) dlg.showModal();
-  }
-
-  // 저장 후에도 창은 열어 둔다(연달아 기입) — 대신 뒤 화면과 상태 줄을 즉시 갱신한다
-  function afterEntrySaved() {
-    renderEntryAccountSelect();
-    renderEntryStatus();
-  }
-
   // ---------- 서버 동기화 ----------
 
   var SYNC_TEXT = {
@@ -2323,6 +2380,8 @@
       saveState();
       dialog.close();
       render();
+      // 방금 만든 계좌에 바로 평가금액을 넣게 관리 화면으로 데려간다
+      openManage(acc.id);
       toast('"' + name + '" 계좌를 만들었습니다.', 'ok');
     });
 
@@ -2331,10 +2390,8 @@
       e.preventDefault();
       var v = readForm(e.target);
       if (!v) return;
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
-      addEvent(entryAccountId, 'valuation', v.date, v.amount);
+      addEvent(selectedAccountId, 'valuation', v.date, v.amount);
       e.target.elements.amount.value = '';
-      afterEntrySaved();
       toast(v.date + ' 평가금액 ' + fmtWon(v.amount) + ' 저장', 'ok');
     });
 
@@ -2350,13 +2407,12 @@
     el('form-flow').addEventListener('submit', function (e) {
       e.preventDefault();
       var type = e.target.elements.type.value; // deposit | withdraw | closeout
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
       if (type === 'closeout') {
         var date = e.target.elements.date.value;
         if (!date) { toast('날짜를 입력하세요.', 'warn'); return; }
-        var pc = computeAll().processed.find(function (x) { return x.id === entryAccountId; });
+        var pc = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
         if (!pc || pc.eval <= 0.005) { toast('출금할 잔액이 없습니다.', 'warn'); return; }
-        var closeId = entryAccountId;
+        var closeId = selectedAccountId;
         confirmDialog({
           title: '전액 출금 · 해지',
           body: '현재 평가금액 전액(' + fmtWon(pc.eval) + ')을 출금하고 계좌를 해지 상태로 만듭니다. ' +
@@ -2365,18 +2421,16 @@
         }).then(function (ok) {
           if (!ok) return;
           addEvent(closeId, 'closeout', date, 0);
-          afterEntrySaved();
           toast('해지 처리했습니다. 출금 ' + fmtWon(pc.eval), 'ok');
         });
         return;
       }
       var v = readForm(e.target);
       if (!v) return;
-      var form = e.target, accId = entryAccountId;
+      var form = e.target, accId = selectedAccountId;
       var commit = function () {
         addEvent(accId, type, v.date, v.amount);
         form.elements.amount.value = '';
-        afterEntrySaved();
         toast((type === 'deposit' ? '입금' : '출금') + ' ' + fmtWon(v.amount) + ' 반영했습니다.', 'ok');
       };
       if (type === 'withdraw') {
@@ -2398,14 +2452,13 @@
       e.preventDefault();
       var v = readForm(e.target);
       if (!v) return;
-      if (!entryAccountId) { toast('계좌를 선택하세요.', 'warn'); return; }
-      var p = computeAll().processed.find(function (x) { return x.id === entryAccountId; });
+      var p = computeAll().processed.find(function (x) { return x.id === selectedAccountId; });
       if (p && v.amount > p.eval + 1e-6) {
         toast('성과보수가 현재 평가금액(' + fmtWon(p.eval) + ')을 초과할 수 없습니다.', 'error');
         return;
       }
       var after = p ? p.eval - v.amount : 0;
-      var feeForm = e.target, feeAccId = entryAccountId;
+      var feeForm = e.target, feeAccId = selectedAccountId;
       confirmDialog({
         title: '성과보수 수취',
         body: '성과보수 ' + fmtWon(v.amount) + ' 수취 후 기준가 1,000 / 수익률 0%로 초기화됩니다. ' +
@@ -2416,7 +2469,6 @@
         if (!ok) return;
         addEvent(feeAccId, 'fee', v.date, v.amount);
         feeForm.elements.amount.value = '';
-        afterEntrySaved();
         toast('성과보수 ' + fmtWon(v.amount) + ' 수취 — 기준가 1,000으로 재설정', 'ok');
       });
     });
@@ -2462,6 +2514,13 @@
     // 상단 도구
     el('btn-rail-add').addEventListener('click', function () { el('btn-add-account').click(); });
     el('btn-empty-add').addEventListener('click', function () { el('btn-add-account').click(); });
+    el('btn-overview-add').addEventListener('click', function () { el('btn-add-account').click(); });
+
+    // 현황 ↔ 관리 전환
+    el('btn-view').addEventListener('click', function () {
+      setView(currentView === 'manage' ? 'overview' : 'manage');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
     el('btn-empty-restore').addEventListener('click', function () { el('btn-restore').click(); });
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
@@ -2494,20 +2553,7 @@
       upsertBenchmarkPoint(date, value);
       saveState();
       render();
-      afterEntrySaved();
       toast(date + ' 코스피 지수 ' + fmtNum(value, 2) + ' 저장', 'ok');
-    });
-
-    // ── 데이터 입력 창 ──
-    el('btn-entry').addEventListener('click', openEntry);
-    el('btn-close-entry').addEventListener('click', function () { el('entry-dialog').close(); });
-    el('entry-tabs').addEventListener('click', function (e) {
-      var btn = e.target.closest('.chip');
-      if (btn) setEntryTab(btn.getAttribute('data-tab'));
-    });
-    el('entry-account').addEventListener('change', function (e) {
-      entryAccountId = e.target.value;
-      renderEntryStatus();
     });
 
     el('btn-export-xlsx').addEventListener('click', downloadXlsx);
