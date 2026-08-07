@@ -238,14 +238,7 @@ table.grid td.num, table.grid td.date,
   border-color: var(--warn-btn-bd);
 }
 
-.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-/* 화면 전환 버튼과 내보내기 버튼들을 시각적으로 가른다 */
-.toolbar-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: 2px 4px;
-  background: var(--border-strong);
-}
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------- 레이아웃 ---------- */
 
@@ -256,8 +249,6 @@ table.grid td.num, table.grid td.date,
   min-width: 0;
   max-width: 100vw;
 }
-/* 계좌 현황 화면은 레일을 감춘다 — 본문이 그 폭을 가져간다 */
-.shell.no-rail { grid-template-columns: minmax(0, 1fr); }
 
 main {
   padding: 22px 28px 40px;
@@ -583,129 +574,6 @@ main {
 
 .panel-head-left { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .panel-count { font-size: 11.5px; color: var(--muted); }
-.panel-hint { font-size: 11.5px; color: var(--muted-2); word-break: keep-all; }
-
-/* ---------- 계좌 현황 카드 (첫 화면) ----------
-   PDF 리포트의 계좌 블록을 화면으로 옮긴 것. 카드 하나에 핵심 수치 여섯 개와
-   수익률 추이가 들어가, 클릭 없이 전 계좌를 훑는다. */
-.acct-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 14px;
-  padding: 16px 22px 20px;
-}
-.acct-grid[hidden] { display: none; }
-
-.acct-card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 13px 16px 14px;
-  min-width: 0;
-  cursor: pointer;
-  transition: background .12s, border-color .12s;
-}
-.acct-card:hover { background: var(--panel-2); border-color: var(--border-strong); }
-.acct-card:focus-visible { outline-offset: -2px; }
-.acct-card.closed { opacity: .55; }
-.acct-card.dragging { opacity: .45; }
-.acct-card.drag-over-before { box-shadow: inset 3px 0 0 var(--primary); }
-.acct-card.drag-over-after  { box-shadow: inset -3px 0 0 var(--primary); }
-
-.acct-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.acct-name {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--text);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.acct-date {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  color: var(--muted-2);
-  white-space: nowrap;
-}
-
-/* 평가금액과 원금대비 수익률 — 한눈에 보는 자리의 두 주인공 */
-.acct-main {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-}
-.acct-eval-wrap, .acct-ret-wrap { min-width: 0; }
-.acct-ret-wrap { text-align: right; }
-.acct-eval, .acct-ret {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 16.5px;
-  white-space: nowrap;
-  margin-top: 2px;
-}
-.acct-eval { font-weight: 600; letter-spacing: -0.2px; color: var(--text); }
-.acct-ret { font-weight: 700; }
-/* 요약 스트립과 같은 규칙 — 방향 화살표를 항상 붙인다 */
-.acct-ret.pos::before { content: '▲ '; }
-.acct-ret.neg::before { content: '▼ '; }
-
-.acct-spark-wrap { margin-top: 10px; }
-.acct-spark { display: block; width: 100%; height: 34px; }
-.acct-spark-zero {
-  stroke: var(--border-strong);
-  stroke-width: 1;
-  stroke-dasharray: 3 3;
-  vector-effect: non-scaling-stroke;
-}
-.acct-spark-line {
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.6;
-  vector-effect: non-scaling-stroke;
-}
-.acct-spark.pos .acct-spark-line { stroke: var(--pos); }
-.acct-spark.neg .acct-spark-line { stroke: var(--neg); }
-
-.acct-stats {
-  display: grid;
-  gap: 3px;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border-soft);
-}
-.acct-stat {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-.acct-stat-label {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .04em;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.acct-stat-value {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-soft);
-  white-space: nowrap;
-}
 
 .section-title {
   margin: 0 0 10px;
@@ -1632,7 +1500,6 @@ tr.lg-note td {
      overflow-wrap으로 강제 줄바꿈해 카드 밖으로 넘치는 것만은 막는다. */
   .card-value, .card-sub, .metric-value, .metric-sub,
   .rail-eval, .rail-ret, .rail-sum-value, .rail-sum-sub,
-  .acct-eval, .acct-ret, .acct-stat-value,
   #accounts-table td {
     word-break: keep-all;
     overflow-wrap: break-word;
@@ -1713,11 +1580,6 @@ tr.lg-note td {
   table.grid th, table.grid td { padding: 8px 10px; }
   table.grid th:first-child, table.grid td:first-child { padding-left: 14px; }
   table.grid th:last-child, table.grid td:last-child { padding-right: 14px; }
-
-  /* 계좌 현황 카드: 1열로 쌓고 여백만 줄인다 — 구성은 데스크톱과 동일 */
-  .acct-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px 14px 16px; }
-  .acct-card { padding: 12px 14px; }
-  .acct-eval, .acct-ret { font-size: 15.5px; }
 
   /* 계좌 목록: 표 대신 증권사 MTS 보유종목 리스트처럼 2줄짜리 카드 행으로.
      헤더는 숨기고(위치로 의미 전달), 조회 핵심 정보만 — 계좌명(위 1줄) →

@@ -32,9 +32,6 @@
     <span class="sync-badge" id="sync-badge" hidden></span>
   </div>
   <div class="toolbar">
-    <!-- 첫 화면은 '계좌 현황'(보기), 이 버튼으로 '데이터 관리'(입력·수정)로 넘어간다 -->
-    <button id="btn-view" class="btn primary">데이터 관리 →</button>
-    <span class="toolbar-sep" aria-hidden="true"></span>
     <button id="btn-cashflow" class="btn">원금 입출금 내역</button>
     <button id="btn-backup" class="btn">백업</button>
     <button id="btn-restore" class="btn">복원</button>
@@ -70,37 +67,7 @@
     <p class="chart-note" id="chart-note"></p>
   </section>
 
-  <!-- ── 계좌 현황 (첫 화면) ──────────────────────────────────
-       PDF 리포트의 계좌 블록을 화면으로 옮긴 것. 계좌 하나가 카드 하나로,
-       핵심 수치와 수익률 추이가 함께 붙어 있어 클릭 없이 전 계좌를 훑는다.
-       값을 고치려면 위 '데이터 관리' 버튼으로 넘어간다. -->
-  <section class="panel flush" id="overview-view">
-    <div class="panel-head">
-      <div class="panel-head-left">
-        <h2>계좌 현황</h2>
-        <span class="panel-count" id="overview-count"></span>
-        <!-- 레일을 감추는 화면이라, 레일 아래에만 있던 누적 성과보수를 여기로 옮겨 둔다 -->
-        <span class="panel-count" id="overview-fees"></span>
-      </div>
-      <button id="btn-overview-add-top" class="btn">+ 계좌 추가</button>
-    </div>
-    <div class="index-bar" id="overview-index-bar">
-      <span class="index-form-label">코스피 지수</span>
-      <div class="index-stats" id="overview-index-stats"></div>
-    </div>
-    <div class="acct-grid" id="accounts-cards"></div>
-    <div id="overview-empty" class="empty-state">
-      <div class="empty-icon" aria-hidden="true">◫</div>
-      <p class="empty-title">아직 등록된 계좌가 없습니다</p>
-      <p class="empty-desc">계좌를 만들고 일일 평가금액을 입력하면 기준가·수익률·종합 성과 지수가 자동으로 계산됩니다.</p>
-      <div class="empty-actions">
-        <button type="button" id="btn-overview-add" class="btn primary">+ 첫 계좌 만들기</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── 데이터 관리 (이전 화면 그대로) ────────────────────── -->
-  <section class="panel flush" id="manage-list" hidden>
+  <section class="panel flush">
     <div class="panel-head">
       <div class="panel-head-left">
         <h2>계좌 목록</h2>

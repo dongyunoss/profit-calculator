@@ -343,7 +343,6 @@
     renderRail(result);
     renderChart(result);
     renderIndexBar(result);
-    renderAccountsCards(result);
     renderAccountsTable(result);
     renderDetail(result);
   }
@@ -574,8 +573,6 @@
     tableExpanded = { daily: false, history: false }; // 계좌를 바꾸면 다시 최근 건만
     render();
     if (!opening) return;
-    // 상세는 관리 화면에만 있다 — 현황을 보다가 계좌를 고르면 관리로 넘어간다
-    if (currentView !== 'manage') { openManage(null); return; }
     var panel = el('detail-panel');
     if (!panel || panel.hidden) return;
     var top = panel.getBoundingClientRect().top;
@@ -690,13 +687,7 @@
   // 계좌 목록 상단 지수 바 — 입력 폼은 static(HTML)이라 다시 그리지 않는다
   // (매 render마다 새로 만들면 타이핑 중인 값이 날아간다). 우측 통계만 갱신한다.
   function renderIndexBar(result) {
-    // 같은 내용을 두 화면(현황·관리)에 그린다 — 현황 쪽은 입력칸 없이 값만 보여 준다
-    renderIndexStats(el('index-stats'), result);
-    renderIndexStats(el('overview-index-stats'), result);
-  }
-
-  function renderIndexStats(host, result) {
-    if (!host) return;
+    var host = el('index-stats');
     host.innerHTML = '';
     var bm = state.benchmark;
     if (!bm || !bm.points.length) {
@@ -727,195 +718,6 @@
         ]));
       }
     }
-  }
-
-  // ---------- 계좌 현황 카드 (첫 화면) ----------
-
-  // 카드의 미니 차트 — 카드 머리의 큰 숫자(원금대비 수익률)가 걸어온 길을 그린다.
-  // 누적 성과 지수로 그리면 보수 수취·재계약으로 계약 수익률만 초기화되므로
-  // 선의 방향과 큰 숫자의 부호가 어긋나 보인다. 값 축은 카드마다 자체 정규화한다 —
-  // 카드끼리 크기를 견주는 그림이 아니라 "이 계좌가 걸어온 길"을 보여주는 그림이다.
-  function sparklineEl(p) {
-    var pts = [];
-    p.history.forEach(function (row) {
-      if (VALUATION_TYPES[row.type] && row.contractReturn !== undefined && row.contractReturn !== null) {
-        pts.push(row.contractReturn);
-      }
-    });
-    if (pts.length < 2) return null;
-
-    var W = 100, H = 30, PAD = 2.5;
-    var min = 0, max = 0;
-    pts.forEach(function (y) {
-      if (y < min) min = y;
-      if (y > max) max = y;
-    });
-    if (max - min < 1e-9) max = min + 0.01; // 값이 전부 같아도 0으로 나누지 않게
-    var sx = W / (pts.length - 1);
-    var sy = (H - PAD * 2) / (max - min);
-    var coords = pts.map(function (y, i) {
-      return (i * sx).toFixed(1) + ',' + (H - PAD - (y - min) * sy).toFixed(1);
-    });
-    var zeroY = H - PAD - (0 - min) * sy;
-
-    var wrap = document.createElement('div');
-    wrap.className = 'acct-spark-wrap';
-    // 숫자만 들어가는 마크업이라 innerHTML이 안전하다 (SVG는 h()로 만들 수 없다)
-    wrap.innerHTML =
-      '<svg class="acct-spark ' + (pctClass(pts[pts.length - 1]) || '') + '" viewBox="0 0 ' + W + ' ' + H +
-      '" preserveAspectRatio="none" aria-hidden="true">' +
-      '<line class="acct-spark-zero" x1="0" y1="' + zeroY.toFixed(1) + '" x2="' + W + '" y2="' + zeroY.toFixed(1) + '"/>' +
-      '<polyline class="acct-spark-line" points="' + coords.join(' ') + '"/></svg>';
-    return wrap;
-  }
-
-  function acctStat(label, value, cls) {
-    return h('div', { class: 'acct-stat' }, [
-      h('span', { class: 'acct-stat-label', text: label }),
-      h('span', { class: 'acct-stat-value' + (cls ? ' ' + cls : ''), text: value })
-    ]);
-  }
-
-  function renderAccountsCards(result) {
-    var host = el('accounts-cards');
-    host.innerHTML = '';
-    el('overview-empty').hidden = state.accounts.length > 0;
-    host.hidden = state.accounts.length === 0;
-    el('overview-index-bar').hidden = state.accounts.length === 0;
-
-    var closedCount = result.processed.filter(function (p) { return p.isClosed; }).length;
-    el('overview-count').textContent = result.processed.length
-      ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
-      : '';
-    var fees = result.summary.totalFees;
-    el('overview-fees').textContent = (result.processed.length && fees > 0)
-      ? '· 누적 성과보수 ' + fmtWonAuto(fees) : '';
-
-    result.processed.forEach(function (p) {
-      var showRet = p.contractPrincipal > 0;
-      var card = h('div', {
-        class: 'acct-card' + (p.isClosed ? ' closed' : ''),
-        'data-id': p.id,
-        draggable: 'true',
-        title: '클릭: 이 계좌의 관리 화면으로 · 끌어서 순서 변경',
-        onclick: function () { openManage(p.id); }
-      }, [
-        h('div', { class: 'acct-head' }, [
-          h('span', { class: 'acct-name' }, [
-            h('span', { text: p.name }),
-            p.isClosed ? h('span', { class: 'tag tag-closed', text: '해지' }) : null,
-            (!p.isClosed && p.isMatured) ? h('span', { class: 'tag tag-matured', text: '만기' }) : null
-          ]),
-          h('span', { class: 'acct-date', text: p.lastValuationDate ? '평가 ' + p.lastValuationDate : '평가 없음' })
-        ]),
-        h('div', { class: 'acct-main' }, [
-          h('div', { class: 'acct-eval-wrap' }, [
-            h('div', { class: 'acct-stat-label', text: '평가금액' }),
-            h('div', { class: 'acct-eval', text: fmtWonAuto(p.eval) })
-          ]),
-          h('div', { class: 'acct-ret-wrap' }, [
-            h('div', { class: 'acct-stat-label', text: '원금대비 수익률' }),
-            h('div', {
-              class: 'acct-ret ' + (showRet ? pctClass(p.contractReturn) : ''),
-              text: showRet ? fmtPct(p.contractReturn) : '—'
-            })
-          ])
-        ]),
-        sparklineEl(p),
-        h('div', { class: 'acct-stats' }, [
-          acctStat('원금', fmtWonAuto(p.contractPrincipal)),
-          acctStat('평가손익', fmtWonAuto(p.contractPnl), pctClass(p.contractPnl)),
-          acctStat('기준가', fmtNum(p.nav, 2)),
-          acctStat('기준가 수익률', fmtPct(p.navReturn), pctClass(p.navReturn))
-        ])
-      ]);
-      attachCardDrag(card, p.id);
-      card.setAttribute('tabindex', '0');
-      card.setAttribute('role', 'button');
-      card.setAttribute('aria-label', p.name + ' 관리 화면 열기');
-      card.addEventListener('keydown', function (e) {
-        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-        e.preventDefault();
-        openManage(p.id);
-      });
-      host.appendChild(card);
-    });
-  }
-
-  // 카드는 그리드에서 가로로 흐르므로 앞/뒤를 좌우 절반으로 가른다
-  function attachCardDrag(card, id) {
-    card.addEventListener('dragstart', function (e) {
-      dragSrcId = id;
-      card.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      try { e.dataTransfer.setData('text/plain', id); } catch (_) { /* IE 등 */ }
-    });
-    card.addEventListener('dragend', function () {
-      dragSrcId = null;
-      card.classList.remove('dragging');
-      clearCardDragMarks(card.parentNode);
-    });
-    card.addEventListener('dragover', function (e) {
-      if (dragSrcId === null || dragSrcId === id) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      var rect = card.getBoundingClientRect();
-      var after = (e.clientX - rect.left) > rect.width / 2;
-      card.classList.toggle('drag-over-after', after);
-      card.classList.toggle('drag-over-before', !after);
-    });
-    card.addEventListener('dragleave', function () {
-      card.classList.remove('drag-over-before', 'drag-over-after');
-    });
-    card.addEventListener('drop', function (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      var after = card.classList.contains('drag-over-after');
-      card.classList.remove('drag-over-before', 'drag-over-after');
-      if (dragSrcId === null || dragSrcId === id) return;
-      reorderAccounts(dragSrcId, id, after);
-    });
-  }
-
-  function clearCardDragMarks(host) {
-    if (!host) return; // drop 후 재렌더로 카드가 분리된 경우
-    Array.prototype.forEach.call(
-      host.querySelectorAll('.drag-over-before, .drag-over-after'),
-      function (c) { c.classList.remove('drag-over-before', 'drag-over-after'); }
-    );
-  }
-
-  // ---------- 화면 전환 ----------
-
-  // 'overview' = 계좌 현황(보기, 첫 화면) / 'manage' = 이전 화면(입력·수정)
-  var currentView = 'overview';
-
-  function setView(view) {
-    currentView = view;
-    var manage = view === 'manage';
-    el('overview-view').hidden = manage;
-    el('manage-list').hidden = !manage;
-    // 현황에서는 레일을 감춘다 — 카드가 같은 정보를 더 자세히 보여 주므로 자리만 차지한다.
-    // 레일이 빠진 만큼 본문이 넓어져 카드가 한 줄에 더 들어간다.
-    document.querySelector('.rail').hidden = !manage;
-    document.querySelector('.shell').classList.toggle('no-rail', !manage);
-    // 상세는 관리 화면의 일부다 — 현황으로 돌아가면 함께 감춘다
-    if (!manage) el('detail-panel').hidden = true;
-    else if (lastResult) renderDetail(lastResult);
-    el('btn-view').textContent = manage ? '← 계좌 현황' : '데이터 관리 →';
-    el('btn-view').classList.toggle('primary', !manage);
-  }
-
-  function openManage(accountId) {
-    if (accountId && selectedAccountId !== accountId) {
-      selectedAccountId = accountId;
-      tableExpanded = { daily: false, history: false };
-      render();
-    }
-    setView('manage');
-    // 계좌를 지정해 들어왔으면 그 계좌 상세가 바로 보이게 스크롤한다
-    var target = accountId ? el('detail-panel') : el('manage-list');
-    if (target && !target.hidden) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   function renderAccountsTable(result) {
@@ -1048,12 +850,11 @@
   function renderDetail(result) {
     var panel = el('detail-panel');
     var p = result.processed.find(function (x) { return x.id === selectedAccountId; });
-    // 상세는 관리 화면의 일부다 — 현황 화면에서는 계좌가 선택돼 있어도 띄우지 않는다
-    if (!p || currentView !== 'manage') {
+    if (!p) {
       panel.hidden = true;
-      if (!p) return;
+      return;
     }
-    panel.hidden = currentView !== 'manage';
+    panel.hidden = false;
     el('detail-title').textContent = p.name +
       (p.isClosed ? ' (해지)' : (p.isMatured ? ' (만기 도래)' : ''));
     el('detail-meta').textContent = (p.createdDate ? '개설 ' + p.createdDate : '') +
@@ -2387,8 +2188,6 @@
       saveState();
       dialog.close();
       render();
-      // 방금 만든 계좌에 바로 평가금액을 넣게 관리 화면으로 데려간다
-      openManage(acc.id);
       toast('"' + name + '" 계좌를 만들었습니다.', 'ok');
     });
 
@@ -2521,14 +2320,6 @@
     // 상단 도구
     el('btn-rail-add').addEventListener('click', function () { el('btn-add-account').click(); });
     el('btn-empty-add').addEventListener('click', function () { el('btn-add-account').click(); });
-    el('btn-overview-add').addEventListener('click', function () { el('btn-add-account').click(); });
-    el('btn-overview-add-top').addEventListener('click', function () { el('btn-add-account').click(); });
-
-    // 현황 ↔ 관리 전환
-    el('btn-view').addEventListener('click', function () {
-      setView(currentView === 'manage' ? 'overview' : 'manage');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
     el('btn-empty-restore').addEventListener('click', function () { el('btn-restore').click(); });
     el('btn-cashflow').addEventListener('click', openCashflow);
     el('btn-close-cashflow').addEventListener('click', function () { el('cashflow-dialog').close(); });
@@ -2607,7 +2398,6 @@
     }
 
     render();
-    setView(currentView); // 첫 화면(계좌 현황)의 표시 상태를 실제 DOM에 적용
     bootstrapSync();
 
     // 모바일 브레이크포인트를 넘나들 때(창 크기 조절·화면 회전) 축약 표기(fmtWonAuto)가
