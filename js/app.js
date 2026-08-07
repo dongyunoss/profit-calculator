@@ -902,9 +902,10 @@
     renderLedgerTable(p);
     renderDailyTable(p);
 
-    // 기본은 접어 둔다 — 항목이 수백 건이라 자주 볼 일이 없는 로그를 매번 그릴 필요는 없다
+    // 기본은 접어 둔다 — 항목이 수백 건이라 자주 볼 일이 없는 로그를 매번 그릴 필요는 없다.
+    // 버튼 자체가 섹션 제목 자리를 차지하므로 라벨은 그대로 두고 펼침 상태만 표시한다(화살표는 CSS).
     el('history-log').hidden = !historyLogVisible;
-    el('btn-toggle-history').textContent = historyLogVisible ? '로그 숨기기' : '로그 보기';
+    el('btn-toggle-history').setAttribute('aria-expanded', historyLogVisible ? 'true' : 'false');
     if (!historyLogVisible) return;
 
     var tbody = el('history-table').querySelector('tbody');
