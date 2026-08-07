@@ -127,6 +127,45 @@
     <div class="detail-body">
     <div class="metrics" id="detail-cards"></div>
 
+    <div id="detail-warnings"></div>
+
+    <div class="detail-split">
+      <div class="detail-block">
+        <h3 class="section-title">원금 원장</h3>
+        <div class="table-wrap">
+          <table class="grid" id="ledger-table">
+            <thead>
+              <tr>
+                <th>구분</th>
+                <th>일자</th>
+                <th class="num">금액</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="detail-block">
+        <h3 class="section-title">일별 평가 · 수익률</h3>
+        <div class="table-wrap">
+          <table class="grid" id="daily-table">
+            <thead>
+              <tr>
+                <th>일자</th>
+                <th class="num">평가금액</th>
+                <th class="num">원금대비 수익률</th>
+                <th class="num">기준가 수익률</th>
+                <th class="num">기준가</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="table-more" id="daily-more" hidden></div>
+      </div>
+    </div>
+
     <div class="forms-row">
       <form id="form-valuation" class="mini-form">
         <h3>일일 평가금액 입력</h3>
@@ -166,45 +205,6 @@
         평가금액이 새 계약의 원금으로 승계됩니다(개별 계좌 기준 — 전체 성과는 원금 흐름 기준이라 불변).
         당일 평가금액은 <b>보수 차감 전</b> 금액으로 입력하세요.</p>
       </form>
-    </div>
-
-    <div id="detail-warnings"></div>
-
-    <div class="detail-split">
-      <div class="detail-block">
-        <h3 class="section-title">원금 원장</h3>
-        <div class="table-wrap">
-          <table class="grid" id="ledger-table">
-            <thead>
-              <tr>
-                <th>구분</th>
-                <th>일자</th>
-                <th class="num">금액</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="detail-block">
-        <h3 class="section-title">일별 평가 · 수익률</h3>
-        <div class="table-wrap">
-          <table class="grid" id="daily-table">
-            <thead>
-              <tr>
-                <th>일자</th>
-                <th class="num">평가금액</th>
-                <th class="num">원금대비 수익률</th>
-                <th class="num">기준가 수익률</th>
-                <th class="num">기준가</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="table-more" id="daily-more" hidden></div>
-      </div>
     </div>
 
     <div>
