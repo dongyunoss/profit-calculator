@@ -256,6 +256,8 @@ table.grid td.num, table.grid td.date,
   min-width: 0;
   max-width: 100vw;
 }
+/* 계좌 현황 화면은 레일을 감춘다 — 본문이 그 폭을 가져간다 */
+.shell.no-rail { grid-template-columns: minmax(0, 1fr); }
 
 main {
   padding: 22px 28px 40px;

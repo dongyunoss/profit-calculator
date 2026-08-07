@@ -787,6 +787,9 @@
     el('overview-count').textContent = result.processed.length
       ? result.processed.length + '개 · 운용 ' + (result.processed.length - closedCount) + ' / 해지 ' + closedCount
       : '';
+    var fees = result.summary.totalFees;
+    el('overview-fees').textContent = (result.processed.length && fees > 0)
+      ? '· 누적 성과보수 ' + fmtWonAuto(fees) : '';
 
     result.processed.forEach(function (p) {
       var showRet = p.contractPrincipal > 0;
@@ -892,6 +895,10 @@
     var manage = view === 'manage';
     el('overview-view').hidden = manage;
     el('manage-list').hidden = !manage;
+    // 현황에서는 레일을 감춘다 — 카드가 같은 정보를 더 자세히 보여 주므로 자리만 차지한다.
+    // 레일이 빠진 만큼 본문이 넓어져 카드가 한 줄에 더 들어간다.
+    document.querySelector('.rail').hidden = !manage;
+    document.querySelector('.shell').classList.toggle('no-rail', !manage);
     // 상세는 관리 화면의 일부다 — 현황으로 돌아가면 함께 감춘다
     if (!manage) el('detail-panel').hidden = true;
     else if (lastResult) renderDetail(lastResult);
@@ -2515,6 +2522,7 @@
     el('btn-rail-add').addEventListener('click', function () { el('btn-add-account').click(); });
     el('btn-empty-add').addEventListener('click', function () { el('btn-add-account').click(); });
     el('btn-overview-add').addEventListener('click', function () { el('btn-add-account').click(); });
+    el('btn-overview-add-top').addEventListener('click', function () { el('btn-add-account').click(); });
 
     // 현황 ↔ 관리 전환
     el('btn-view').addEventListener('click', function () {
@@ -2599,6 +2607,7 @@
     }
 
     render();
+    setView(currentView); // 첫 화면(계좌 현황)의 표시 상태를 실제 DOM에 적용
     bootstrapSync();
 
     // 모바일 브레이크포인트를 넘나들 때(창 크기 조절·화면 회전) 축약 표기(fmtWonAuto)가

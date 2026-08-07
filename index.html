@@ -79,8 +79,10 @@
       <div class="panel-head-left">
         <h2>계좌 현황</h2>
         <span class="panel-count" id="overview-count"></span>
+        <!-- 레일을 감추는 화면이라, 레일 아래에만 있던 누적 성과보수를 여기로 옮겨 둔다 -->
+        <span class="panel-count" id="overview-fees"></span>
       </div>
-      <span class="panel-hint">카드를 누르면 그 계좌의 관리 화면으로 이동합니다</span>
+      <button id="btn-overview-add-top" class="btn">+ 계좌 추가</button>
     </div>
     <div class="index-bar" id="overview-index-bar">
       <span class="index-form-label">코스피 지수</span>
