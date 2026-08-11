@@ -119,6 +119,27 @@
     });
   }
 
+  /*
+   * 조용히 버전만 확인한다 — 다른 기기가 저장했는지 주기적으로 살펴볼 때 쓴다.
+   * load()와 달리 배지 상태(state.status)를 건드리지 않는다: 매번 "동기화 중…"으로
+   * 깜빡이면 아무것도 안 바뀐 대부분의 확인에서 오히려 거슬린다.
+   * 버전이 그대로면 null, 바뀌었으면 최신 데이터를 돌려준다. 실패해도 조용히 null.
+   */
+  function poll() {
+    if (state.mode !== 'remote') return Promise.resolve(null);
+    return request('GET').then(function (res) {
+      if (!res.ok) return null;
+      return res.json().then(function (body) {
+        if (!body.exists || body.version === state.version) return null;
+        // 다음 확인이 같은 변경을 또 "새 변경"으로 보고하지 않도록 기준을 갱신해 둔다.
+        state.version = body.version;
+        state.updatedAt = body.updatedAt || null;
+        state.updatedBy = body.updatedBy || null;
+        return { version: body.version, data: body.data, updatedAt: state.updatedAt, updatedBy: state.updatedBy };
+      });
+    }).catch(function () { return null; });
+  }
+
   // 디바운스 저장 예약. 로컬 전용 모드면 아무 일도 하지 않는다.
   function save(data) {
     if (state.mode === 'local') return;
@@ -190,6 +211,7 @@
 
   global.Sync = {
     load: load,
+    poll: poll,
     save: save,
     flush: flush,
     adoptVersion: adoptVersion,

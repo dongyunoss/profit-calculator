@@ -2043,12 +2043,18 @@
 
   function renderSyncBadge(status) {
     var badge = el('sync-badge');
+    var syncBtn = el('btn-sync-now');
     if (!badge) return;
-    // 로컬 전용(서버 미배포·파일로 열기)에서는 배지를 아예 숨겨 기존 화면 그대로 둔다
-    if (status === 'local' || status === 'idle') { badge.hidden = true; return; }
+    // 로컬 전용(서버 미배포·파일로 열기)에서는 배지·동기화 버튼을 아예 숨겨 기존 화면 그대로 둔다
+    if (status === 'local' || status === 'idle') {
+      badge.hidden = true;
+      if (syncBtn) syncBtn.hidden = true;
+      return;
+    }
     var s = SYNC_TEXT[status];
-    if (!s) { badge.hidden = true; return; }
+    if (!s) { badge.hidden = true; if (syncBtn) syncBtn.hidden = true; return; }
     badge.hidden = false;
+    if (syncBtn) syncBtn.hidden = false;
     badge.className = 'sync-badge' + (s.c ? ' ' + s.c : '');
     badge.textContent = s.t;
     var who = Sync.state.updatedBy, when = Sync.state.updatedAt;
@@ -2101,6 +2107,85 @@
     refreshToRemote(info.data, info.serverVersion, info);
   }
 
+  // Sync.load() 결과를 화면에 반영한다. 부팅 시와 '동기화' 버튼 수동 클릭 시 둘 다 쓴다.
+  // manual이 true일 때만 "이미 최신입니다" 같은, 매번 뜨면 거슬리는 결과 토스트를 띄운다.
+  function applyLoadResult(r, manual) {
+    if (r.mode === 'local') return;               // 서버 없음 — 기존처럼 로컬만 사용
+    if (r.mode === 'offline') {
+      toast('서버에 연결하지 못했습니다. 이 컴퓨터에 저장되며 연결되면 자동으로 올라갑니다.' +
+        (r.error ? ' (' + r.error + ')' : ''), 'warn');
+      return;
+    }
+    if (!r.exists) {
+      // 서버가 비어 있다 — 이 컴퓨터 데이터를 옮긴다(최초 1회 이관)
+      if (state.accounts.length) {
+        Sync.save(state);
+        Sync.flush().then(function () { toast('이 컴퓨터의 데이터를 서버로 옮겼습니다.', 'ok'); });
+      } else if (manual) {
+        toast('서버에 아직 데이터가 없습니다.', 'info');
+      }
+      return;
+    }
+    // 이 컴퓨터에 못 올린 변경이 남아 있을 때, 그 사이 서버가 움직였는지로 갈린다.
+    if (isDirty() && state.accounts.length) {
+      if (r.version === readSyncedVersion()) {
+        // 내가 읽은 그대로다 — 아무도 안 건드렸으니 못 올린 변경을 올린다
+        Sync.adoptVersion(r.version);
+        Sync.save(state);
+        Sync.flush().then(function () { toast('올리지 못했던 변경을 서버에 저장했습니다.', 'ok'); });
+      } else {
+        // 내가 읽은 뒤 다른 곳에서 저장했다 — 그 최신 내용으로 맞춘다
+        refreshToRemote(r.data, r.version, r);
+      }
+      return;
+    }
+    var unchanged = r.version === readSyncedVersion();
+    adoptRemote(r.data);
+    writeSyncedVersion(r.version);
+    if (manual) toast(unchanged ? '이미 최신 상태입니다.' : '다른 기기의 변경사항을 반영했습니다.', 'ok');
+  }
+
+  var syncBusy = false;
+
+  // 헤더의 '동기화' 버튼 — 다른 기기의 변경을 기다리지 않고 지금 바로 확인한다.
+  function manualSync() {
+    if (!window.Sync || Sync.isLocalOnly() || syncBusy) return;
+    syncBusy = true;
+    var btn = el('btn-sync-now');
+    if (btn) btn.classList.add('spinning');
+    Sync.load().then(function (r) { applyLoadResult(r, true); })
+      .then(function () {
+        syncBusy = false;
+        if (btn) btn.classList.remove('spinning');
+      });
+  }
+
+  // 다른 기기의 변경을, 화면을 보고 있는 동안 알아서 확인한다. 편집 중(dirty)이면
+  // 그 저장이 스스로 충돌을 처리하므로 건드리지 않고 조용히 넘어간다.
+  var SYNC_POLL_MS = 60000;
+  var syncPollTimer = null;
+
+  function pollForRemoteChanges() {
+    if (!window.Sync || Sync.isLocalOnly() || isDirty() || syncBusy) return;
+    Sync.poll().then(function (r) {
+      if (!r) return; // 변경 없음 — 조용히 넘어간다
+      adoptRemote(r.data);
+      writeSyncedVersion(r.version);
+      toast('다른 기기에서 저장한 최신 내용으로 갱신했습니다.', 'ok');
+    });
+  }
+
+  function startSyncPolling() {
+    if (syncPollTimer) return; // 이미 돌고 있음 (재로그인 등으로 재호출돼도 중복 방지)
+    syncPollTimer = setInterval(function () {
+      if (document.visibilityState === 'visible') pollForRemoteChanges();
+    }, SYNC_POLL_MS);
+    // 다른 탭·앱에 가 있다가 돌아온 순간에도 곧바로 한 번 확인한다
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') pollForRemoteChanges();
+    });
+  }
+
   function bootstrapSync() {
     if (!window.Sync) return;
     Sync.on('status', renderSyncBadge);
@@ -2122,36 +2207,15 @@
       });
     }
 
+    var syncBtnEl = el('btn-sync-now');
+    if (syncBtnEl && !syncBtnEl.dataset.wired) {
+      syncBtnEl.dataset.wired = '1';
+      syncBtnEl.addEventListener('click', manualSync);
+    }
+
     Sync.load().then(function (r) {
-      if (r.mode === 'local') return;               // 서버 없음 — 기존처럼 로컬만 사용
-      if (r.mode === 'offline') {
-        toast('서버에 연결하지 못했습니다. 이 컴퓨터에 저장되며 연결되면 자동으로 올라갑니다.' +
-          (r.error ? ' (' + r.error + ')' : ''), 'warn');
-        return;
-      }
-      if (!r.exists) {
-        // 서버가 비어 있다 — 이 컴퓨터 데이터를 옮긴다(최초 1회 이관)
-        if (state.accounts.length) {
-          Sync.save(state);
-          Sync.flush().then(function () { toast('이 컴퓨터의 데이터를 서버로 옮겼습니다.', 'ok'); });
-        }
-        return;
-      }
-      // 이 컴퓨터에 못 올린 변경이 남아 있을 때, 그 사이 서버가 움직였는지로 갈린다.
-      if (isDirty() && state.accounts.length) {
-        if (r.version === readSyncedVersion()) {
-          // 내가 읽은 그대로다 — 아무도 안 건드렸으니 못 올린 변경을 올린다
-          Sync.adoptVersion(r.version);
-          Sync.save(state);
-          Sync.flush().then(function () { toast('올리지 못했던 변경을 서버에 저장했습니다.', 'ok'); });
-        } else {
-          // 내가 읽은 뒤 다른 곳에서 저장했다 — 그 최신 내용으로 맞춘다
-          refreshToRemote(r.data, r.version, r);
-        }
-        return;
-      }
-      adoptRemote(r.data);
-      writeSyncedVersion(r.version);
+      applyLoadResult(r, false);
+      if (r.mode === 'remote') startSyncPolling();
     });
 
     // 저장이 예약된 채로 창을 닫으면 그 변경이 서버에 안 올라간다

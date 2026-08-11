@@ -239,6 +239,11 @@ table.grid td.num, table.grid td.date,
   cursor: pointer; /* 접속 코드가 틀렸을 때 눌러서 다시 입력할 수 있다 */
 }
 
+.sync-now-btn { color: var(--muted); }
+.sync-now-btn.spinning { pointer-events: none; opacity: .6; }
+.sync-now-btn.spinning span { display: inline-block; animation: sync-spin .7s linear infinite; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
 
 /* ---------- 레이아웃 ---------- */
