@@ -18,7 +18,7 @@ binding = "ASSETS"
 [[d1_databases]]
 binding = "DB"                    # functions에서 env.DB 로 접근
 database_name = "profit-calculator"
-database_id = "여기에-d1-database-id를-넣으세요"
+database_id = "ca15c6ae-8126-4203-8f9b-f7e34e26a770"
 
 # ACCESS_TEAM_DOMAIN / ACCESS_AUD 는 비밀값은 아니지만 계정마다 다르므로
 # 저장소에 넣지 않고 Pages 대시보드의 환경 변수로 설정한다.
