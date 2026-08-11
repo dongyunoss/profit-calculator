@@ -15,6 +15,23 @@
   var ENDPOINT = '/api/state';
   var DEBOUNCE_MS = 800;      // 연속 입력을 한 번의 저장으로 묶는다
   var RETRY_MS = [2000, 5000, 15000, 30000, 60000];
+  var KEY_STORAGE = 'profit-calculator-site-key';
+
+  // 접속 코드 — 로그인 화면 없이 링크(?key=...)로만 구분한다.
+  // 한 번 읽으면 저장해 두고, 주소창에서는 지워 화면·기록에 코드가 남지 않게 한다.
+  var siteKey = null;
+  try { siteKey = global.localStorage.getItem(KEY_STORAGE); } catch (e) { /* 무시 */ }
+  (function captureKeyFromUrl() {
+    try {
+      var url = new global.URL(global.location.href);
+      var k = url.searchParams.get('key');
+      if (!k) return;
+      siteKey = k;
+      global.localStorage.setItem(KEY_STORAGE, k);
+      url.searchParams.delete('key');
+      global.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { /* URL·history API 없는 환경(파일로 열기 등)은 조용히 무시 */ }
+  })();
 
   var state = {
     mode: 'unknown',          // unknown | remote | local | offline
@@ -49,6 +66,7 @@
       credentials: 'same-origin',
       headers: { 'Accept': 'application/json' }
     };
+    if (siteKey) opts.headers['X-Site-Key'] = siteKey;
     if (body !== undefined) {
       opts.headers['Content-Type'] = 'application/json';
       opts.body = JSON.stringify(body);
@@ -178,6 +196,11 @@
     state: state,
     on: function (name, fn) { handlers[name] = fn; },
     isRemote: function () { return state.mode === 'remote'; },
-    isLocalOnly: function () { return state.mode === 'local'; }
+    isLocalOnly: function () { return state.mode === 'local'; },
+    // 링크를 다시 못 받았을 때, 코드만 따로 입력받아 복구할 수 있게 한다.
+    setKey: function (k) {
+      siteKey = k;
+      try { global.localStorage.setItem(KEY_STORAGE, k); } catch (e) { /* 무시 */ }
+    }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

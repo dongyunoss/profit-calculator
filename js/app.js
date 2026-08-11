@@ -2109,6 +2109,19 @@
     Sync.on('pushed', function (v) { markDirty(false); writeSyncedVersion(v); });
     Sync.on('conflict', onSyncConflict);
 
+    var badgeEl = el('sync-badge');
+    if (badgeEl && !badgeEl.dataset.wired) {
+      badgeEl.dataset.wired = '1';
+      badgeEl.addEventListener('click', function () {
+        // 접속 코드가 없거나 틀려서 막힌 상태일 때만, 코드를 다시 입력해 복구할 길을 준다.
+        if (Sync.state.status !== 'offline') return;
+        var v = window.prompt('접속 코드를 입력하세요.');
+        if (v === null || !v.trim()) return;
+        Sync.setKey(v.trim());
+        bootstrapSync();
+      });
+    }
+
     Sync.load().then(function (r) {
       if (r.mode === 'local') return;               // 서버 없음 — 기존처럼 로컬만 사용
       if (r.mode === 'offline') {

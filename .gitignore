@@ -7,3 +7,4 @@ sample-import.xlsx
 *_추가*.json
 *계좌*.json
 scratch/
+.wrangler/

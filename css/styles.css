@@ -236,6 +236,7 @@ table.grid td.num, table.grid td.date,
   color: var(--warn-btn-fg);
   background: var(--warn-bg);
   border-color: var(--warn-btn-bd);
+  cursor: pointer; /* 접속 코드가 틀렸을 때 눌러서 다시 입력할 수 있다 */
 }
 
 .toolbar { display: flex; gap: 8px; flex-wrap: wrap; }

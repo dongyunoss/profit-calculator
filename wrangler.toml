@@ -20,8 +20,8 @@ binding = "DB"                    # functions에서 env.DB 로 접근
 database_name = "profit-calculator"
 database_id = "ca15c6ae-8126-4203-8f9b-f7e34e26a770"
 
-# ACCESS_TEAM_DOMAIN / ACCESS_AUD 는 비밀값은 아니지만 계정마다 다르므로
-# 저장소에 넣지 않고 Pages 대시보드의 환경 변수로 설정한다.
+# SITE_KEY는 비밀값이라 저장소에 넣지 않고 Pages/Workers 대시보드에 "Secret"으로 등록한다.
 #   Workers & Pages → 프로젝트 → Settings → Variables and Secrets
-#     ACCESS_TEAM_DOMAIN = <팀이름>.cloudflareaccess.com
-#     ACCESS_AUD         = Access 애플리케이션의 Audience(AUD) 태그
+#     SITE_KEY = <임의의 긴 문자열>  (예: openssl rand -hex 24)
+# 접속은 로그인 화면 없이 링크에 이 코드를 붙이는 방식이다.
+#   https://<프로젝트>.pages.dev/?key=<위에서 정한 SITE_KEY>
