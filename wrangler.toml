@@ -1,14 +1,19 @@
-# Cloudflare Pages 설정
+# Cloudflare 배포 설정
 #
-# 빌드 도구가 없는 정적 사이트라 저장소 루트를 그대로 배포한다.
-# functions/ 아래 파일은 Pages Functions로 자동 인식된다.
+# Git 연동 배포가 classic Pages가 아니라 "정적 자산이 딸린 Worker" 방식(wrangler deploy)으로
+# 처리되므로, functions/ 파일 기반 라우팅 대신 src/worker.js가 직접 /api/state를 연결하고
+# 나머지 경로는 정적 자산(assets)으로 넘긴다. 빌드 도구는 없다 — 저장소 루트를 그대로 올린다.
 #
 # database_id 는 아래 명령으로 D1을 만들면 출력된다. 그 값을 여기에 붙여 넣는다.
 #   wrangler d1 create profit-calculator
 
 name = "profit-calculator"
 compatibility_date = "2026-08-01"
-pages_build_output_dir = "."
+main = "src/worker.js"
+
+[assets]
+directory = "."
+binding = "ASSETS"
 
 [[d1_databases]]
 binding = "DB"                    # functions에서 env.DB 로 접근
