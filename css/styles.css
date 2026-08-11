@@ -1085,6 +1085,15 @@ dialog label {
   transform: translateY(8px);
   transition: opacity .18s ease, transform .18s ease;
 }
+/* 자동으로 안 사라지는 토스트에만 붙는, "눌러서 닫는다"는 표시 */
+.toast-close {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  opacity: .55;
+}
+.toast:hover .toast-close { opacity: .9; }
+
 /* 토스트 안 동작 버튼 — 보관본 내려받기처럼 그 자리에서 끝내야 하는 것만 붙인다 */
 .toast-action {
   display: block;

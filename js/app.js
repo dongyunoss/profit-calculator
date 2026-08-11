@@ -224,24 +224,29 @@
 
   // 결과 피드백은 흐름을 끊지 않는 토스트로. type: 'info' | 'ok' | 'warn' | 'error'
   // action = { label, onClick } — 토스트 안에 버튼을 하나 붙인다(예: 보관본 내려받기)
-  function toast(message, type, action) {
+  // opts: { label, onClick } 로 버튼을 붙이거나, { sticky: true }로 자동으로
+  // 사라지지 않게 할 수 있다(눌러서 닫을 때까지 유지 — 놓치면 안 되는 알림용).
+  function toast(message, type, opts) {
     var host = el('toast-host');
     if (!host) return;
+    var sticky = !!(opts && opts.sticky);
     var node = h('div', { class: 'toast ' + (type || 'info') }, [
       h('span', { text: message }),
-      action ? h('button', {
-        type: 'button', class: 'toast-action', text: action.label,
-        onclick: function (e) { e.stopPropagation(); action.onClick(); }
-      }) : null
+      opts && opts.label ? h('button', {
+        type: 'button', class: 'toast-action', text: opts.label,
+        onclick: function (e) { e.stopPropagation(); opts.onClick(); }
+      }) : null,
+      // 자동으로 안 사라지는 토스트는 "눌러서 닫는다"는 게 눈에 보여야 한다
+      sticky ? h('span', { class: 'toast-close', text: '✕', 'aria-hidden': 'true' }) : null
     ]);
     host.appendChild(node);
     // 트랜지션이 걸리도록 다음 프레임에 표시 클래스를 준다
     requestAnimationFrame(function () { node.classList.add('show'); });
-    var life = (type === 'error' || type === 'warn') ? 5200 : 3000;
-    var timer = setTimeout(close, life);
+    var life = sticky ? 0 : ((type === 'error' || type === 'warn') ? 5200 : 3000);
+    var timer = life ? setTimeout(close, life) : null;
     node.addEventListener('click', close);
     function close() {
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       if (!node.parentNode) return;
       node.classList.remove('show');
       setTimeout(function () { if (node.parentNode) node.parentNode.removeChild(node); }, 200);
@@ -2094,7 +2099,7 @@
       who + '먼저 저장해 최신 내용으로 맞췄습니다.' +
       (lost ? ' 이 컴퓨터에서 입력하던 내용은 따로 보관했습니다.' : ''),
       'warn',
-      lost ? { label: '보관본 내려받기', onClick: downloadStash } : null
+      lost ? { label: '보관본 내려받기', onClick: downloadStash, sticky: true } : { sticky: true }
     );
   }
 
@@ -2142,7 +2147,15 @@
     var unchanged = r.version === readSyncedVersion();
     adoptRemote(r.data);
     writeSyncedVersion(r.version);
-    if (manual) toast(unchanged ? '이미 최신 상태입니다.' : '다른 기기의 변경사항을 반영했습니다.', 'ok');
+    if (manual) {
+      if (unchanged) {
+        toast('이미 최신 상태입니다.', 'ok');
+      } else {
+        toast('다른 기기의 변경사항을 반영했습니다.' +
+          (r.updatedAt ? ' (' + r.updatedAt.replace('T', ' ').slice(0, 16) + ' 저장분)' : ''),
+          'warn', { sticky: true });
+      }
+    }
   }
 
   var syncBusy = false;
@@ -2171,7 +2184,9 @@
       if (!r) return; // 변경 없음 — 조용히 넘어간다
       adoptRemote(r.data);
       writeSyncedVersion(r.version);
-      toast('다른 기기에서 저장한 최신 내용으로 갱신했습니다.', 'ok');
+      toast('다른 기기에서 저장한 최신 내용으로 갱신했습니다.' +
+        (r.updatedAt ? ' (' + r.updatedAt.replace('T', ' ').slice(0, 16) + ' 저장분)' : ''),
+        'warn', { sticky: true });
     });
   }
 
