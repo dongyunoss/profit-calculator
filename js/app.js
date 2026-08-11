@@ -2125,7 +2125,8 @@
     Sync.load().then(function (r) {
       if (r.mode === 'local') return;               // 서버 없음 — 기존처럼 로컬만 사용
       if (r.mode === 'offline') {
-        toast('서버에 연결하지 못했습니다. 이 컴퓨터에 저장되며 연결되면 자동으로 올라갑니다.', 'warn');
+        toast('서버에 연결하지 못했습니다. 이 컴퓨터에 저장되며 연결되면 자동으로 올라갑니다.' +
+          (r.error ? ' (' + r.error + ')' : ''), 'warn');
         return;
       }
       if (!r.exists) {
