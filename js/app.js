@@ -653,15 +653,18 @@
       list.appendChild(attachSelectable(item, p.id, p.name + ' 상세 보기'));
     });
 
+    // 레일 하단 합계는 누적 이익지급만 — 누적 성과보수는 화면에 표시하지 않는다
+    // (엑셀 다운로드에는 그대로 포함된다)
     var s = result.summary;
     var foot = el('rail-foot');
+    if (!(s.totalPayouts > 0)) {
+      foot.hidden = true;
+      return;
+    }
     foot.hidden = false;
     foot.innerHTML = '';
-    foot.appendChild(h('div', { class: 'rail-sum-label', text: '누적 성과보수' }));
-    foot.appendChild(h('div', { class: 'rail-sum-value', text: fmtWonAuto(s.totalFees) }));
-    if (s.totalPayouts > 0) {
-      foot.appendChild(h('div', { class: 'rail-sum-sub', text: '누적 이익지급 ' + fmtWonAuto(s.totalPayouts) }));
-    }
+    foot.appendChild(h('div', { class: 'rail-sum-label', text: '누적 이익지급' }));
+    foot.appendChild(h('div', { class: 'rail-sum-value', text: fmtWonAuto(s.totalPayouts) }));
   }
 
   // 원금대비 수익률 열: 최대 절대값 대비 폭의 미니 바 + 수치
@@ -872,7 +875,7 @@
     var paidOutNow = (p.contractFees || 0) + (p.contractPayouts || 0);
     var showFlowRet = carried || (p.totalFees + (p.totalPayouts || 0)) > 0.5;
 
-    // 4열 헤어라인 그리드 — 항상 8칸으로 채워 행 높이가 들쭉날쭉하지 않게 한다
+    // 4열 헤어라인 그리드. 누적 성과보수는 화면에서 빼고 엑셀에만 남긴다
     var cards = el('detail-cards');
     cards.innerHTML = '';
     cards.appendChild(metric('기준가', fmtNum(p.nav, 2), '1,000좌 기준'));
@@ -888,8 +891,6 @@
     cards.appendChild(showFlowRet
       ? metric('원금흐름대비 수익률', fmtPct(p.principalReturn), '전체 성과와 같은 기준 · 개설 이후', pctClass(p.principalReturn))
       : metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
-    cards.appendChild(metric('누적 성과보수', fmtWonAuto(p.totalFees),
-      p.totalPayouts > 0 ? '누적 이익지급 ' + fmtWonAuto(p.totalPayouts) : ''));
     if (showFlowRet) {
       cards.appendChild(metric('누적 성과 수익률', fmtPct(p.cumReturn), '보수수취·재계약 무관, 개설 이후', pctClass(p.cumReturn)));
       if (p.totalPayouts > 0 || p.lastMaturityDate) {
